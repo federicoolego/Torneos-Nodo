@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
+import { Lock } from 'lucide-react'
 import { configurado } from './lib/supabase'
 import { Alerta, Spinner } from './components/ui'
 import ListaPublica from './pages/publico/Lista'
@@ -10,7 +11,7 @@ const Admin = lazy(() => import('./pages/Admin'))
 export const logoUrl = () => `${import.meta.env.BASE_URL}logo-nodo.webp`
 
 export function Firma() {
-  return <p className="py-4 text-center text-xs text-noche/45">Desarrollado por Federico Olego</p>
+  return <p className="py-4 text-center text-xs text-noche/45"><span aria-hidden>🎾</span> Desarrollado por Federico Olego <span aria-hidden>🎾</span></p>
 }
 
 /** Ruta actual: '#/' (torneos publicados) · '#/torneo/<id>' · '#/admin' */
@@ -43,20 +44,20 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-30 bg-noche text-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <a href="#/" className="flex items-center gap-3">
             <img src={logoUrl()} alt="NODO Club de Pádel & Co." className="h-10 w-10 rounded-lg" />
             <span className="font-display text-xl font-bold leading-none">Torneos NODO</span>
+          </a>
+          <a href="#/admin" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/80 ring-1 ring-white/25 hover:bg-white/10 hover:text-white">
+            <Lock className="h-4 w-4" aria-hidden /> Admin
           </a>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">
         {m ? <TorneoPublico key={m[1]} id={m[1]} /> : <ListaPublica />}
       </main>
-      <footer className="pb-4">
-        <Firma />
-        <p className="-mt-3 text-center"><a href="#/admin" className="text-[11px] text-noche/30 hover:text-noche/60">Organizadores</a></p>
-      </footer>
+      <footer className="pb-4"><Firma /></footer>
     </div>
   )
 }

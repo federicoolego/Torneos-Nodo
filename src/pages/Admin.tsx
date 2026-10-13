@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LogOut } from 'lucide-react'
+import { Globe, LogOut } from 'lucide-react'
 import { alCerrarSesion, salir, sesionActiva } from '../lib/auth'
 import { vaciar } from '../lib/almacen'
 import { Spinner } from '../components/ui'
@@ -24,7 +24,18 @@ export default function Admin() {
   }, [])
 
   if (logueado === null) return <div className="grid min-h-screen place-items-center"><Spinner /></div>
-  if (!logueado) return <Login onOk={() => setLogueado(true)} />
+  if (!logueado) {
+    return (
+      <>
+        {/* volver a la página pública de torneos */}
+        <a href="#/" className="fixed right-4 top-4 z-40 inline-flex items-center gap-1.5 rounded-lg bg-white/90 px-3 py-1.5 text-sm font-semibold text-noche shadow ring-1 ring-noche/10 hover:bg-white"
+          style={{ top: 'max(1rem, env(safe-area-inset-top))' }}>
+          <Globe className="h-4 w-4" aria-hidden /> Torneos
+        </a>
+        <Login onOk={() => setLogueado(true)} />
+      </>
+    )
+  }
   return (
     <div className="min-h-screen pb-28">
       <header className="sticky top-0 z-30 bg-noche text-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
@@ -33,9 +44,16 @@ export default function Admin() {
             <img src={logoUrl()} alt="NODO Club de Pádel & Co." className="h-10 w-10 rounded-lg" />
             <span className="font-display text-xl font-bold leading-none">Generador de Torneos</span>
           </button>
-          <button onClick={async () => { await vaciar(); await salir(); setLogueado(false) }} aria-label="Cerrar sesión" className="text-white/70 hover:text-white">
-            <LogOut className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-3">
+            {/* volver a la página pública de torneos */}
+            <button onClick={async () => { await vaciar(); window.location.hash = '#/' }}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/80 ring-1 ring-white/25 hover:bg-white/10 hover:text-white">
+              <Globe className="h-4 w-4" aria-hidden /> Torneos
+            </button>
+            <button onClick={async () => { await vaciar(); await salir(); setLogueado(false) }} aria-label="Cerrar sesión" title="Cerrar sesión" className="text-white/70 hover:text-white">
+              <LogOut className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">

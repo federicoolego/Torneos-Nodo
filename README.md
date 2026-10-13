@@ -36,10 +36,10 @@ compu que no permite compartir archivos, las descarga para adjuntarlas a mano.
 
 ## Publicar
 
-1. Subí el contenido de esta carpeta (incluida `.github`) al repo `Generar-Torneo-Padel-Nodo`, rama `main`.
+1. Subí el contenido de esta carpeta (incluida `.github`) al repo `Torneos-Nodo`, rama `main`.
 2. **Settings → Pages → Source: GitHub Actions**.
 3. **Settings → Environments → github-pages → Environment variables**: `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`.
-4. Cada push publica en `https://<usuario>.github.io/Generar-Torneo-Padel-Nodo/`.
+4. Cada push publica en `https://<usuario>.github.io/Torneos-Nodo/`.
 
 Con dominio propio, cambiá en `.github/workflows/deploy.yml` la línea `BASE_PATH` por `BASE_PATH: /`.
 
