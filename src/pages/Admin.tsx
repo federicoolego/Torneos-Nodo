@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Globe, LogOut } from 'lucide-react'
+import { Globe, LogOut, Settings, Users } from 'lucide-react'
 import { alCerrarSesion, salir, sesionActiva } from '../lib/auth'
 import { vaciar } from '../lib/almacen'
 import { Spinner } from '../components/ui'
@@ -7,11 +7,15 @@ import { nuevaCategoria, type Categoria } from '../lib/torneo'
 import Login from './Login'
 import Inicio from './Inicio'
 import Editor from './Editor'
-import { Firma, logoUrl } from '../App'
+import { Firma, logoUrl, useRuta } from '../App'
+import Jugadores from './Jugadores'
 
 /** Panel de organizadores (#/admin): login + armado de torneos */
 export default function Admin() {
   const [logueado, setLogueado] = useState<boolean | null>(null)
+  const ruta = useRuta()
+  const enJugadores = ruta.startsWith('#/admin/jugadores')
+  const [menu, setMenu] = useState(false)
   const [abierta, setAbierta] = useState<string | null>(null)
   // torneo nuevo todavía sin guardar: se crea en la base recién con los datos obligatorios completos
   const [nuevo, setNuevo] = useState<Categoria | null>(null)
@@ -40,7 +44,7 @@ export default function Admin() {
     <div className="min-h-screen pb-28">
       <header className="sticky top-0 z-30 bg-noche text-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
-          <button onClick={async () => { await vaciar(); abrir(null) }} className="flex items-center gap-3 text-left">
+          <button onClick={async () => { await vaciar(); abrir(null); window.location.hash = '#/admin' }} className="flex items-center gap-3 text-left">
             <img src={logoUrl()} alt="NODO Club de Pádel & Co." className="h-10 w-10 rounded-lg" />
             <span className="font-display text-xl font-bold leading-none">Generador de Torneos</span>
           </button>
@@ -50,6 +54,20 @@ export default function Admin() {
               className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/80 ring-1 ring-white/25 hover:bg-white/10 hover:text-white">
               <Globe className="h-4 w-4" aria-hidden /> Torneos
             </button>
+            {/* configuración: por ahora, el padrón de jugadores */}
+            <div className="relative">
+              <button onClick={() => setMenu(!menu)} aria-label="Configuración" title="Configuración" aria-expanded={menu} className="text-white/70 hover:text-white">
+                <Settings className="h-5 w-5" />
+              </button>
+              {menu && (
+                <div className="absolute right-0 top-8 z-40 w-48 overflow-hidden rounded-lg bg-white py-1 text-sm text-noche shadow-lg ring-1 ring-noche/10" onMouseLeave={() => setMenu(false)}>
+                  <button onClick={async () => { setMenu(false); await vaciar(); abrir(null); window.location.hash = '#/admin/jugadores' }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-vidrio">
+                    <Users className="h-4 w-4 text-cancha" aria-hidden /> Jugadores
+                  </button>
+                </div>
+              )}
+            </div>
             <button onClick={async () => { await vaciar(); await salir(); setLogueado(false) }} aria-label="Cerrar sesión" title="Cerrar sesión" className="text-white/70 hover:text-white">
               <LogOut className="h-5 w-5" />
             </button>
@@ -57,7 +75,7 @@ export default function Admin() {
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">
-        {abierta ? <Editor key={abierta} id={abierta} inicial={nuevo ?? undefined} onVolver={() => abrir(null)} /> : <Inicio onAbrir={abrir} onNuevo={crear} />}
+        {enJugadores ? <Jugadores /> : abierta ? <Editor key={abierta} id={abierta} inicial={nuevo ?? undefined} onVolver={() => abrir(null)} /> : <Inicio onAbrir={abrir} onNuevo={crear} />}
       </main>
       <Firma />
     </div>

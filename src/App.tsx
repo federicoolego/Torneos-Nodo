@@ -15,7 +15,7 @@ export function Firma() {
 }
 
 /** Ruta actual: '#/' (torneos publicados) · '#/torneo/<id>' · '#/admin' */
-function useRuta() {
+export function useRuta() {
   const [ruta, setRuta] = useState(window.location.hash)
   useEffect(() => {
     const f = () => { setRuta(window.location.hash); window.scrollTo(0, 0) }

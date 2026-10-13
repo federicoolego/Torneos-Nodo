@@ -6,7 +6,7 @@ import { claveJugador, nombrePropio } from '../lib/torneo'
  * Buscador de jugadores del padrón. Si el jugador no existe, se agrega desde acá mismo
  * (se da de alta en la base al guardar la pareja). Busca sin importar mayúsculas ni tildes.
  */
-export default function SelectorJugador({ id, valor, onChange, padron, excluir, disabled, placeholder = 'Buscá o agregá un jugador' }: {
+export default function SelectorJugador({ id, valor, onChange, padron, excluir, disabled, placeholder = 'Buscá o agregá un jugador', permitirNuevo = true }: {
   id?: string
   valor: string
   onChange: (nombre: string) => void
@@ -16,6 +16,8 @@ export default function SelectorJugador({ id, valor, onChange, padron, excluir, 
   excluir?: string
   disabled?: boolean
   placeholder?: string
+  /** ofrecer "Agregar … como jugador nuevo" */
+  permitirNuevo?: boolean
 }) {
   const [abierto, setAbierto] = useState(false)
   const [activo, setActivo] = useState(0)
@@ -30,7 +32,7 @@ export default function SelectorJugador({ id, valor, onChange, padron, excluir, 
     lista.sort((a, b) => Number(!claveJugador(a).startsWith(q)) - Number(!claveJugador(b).startsWith(q)) || a.localeCompare(b, 'es'))
     return lista.slice(0, 8)
   }, [padron, q, excluir])
-  const puedeAgregar = !!q && !exacto && q.length >= 3
+  const puedeAgregar = permitirNuevo && !!q && !exacto && q.length >= 3
   const total = opciones.length + (puedeAgregar ? 1 : 0)
 
   useEffect(() => { setActivo(0) }, [q])
