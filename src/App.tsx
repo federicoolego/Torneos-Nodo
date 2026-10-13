@@ -28,7 +28,7 @@ export function useRuta() {
 export default function App() {
   const ruta = useRuta()
   const admin = ruta.startsWith('#/admin')
-  useEffect(() => { document.title = admin ? 'Generador de Torneos · NODO' : 'Torneos · NODO' }, [admin])
+  useEffect(() => { document.title = admin ? 'Torneos · NODO · Admin' : 'Torneos · NODO' }, [admin])
 
   if (!configurado) {
     return (
