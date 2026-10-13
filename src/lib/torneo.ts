@@ -45,7 +45,28 @@ export interface Categoria {
   resultadosPlayoff: Record<string, Resultado>
   /** orden definido a mano ante un empate total en una zona: zona → ids de pareja */
   desempates: Record<string, string[]>
+  /** visible en la página pública (lo decide el admin; requiere zonas armadas) */
+  publicado: boolean
+  /** cancelado a mano por el admin (el resto de los estados se calcula solo) */
+  cancelado: boolean
   actualizado: number
+}
+
+/** Estado del torneo: pendiente (sin resultados) → en curso (primer resultado) → finalizado (hay campeón); cancelado es manual */
+export type EstadoTorneo = 'pendiente' | 'en_curso' | 'finalizado' | 'cancelado'
+export const ESTADOS: { id: EstadoTorneo; nombre: string }[] = [
+  { id: 'en_curso', nombre: 'En curso' },
+  { id: 'pendiente', nombre: 'Pendiente' },
+  { id: 'finalizado', nombre: 'Finalizado' },
+  { id: 'cancelado', nombre: 'Cancelado' },
+]
+export const nombreEstado = (e: EstadoTorneo) => ESTADOS.find((x) => x.id === e)?.nombre ?? e
+
+/** Zonas armadas: todas de 3 o 4 parejas y todas las parejas ubicadas una sola vez (mínimo para publicar) */
+export function zonasArmadas(c: Pick<Categoria, 'zonas' | 'parejas'>): boolean {
+  const ubicadas = new Set(c.zonas.flat())
+  return c.zonas.length > 0 && c.zonas.every((z) => z.length === 3 || z.length === 4) &&
+    c.parejas.every((p) => ubicadas.has(p.id)) && c.zonas.flat().length === ubicadas.size
 }
 
 // ------------------------------------------------------------------ formatos de partido
@@ -96,6 +117,7 @@ export function normalizar(c: Categoria): Categoria {
     horariosZona: c.horariosZona ?? {}, horariosPlayoff: c.horariosPlayoff ?? {},
     formatos: { ...FORMATOS_DEFECTO, ...(c.formatos ?? {}) },
     resultadosZona: c.resultadosZona ?? {}, resultadosPlayoff: c.resultadosPlayoff ?? {}, desempates: c.desempates ?? {},
+    publicado: c.publicado ?? false, cancelado: c.cancelado ?? false,
   }
 }
 
@@ -123,7 +145,7 @@ export const datosCompletos = (c: Pick<Categoria, 'torneo' | 'fechaInicio' | 'fe
 export function nuevaCategoria(): Categoria {
   return {
     id: nuevoId(), torneo: '', fechaInicio: '', fechaFin: '', observacion: '', inscripcion: '', premio: '', parejas: [], zonas: [],
-    horariosZona: {}, cuadro: null, horariosPlayoff: {}, formatos: { ...FORMATOS_DEFECTO }, resultadosZona: {}, resultadosPlayoff: {}, desempates: {},
+    horariosZona: {}, cuadro: null, horariosPlayoff: {}, formatos: { ...FORMATOS_DEFECTO }, resultadosZona: {}, resultadosPlayoff: {}, desempates: {}, publicado: false, cancelado: false,
     actualizado: Date.now(),
   }
 }

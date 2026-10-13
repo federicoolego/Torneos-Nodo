@@ -1,0 +1,47 @@
+import { useEffect, useState } from 'react'
+import { LogOut } from 'lucide-react'
+import { alCerrarSesion, salir, sesionActiva } from '../lib/auth'
+import { vaciar } from '../lib/almacen'
+import { Spinner } from '../components/ui'
+import { nuevaCategoria, type Categoria } from '../lib/torneo'
+import Login from './Login'
+import Inicio from './Inicio'
+import Editor from './Editor'
+import { Firma, logoUrl } from '../App'
+
+/** Panel de organizadores (#/admin): login + armado de torneos */
+export default function Admin() {
+  const [logueado, setLogueado] = useState<boolean | null>(null)
+  const [abierta, setAbierta] = useState<string | null>(null)
+  // torneo nuevo todavía sin guardar: se crea en la base recién con los datos obligatorios completos
+  const [nuevo, setNuevo] = useState<Categoria | null>(null)
+  const abrir = (id: string | null) => { setNuevo(null); setAbierta(id) }
+  const crear = () => { const c = nuevaCategoria(); setNuevo(c); setAbierta(c.id) }
+
+  useEffect(() => {
+    sesionActiva().then(setLogueado)
+    return alCerrarSesion(() => setLogueado(false))
+  }, [])
+
+  if (logueado === null) return <div className="grid min-h-screen place-items-center"><Spinner /></div>
+  if (!logueado) return <Login onOk={() => setLogueado(true)} />
+  return (
+    <div className="min-h-screen pb-28">
+      <header className="sticky top-0 z-30 bg-noche text-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
+          <button onClick={async () => { await vaciar(); abrir(null) }} className="flex items-center gap-3 text-left">
+            <img src={logoUrl()} alt="NODO Club de Pádel & Co." className="h-10 w-10 rounded-lg" />
+            <span className="font-display text-xl font-bold leading-none">Generador de Torneos</span>
+          </button>
+          <button onClick={async () => { await vaciar(); await salir(); setLogueado(false) }} aria-label="Cerrar sesión" className="text-white/70 hover:text-white">
+            <LogOut className="h-5 w-5" />
+          </button>
+        </div>
+      </header>
+      <main className="mx-auto max-w-5xl px-4 py-6">
+        {abierta ? <Editor key={abierta} id={abierta} inicial={nuevo ?? undefined} onVolver={() => abrir(null)} /> : <Inicio onAbrir={abrir} onNuevo={crear} />}
+      </main>
+      <Firma />
+    </div>
+  )
+}

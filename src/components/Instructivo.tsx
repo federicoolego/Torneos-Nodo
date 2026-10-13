@@ -30,6 +30,7 @@ export default function Instructivo() {
               <li><strong>Zonas:</strong> sorteo automático, acomodás a mano lo que necesites y le ponés día y hora a cada partido (con “Completar automático” se reparten solos). Una zona con resultados ya no se puede modificar.</li>
               <li><strong>Playoff:</strong> el cuadro se arma solo con los clasificados (1° Zona A vs 2° Zona B…) y le ponés día y hora a la primera ronda. Con el primer resultado de playoff, los cruces quedan fijos.</li>
               <li><strong>Partidos:</strong> cargás los resultados; las posiciones de cada zona y los cruces del playoff se completan solos. Los partidos que faltan se pueden reprogramar (siempre a una fecha y hora futuras). También está el cronograma en PDF con los resultados.</li>
+              <li><strong>Publicar:</strong> con las zonas armadas, el botón “Publicar” (arriba, en cada torneo) lo muestra en la página pública de torneos para los jugadores, que se actualiza sola con horarios y resultados. El estado (Pendiente, En curso, Finalizado) se calcula solo; “Cancelar torneo” es manual.</li>
               <li><strong>Imágenes:</strong> zonas y playoff (con nombres y resultados a medida que se cargan) listas para compartir por WhatsApp (también con el botón verde de abajo a la derecha).</li>
             </ol>
             <p className="mt-2 text-xs text-noche/60">Cada categoría es un torneo aparte. Para otra categoría, usá “Duplicar” y cambiá el nombre y las parejas.</p>

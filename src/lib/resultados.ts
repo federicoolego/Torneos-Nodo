@@ -1,7 +1,7 @@
 // Resultados: validación según el formato, tabla de cada zona y avance del playoff
 import {
   INSTANCIAS, LETRAS, clasificados, erroresCuadro, etiquetaSlot, instanciaDeRonda, instanciaDeTam, partidosDeZona, rondasPlayoff, tamCuadro,
-  type Categoria, type Formato, type Instancia, type Resultado,
+  type Categoria, type EstadoTorneo, type Formato, type Instancia, type Resultado,
 } from './torneo'
 
 // ------------------------------------------------------------------ validación
@@ -350,4 +350,12 @@ export function zonasBloqueadas(cat: Categoria): boolean[] {
 /** Claves de partido (horariosZona / horariosPlayoff) que ya tienen resultado: su horario no se reprograma */
 export function clavesJugadas(cat: Categoria): { zona: Set<string>; playoff: Set<string> } {
   return { zona: new Set(Object.keys(cat.resultadosZona)), playoff: new Set(Object.keys(cat.resultadosPlayoff)) }
+}
+
+/** Estado del torneo según lo cargado: cancelado (manual) · finalizado (hay campeón) · en curso (algún resultado) · pendiente */
+export function estadoTorneo(cat: Categoria, campeon?: string | null): EstadoTorneo {
+  if (cat.cancelado) return 'cancelado'
+  if ((campeon !== undefined ? campeon : resolverTorneo(cat).campeon)) return 'finalizado'
+  if (Object.keys(cat.resultadosZona).length || Object.keys(cat.resultadosPlayoff).length) return 'en_curso'
+  return 'pendiente'
 }

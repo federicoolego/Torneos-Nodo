@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, CloudUpload, Loader2, Share2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, CloudUpload, Copy, ExternalLink, Globe, Loader2, RotateCcw, Share2 } from 'lucide-react'
 import { cargar, escucharGuardado, estadoGuardado, guardar, vaciar, type EstadoGuardado } from '../lib/almacen'
 import {
-  MAX_PAREJAS, MIN_PAREJAS, datosCompletos, erroresCuadro, firmaZonas, horarioCompleto, partidosDeZona, rangoFechas, rondasPlayoff, type Categoria,
+  MAX_PAREJAS, MIN_PAREJAS, datosCompletos, erroresCuadro, nombreEstado, zonasArmadas, firmaZonas, horarioCompleto, partidosDeZona, rangoFechas, rondasPlayoff, type Categoria,
 } from '../lib/torneo'
-import { resolverTorneo } from '../lib/resultados'
-import { Alerta, Button, Modal, Spinner } from '../components/ui'
+import { estadoTorneo, resolverTorneo } from '../lib/resultados'
+import { Alerta, Badge, Button, Modal, Spinner } from '../components/ui'
 import Compartir from '../components/Compartir'
 import { PasoDatos, PasoParejas } from '../components/pasos/Datos'
 import PasoZonas from '../components/pasos/Zonas'
@@ -64,12 +64,24 @@ export default function Editor({ id, inicial, onVolver }: { id: string; inicial?
 
   const volver = async () => { await vaciar(); onVolver() }
 
+  // sugerencia (una sola vez por torneo) de publicarlo cuando las zonas quedan armadas
+  const [sugerirPublicar, setSugerirPublicar] = useState(false)
+  const claveSugerencia = `nodo-generador:sugerencia-publicar:${id}`
+  const zonasListas = !!cat && zonasArmadas(cat)
+  useEffect(() => {
+    if (!cat || !zonasListas || cat.publicado || !persistido.current) return
+    try { if (localStorage.getItem(claveSugerencia)) return } catch { /* nada */ }
+    setSugerirPublicar(true)
+  }, [zonasListas]) // eslint-disable-line react-hooks/exhaustive-deps
+  const cerrarSugerencia = () => {
+    try { localStorage.setItem(claveSugerencia, '1') } catch { /* nada */ }
+    setSugerirPublicar(false)
+  }
+
   // estado de cada paso
   const estado = useMemo(() => {
     if (!cat) return { ok: PASOS.map(() => false), listo: [false, false, false], avisos: [] as string[] }
-    const ubicadas = new Set(cat.zonas.flat())
-    const zonasOk = cat.zonas.length > 0 && cat.zonas.every((z) => z.length === 3 || z.length === 4) &&
-      cat.parejas.every((p) => ubicadas.has(p.id)) && cat.zonas.flat().length === ubicadas.size
+    const zonasOk = zonasArmadas(cat)
     const partidosZ = zonasOk ? cat.zonas.flatMap((z, zi) => partidosDeZona(z, zi, () => '')) : []
     const sinHorarioZ = partidosZ.filter((p) => !horarioCompleto(cat.horariosZona[p.key])).length
     const cuadroOk = zonasOk && !!cat.cuadro && erroresCuadro(cat.cuadro, cat.zonas).length === 0
@@ -119,9 +131,11 @@ export default function Editor({ id, inicial, onVolver }: { id: string; inicial?
         {persistido.current ? <IndicadorGuardado {...guardado} /> : <span className="text-xs text-noche/55">Sin guardar · se crea al completar nombre y fechas</span>}
       </div>
       <h1 className="font-display text-4xl font-bold leading-none">{cat.torneo || 'Nuevo torneo'}</h1>
-      <p className="mb-5 mt-1 text-sm text-noche/60">
+      <p className="mt-1 text-sm text-noche/60">
         {[rangoFechas(cat.fechaInicio, cat.fechaFin), `${cat.parejas.length} parejas`].filter(Boolean).join(' · ')}
       </p>
+      {persistido.current && <Publicacion cat={cat} cambiar={cambiar} />}
+      <div className="mb-5" />
 
       <nav className="mb-6 flex gap-1 overflow-x-auto rounded-xl bg-white p-1 ring-1 ring-noche/10" aria-label="Pasos">
         {PASOS.map((t, i) => (
@@ -160,6 +174,13 @@ export default function Editor({ id, inicial, onVolver }: { id: string; inicial?
       >
         <Share2 className="h-7 w-7" />
       </button>
+      <Modal abierto={sugerirPublicar} titulo="¿Publicamos el torneo?" onCerrar={cerrarSugerencia}>
+        <p className="text-sm text-noche/75">Las zonas ya están armadas. Si lo publicás, los jugadores pueden ver las zonas, los partidos y el playoff desde la página de torneos, y se van actualizando a medida que cargás horarios y resultados.</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variante="secundario" onClick={cerrarSugerencia}>Más tarde</Button>
+          <Button onClick={() => { cambiar((c) => ({ ...c, publicado: true })); cerrarSugerencia() }}><Globe className="h-4 w-4" aria-hidden /> Publicar</Button>
+        </div>
+      </Modal>
       <Modal abierto={compartir} titulo="Compartir por WhatsApp" onCerrar={() => setCompartir(false)} ancho="max-w-3xl">
         {compartir && <Compartir cat={cat} avisos={estado.avisos} />}
       </Modal>
@@ -182,5 +203,55 @@ function IndicadorGuardado({ estado, error }: { estado: EstadoGuardado; error: s
     <span className="inline-flex items-center gap-1 text-xs text-noche/60">
       {estado === 'guardando' ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <CloudUpload className="h-3.5 w-3.5" aria-hidden />} Guardando…
     </span>
+  )
+}
+
+/** Link público del torneo (página de jugadores) */
+export const linkPublico = (id: string) => `${window.location.origin}${import.meta.env.BASE_URL}#/torneo/${id}`
+
+/** Estado del torneo, publicar / despublicar y cancelar */
+function Publicacion({ cat, cambiar }: { cat: Categoria; cambiar: (f: (c: Categoria) => Categoria) => void }) {
+  const estado = estadoTorneo(cat)
+  const puede = zonasArmadas(cat)
+  const [copiado, setCopiado] = useState(false)
+  const link = linkPublico(cat.id)
+  const copiar = async () => {
+    try { await navigator.clipboard.writeText(link); setCopiado(true); setTimeout(() => setCopiado(false), 2000) } catch { prompt('Copiá el link:', link) }
+  }
+  const tono = estado === 'en_curso' ? 'verde' : estado === 'finalizado' ? 'azul' : estado === 'cancelado' ? 'rojo' : 'ambar'
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-white p-2.5 ring-1 ring-noche/10">
+      <Badge tono={tono}>{nombreEstado(estado)}</Badge>
+      {cat.publicado ? <Badge tono="pelota"><Globe className="mr-1 h-3 w-3" aria-hidden /> Publicado</Badge> : <Badge>No publicado</Badge>}
+      <div className="ml-auto flex flex-wrap gap-2">
+        {cat.publicado ? (
+          <>
+            <Button variante="secundario" className="px-3 py-1.5 text-xs" onClick={copiar}><Copy className="h-3.5 w-3.5" aria-hidden /> {copiado ? 'Copiado' : 'Copiar link'}</Button>
+            <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-cancha ring-1 ring-cancha/30 hover:bg-cancha-suave">
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden /> Ver página
+            </a>
+            <Button variante="fantasma" className="px-3 py-1.5 text-xs"
+              onClick={() => confirm('¿Despublicar? Los jugadores dejan de verlo hasta que lo publiques de nuevo.') && cambiar((c) => ({ ...c, publicado: false }))}>
+              Despublicar
+            </Button>
+          </>
+        ) : (
+          <Button className="px-3 py-1.5 text-xs" disabled={!puede} title={puede ? undefined : 'Para publicar, primero armá las zonas'}
+            onClick={() => cambiar((c) => ({ ...c, publicado: true }))}>
+            <Globe className="h-3.5 w-3.5" aria-hidden /> Publicar
+          </Button>
+        )}
+        {cat.cancelado ? (
+          <Button variante="fantasma" className="px-3 py-1.5 text-xs" onClick={() => cambiar((c) => ({ ...c, cancelado: false }))}>
+            <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Reactivar
+          </Button>
+        ) : (
+          <Button variante="fantasma" className="px-3 py-1.5 text-xs text-red"
+            onClick={() => confirm('¿Cancelar el torneo? Queda marcado como Cancelado (si está publicado, los jugadores lo ven así). Se puede reactivar.') && cambiar((c) => ({ ...c, cancelado: true }))}>
+            <Ban className="h-3.5 w-3.5" aria-hidden /> Cancelar torneo
+          </Button>
+        )}
+      </div>
+    </div>
   )
 }

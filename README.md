@@ -21,6 +21,12 @@ El **botón verde flotante** (abajo a la derecha) genera las imágenes desde cua
 comparte. En el celular abre el menú de compartir del sistema, donde se elige WhatsApp. En una
 compu que no permite compartir archivos, las descarga para adjuntarlas a mano.
 
+## Página pública y panel de organizadores
+
+- `…/` → torneos publicados (para jugadores, sin login). `…/#/torneo/<id>` → un torneo (link para compartir).
+- `…/#/admin` → panel de organizadores (login con usuario NODO).
+- La página pública lee solo con las funciones `torneos_nodo_publicos()` y `torneos_nodo_publico(id)` (ver `supabase/torneos_nodo_publico.sql`): solo torneos publicados y sin datos internos.
+
 ## Base de datos y acceso
 
 1. En el SQL Editor de Supabase corré `supabase/torneos_nodo.sql` (se puede volver a correr).

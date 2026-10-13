@@ -1,13 +1,11 @@
-import { useEffect, useState } from 'react'
-import { LogOut } from 'lucide-react'
-import { alCerrarSesion, salir, sesionActiva } from './lib/auth'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { configurado } from './lib/supabase'
-import { vaciar } from './lib/almacen'
 import { Alerta, Spinner } from './components/ui'
-import { nuevaCategoria, type Categoria } from './lib/torneo'
-import Login from './pages/Login'
-import Inicio from './pages/Inicio'
-import Editor from './pages/Editor'
+import ListaPublica from './pages/publico/Lista'
+import TorneoPublico from './pages/publico/Torneo'
+
+// El panel de organizadores se carga solo al entrar a #/admin: la página pública queda liviana
+const Admin = lazy(() => import('./pages/Admin'))
 
 export const logoUrl = () => `${import.meta.env.BASE_URL}logo-nodo.webp`
 
@@ -15,19 +13,21 @@ export function Firma() {
   return <p className="py-4 text-center text-xs text-noche/45">Desarrollado por Federico Olego</p>
 }
 
-export default function App() {
-  const [logueado, setLogueado] = useState<boolean | null>(null)
-  const [abierta, setAbierta] = useState<string | null>(null)
-  // torneo nuevo todavía sin guardar: se crea en la base recién con los datos obligatorios completos
-  const [nuevo, setNuevo] = useState<Categoria | null>(null)
-  const abrir = (id: string | null) => { setNuevo(null); setAbierta(id) }
-  const crear = () => { const c = nuevaCategoria(); setNuevo(c); setAbierta(c.id) }
-
+/** Ruta actual: '#/' (torneos publicados) · '#/torneo/<id>' · '#/admin' */
+function useRuta() {
+  const [ruta, setRuta] = useState(window.location.hash)
   useEffect(() => {
-    if (!configurado) return
-    sesionActiva().then(setLogueado)
-    return alCerrarSesion(() => setLogueado(false))
+    const f = () => { setRuta(window.location.hash); window.scrollTo(0, 0) }
+    window.addEventListener('hashchange', f)
+    return () => window.removeEventListener('hashchange', f)
   }, [])
+  return ruta
+}
+
+export default function App() {
+  const ruta = useRuta()
+  const admin = ruta.startsWith('#/admin')
+  useEffect(() => { document.title = admin ? 'Generador de Torneos · NODO' : 'Torneos · NODO' }, [admin])
 
   if (!configurado) {
     return (
@@ -36,25 +36,27 @@ export default function App() {
       </div>
     )
   }
-  if (logueado === null) return <div className="grid min-h-screen place-items-center"><Spinner /></div>
-  if (!logueado) return <Login onOk={() => setLogueado(true)} />
+  if (admin) {
+    return <Suspense fallback={<div className="grid min-h-screen place-items-center"><Spinner /></div>}><Admin /></Suspense>
+  }
+  const m = ruta.match(/^#\/torneo\/([0-9a-f-]{36})/i)
   return (
-    <div className="min-h-screen pb-28">
+    <div className="min-h-screen">
       <header className="sticky top-0 z-30 bg-noche text-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
-          <button onClick={async () => { await vaciar(); abrir(null) }} className="flex items-center gap-3 text-left">
+        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+          <a href="#/" className="flex items-center gap-3">
             <img src={logoUrl()} alt="NODO Club de Pádel & Co." className="h-10 w-10 rounded-lg" />
-            <span className="font-display text-xl font-bold leading-none">Generador de Torneos</span>
-          </button>
-          <button onClick={async () => { await vaciar(); await salir(); setLogueado(false) }} aria-label="Cerrar sesión" className="text-white/70 hover:text-white">
-            <LogOut className="h-5 w-5" />
-          </button>
+            <span className="font-display text-xl font-bold leading-none">Torneos NODO</span>
+          </a>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">
-        {abierta ? <Editor key={abierta} id={abierta} inicial={nuevo ?? undefined} onVolver={() => abrir(null)} /> : <Inicio onAbrir={abrir} onNuevo={crear} />}
+        {m ? <TorneoPublico key={m[1]} id={m[1]} /> : <ListaPublica />}
       </main>
-      <Firma />
+      <footer className="pb-4">
+        <Firma />
+        <p className="-mt-3 text-center"><a href="#/admin" className="text-[11px] text-noche/30 hover:text-noche/60">Organizadores</a></p>
+      </footer>
     </div>
   )
 }

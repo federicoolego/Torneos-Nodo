@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { CloudUpload, Copy, Plus, Trash2 } from 'lucide-react'
 import { duplicar, eliminar, listar, migrarLocales, torneosLocales, type ResumenTorneo } from '../lib/almacen'
-import { rangoFechas } from '../lib/torneo'
-import { Alerta, Button, Spinner, Titulo, Vacio } from '../components/ui'
+import { nombreEstado, rangoFechas } from '../lib/torneo'
+import { Alerta, Badge, Button, Spinner, Titulo, Vacio } from '../components/ui'
 import Instructivo from '../components/Instructivo'
 
 export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => void; onNuevo: () => void }) {
@@ -55,6 +55,10 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
             <li key={c.id} className="flex items-center gap-3 rounded-xl bg-white p-4 ring-1 ring-noche/10">
               <button onClick={() => onAbrir(c.id)} className="min-w-0 flex-1 text-left">
                 <p className="truncate font-display text-xl font-bold">{c.torneo || 'Torneo sin nombre'}</p>
+                <div className="mt-0.5 flex flex-wrap gap-1">
+                  <Badge tono={c.estado === 'en_curso' ? 'verde' : c.estado === 'finalizado' ? 'azul' : c.estado === 'cancelado' ? 'rojo' : 'ambar'}>{nombreEstado(c.estado)}</Badge>
+                  {c.publicado && <Badge tono="pelota">Publicado</Badge>}
+                </div>
                 <p className="truncate text-sm text-noche/65">{c.fechaInicio ? rangoFechas(c.fechaInicio, c.fechaFin) : 'Sin fechas'}</p>
                 <p className="mt-1 text-xs text-noche/50">
                   {c.parejas} parejas · {c.zonas ? `${c.zonas} zonas` : 'sin zonas'}{c.playoff ? ' · playoff armado' : ''} ·{' '}

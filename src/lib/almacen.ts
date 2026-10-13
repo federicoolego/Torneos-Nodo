@@ -2,21 +2,22 @@
 // En memoria se sigue trabajando con `Categoria`; acá se traduce a filas y se sincroniza
 // solo lo que cambió (por fila), así dos personas cargando resultados de partidos distintos no se pisan.
 import { supabase, T } from './supabase'
-import { evaluar } from './resultados'
+import { estadoTorneo, evaluar, resolverTorneo } from './resultados'
 import {
   FORMATOS_DEFECTO, INSTANCIAS, esUuid, instanciaDeRonda, jugadoresDe, normalizar, nuevoId,
-  type Categoria, type Formato, type Horario, type Instancia, type Resultado, type Slot,
+  type Categoria, type EstadoTorneo, type Formato, type Horario, type Instancia, type Resultado, type Slot,
 } from './torneo'
 
 // ------------------------------------------------------------------ filas
 
-interface FilaTorneo {
+export interface FilaTorneo {
   id: string; nombre: string; premio: string; fecha_inicio: string | null; fecha_fin: string | null
   inscripcion: number | null; observacion: string; cant_zonas: number; cuadro: (Slot | null)[][] | null; desempates: Record<string, string[]>
+  publicado: boolean; estado: EstadoTorneo; campeon: string | null
 }
-interface FilaPareja { id: string; torneo_id: string; orden: number; jugador1: string; jugador2: string; horario: string; zona: number | null; posicion: number | null }
-interface FilaInstancia { torneo_id: string; instancia: Instancia; formato: Formato }
-interface FilaPartido {
+export interface FilaPareja { id: string; torneo_id: string; orden: number; jugador1: string; jugador2: string; horario: string; zona: number | null; posicion: number | null }
+export interface FilaInstancia { torneo_id: string; instancia: Instancia; formato: Formato }
+export interface FilaPartido {
   torneo_id: string; clave: string; instancia: Instancia | null; fecha: string | null; hora: string | null; sede: string | null
   pareja_a: string | null; pareja_b: string | null; sets: [number, number][] | null; wo: 'a' | 'b' | null; resultado: string | null; ganador: string | null
 }
@@ -25,10 +26,13 @@ interface Filas { torneo: FilaTorneo; parejas: FilaPareja[]; instancias: FilaIns
 function aFilas(c: Categoria): Filas {
   const ids = new Set(c.parejas.map((p) => p.id))
   const valido = (id: string | undefined | null) => (id && ids.has(id) ? id : null)
+  const campeonId = resolverTorneo(c).campeon
   const torneo: FilaTorneo = {
     id: c.id, nombre: c.torneo, premio: c.premio, fecha_inicio: c.fechaInicio || null, fecha_fin: c.fechaFin || null,
     inscripcion: c.inscripcion ? Number(c.inscripcion) : null, observacion: c.observacion, cant_zonas: c.zonas.length,
     cuadro: c.cuadro, desempates: c.desempates,
+    // para la página pública: visible, estado calculado y nombre del campeón
+    publicado: c.publicado, estado: estadoTorneo(c, campeonId), campeon: campeonId ? c.parejas.find((p) => p.id === campeonId)?.nombre ?? null : null,
   }
   const parejas: FilaPareja[] = c.parejas.map((p, i) => {
     const [j1, j2] = jugadoresDe(p)
@@ -63,7 +67,7 @@ function aFilas(c: Categoria): Filas {
   return { torneo, parejas, instancias, partidos }
 }
 
-function desdeFilas(t: FilaTorneo & { actualizado?: string }, ps: FilaPareja[], is: FilaInstancia[], pts: FilaPartido[]): Categoria {
+export function desdeFilas(t: FilaTorneo & { actualizado?: string }, ps: FilaPareja[], is: FilaInstancia[], pts: FilaPartido[]): Categoria {
   const parejas = [...ps].sort((a, b) => a.orden - b.orden)
   const maxZona = Math.max(t.cant_zonas, ...parejas.map((p) => (p.zona ?? -1) + 1))
   const zonas: string[][] = Array.from({ length: maxZona }, (_, zi) =>
@@ -75,6 +79,7 @@ function desdeFilas(t: FilaTorneo & { actualizado?: string }, ps: FilaPareja[], 
     inscripcion: t.inscripcion != null ? String(t.inscripcion) : '', observacion: t.observacion,
     parejas: parejas.map((p) => ({ id: p.id, nombre: `${p.jugador1} / ${p.jugador2}`, jugador1: p.jugador1, jugador2: p.jugador2, horario: p.horario })),
     zonas, cuadro: t.cuadro, desempates: t.desempates ?? {}, formatos,
+    publicado: !!t.publicado, cancelado: t.estado === 'cancelado',
     horariosZona: {}, horariosPlayoff: {}, resultadosZona: {}, resultadosPlayoff: {},
     actualizado: t.actualizado ? Date.parse(t.actualizado) : Date.now(),
   }
@@ -201,17 +206,19 @@ export async function guardarAhora(c: Categoria) {
 export interface ResumenTorneo {
   id: string; torneo: string; fechaInicio: string; fechaFin: string
   parejas: number; zonas: number; playoff: boolean; actualizado: number
+  publicado: boolean; estado: EstadoTorneo
 }
 
 export async function listar(): Promise<ResumenTorneo[]> {
   const { data, error } = await supabase
     .from(T.torneos)
-    .select(`id, nombre, fecha_inicio, fecha_fin, cant_zonas, cuadro, actualizado, parejas:${T.parejas}(count)`)
+    .select(`id, nombre, fecha_inicio, fecha_fin, cant_zonas, cuadro, actualizado, publicado, estado, parejas:${T.parejas}(count)`)
     .order('actualizado', { ascending: false })
   if (error) throw new Error(error.message)
   return ((data ?? []) as unknown as (FilaTorneo & { actualizado: string; parejas: { count: number }[] })[]).map((t) => ({
     id: t.id, torneo: t.nombre, fechaInicio: t.fecha_inicio ?? '', fechaFin: t.fecha_fin ?? '',
     parejas: t.parejas?.[0]?.count ?? 0, zonas: t.cant_zonas, playoff: !!t.cuadro, actualizado: Date.parse(t.actualizado),
+    publicado: !!t.publicado, estado: t.estado ?? 'pendiente',
   }))
 }
 
@@ -229,7 +236,14 @@ async function traer(ids?: string[]): Promise<Categoria[]> {
       (i.data as FilaInstancia[]).filter((y) => y.torneo_id === x.id),
       (pt.data as FilaPartido[]).filter((y) => y.torneo_id === x.id),
     )
-    fotos.set(c.id, foto(aFilas(c)))
+    const f = aFilas(c)
+    fotos.set(c.id, foto(f))
+    // estado y campeón se calculan en la app: si en la base quedaron viejos (por ejemplo, torneos anteriores
+    // a la página pública), se actualizan solos al abrir el torneo
+    if (x.estado !== f.torneo.estado || (x.campeon ?? null) !== f.torneo.campeon) {
+      fotos.get(c.id)!.torneo = ''
+      guardar(c)
+    }
     return c
   })
 }
@@ -250,7 +264,7 @@ export async function eliminar(id: string) {
 export async function duplicar(id: string): Promise<Categoria> {
   const c = await cargar(id)
   if (!c) throw new Error('No se encontró el torneo.')
-  const copia = { ...conIdsNuevos(c, true), torneo: `${c.torneo} (copia)`, resultadosZona: {}, resultadosPlayoff: {}, desempates: {} }
+  const copia = { ...conIdsNuevos(c, true), torneo: `${c.torneo} (copia)`, resultadosZona: {}, resultadosPlayoff: {}, desempates: {}, publicado: false, cancelado: false }
   await guardarAhora(copia)
   return copia
 }
