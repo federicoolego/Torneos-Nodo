@@ -207,18 +207,35 @@ export interface ResumenTorneo {
   id: string; torneo: string; fechaInicio: string; fechaFin: string
   parejas: number; zonas: number; playoff: boolean; actualizado: number
   publicado: boolean; estado: EstadoTorneo
+  /** nombre de la pareja campeona (si terminó) */
+  campeon: string | null
+  /** jugadores inscriptos (para las estadísticas del panel) */
+  jugadores: string[]
 }
 
 export async function listar(): Promise<ResumenTorneo[]> {
   const { data, error } = await supabase
     .from(T.torneos)
-    .select(`id, nombre, fecha_inicio, fecha_fin, cant_zonas, cuadro, actualizado, publicado, estado, parejas:${T.parejas}(count)`)
+    .select(`id, nombre, fecha_inicio, fecha_fin, cant_zonas, cuadro, actualizado, publicado, estado, campeon, parejas:${T.parejas}(count)`)
     .order('actualizado', { ascending: false })
   if (error) throw new Error(error.message)
+  // jugadores de todos los torneos (para las estadísticas), de a 1000 filas
+  const jugadores = new Map<string, string[]>()
+  for (let desde = 0; ; desde += 1000) {
+    const r = await supabase.from(T.parejas).select('torneo_id, jugador1, jugador2').order('torneo_id').range(desde, desde + 999)
+    if (r.error) throw new Error(r.error.message)
+    for (const p of (r.data ?? []) as { torneo_id: string; jugador1: string; jugador2: string }[]) {
+      const l = jugadores.get(p.torneo_id) ?? []
+      l.push(p.jugador1, p.jugador2)
+      jugadores.set(p.torneo_id, l)
+    }
+    if ((r.data ?? []).length < 1000) break
+  }
   return ((data ?? []) as unknown as (FilaTorneo & { actualizado: string; parejas: { count: number }[] })[]).map((t) => ({
     id: t.id, torneo: t.nombre, fechaInicio: t.fecha_inicio ?? '', fechaFin: t.fecha_fin ?? '',
     parejas: t.parejas?.[0]?.count ?? 0, zonas: t.cant_zonas, playoff: !!t.cuadro, actualizado: Date.parse(t.actualizado),
     publicado: !!t.publicado, estado: t.estado ?? 'pendiente',
+    campeon: t.campeon ?? null, jugadores: (jugadores.get(t.id) ?? []).filter((j) => j.trim()),
   }))
 }
 

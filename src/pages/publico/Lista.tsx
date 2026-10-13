@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ChevronRight, Search, Ticket, Trophy, Users } from 'lucide-react'
 import { listarPublicos, normalizarTexto, type ResumenPublico } from '../../lib/publico'
-import { ESTADOS, formatoPesos, nombreEstado, rangoFechas, type EstadoTorneo } from '../../lib/torneo'
+import { ESTADOS, MESES, formatoPesos, nombreEstado, rangoFechas, type EstadoTorneo } from '../../lib/torneo'
 import { Alerta, Badge, Input, Select, Spinner, Vacio } from '../../components/ui'
 
-const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 /** En curso primero, después los que vienen, los terminados y los cancelados */
 const ORDEN: Record<EstadoTorneo, number> = { en_curso: 0, pendiente: 1, finalizado: 2, cancelado: 3 }
 

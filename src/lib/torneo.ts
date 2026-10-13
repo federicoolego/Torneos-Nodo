@@ -60,6 +60,7 @@ export const ESTADOS: { id: EstadoTorneo; nombre: string }[] = [
   { id: 'finalizado', nombre: 'Finalizado' },
   { id: 'cancelado', nombre: 'Cancelado' },
 ]
+export const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 export const nombreEstado = (e: EstadoTorneo) => ESTADOS.find((x) => x.id === e)?.nombre ?? e
 
 /** Zonas armadas: todas de 3 o 4 parejas y todas las parejas ubicadas una sola vez (mínimo para publicar) */
