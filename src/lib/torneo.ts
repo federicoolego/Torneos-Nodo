@@ -160,8 +160,11 @@ export function nombrePropio(t: string): string {
     .replace(/(^|[\s-])(\p{L})/gu, (_, sep: string, l: string) => sep + l.toLocaleUpperCase('es'))
 }
 
+/** Como se guarda en la base: MAYÚSCULAS y espacios normalizados ("Massot  grego" → "MASSOT GREGO") */
+export const mayusculas = (t: string) => t.trim().replace(/\s+/g, ' ').toLocaleUpperCase('es')
+
 /** Clave para comparar jugadores sin importar mayúsculas, tildes ni espacios */
-const claveJugador = (t: string) => t.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim()
+export const claveJugador = (t: string) => t.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim()
 
 /** Misma pareja = mismos dos jugadores, en cualquier orden */
 export const clavePareja = (j1: string, j2: string) => [claveJugador(j1), claveJugador(j2)].sort().join('|')

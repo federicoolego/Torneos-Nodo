@@ -4,7 +4,7 @@
 import { supabase, T } from './supabase'
 import { estadoTorneo, evaluar, resolverTorneo } from './resultados'
 import {
-  FORMATOS_DEFECTO, INSTANCIAS, esUuid, instanciaDeRonda, jugadoresDe, normalizar, nuevoId,
+  FORMATOS_DEFECTO, INSTANCIAS, esUuid, instanciaDeRonda, jugadoresDe, mayusculas, nombrePropio, normalizar, nuevoId,
   type Categoria, type EstadoTorneo, type Formato, type Horario, type Instancia, type Resultado, type Slot,
 } from './torneo'
 
@@ -38,7 +38,8 @@ function aFilas(c: Categoria): Filas {
     const [j1, j2] = jugadoresDe(p)
     const zi = c.zonas.findIndex((z) => z.includes(p.id))
     return {
-      id: p.id, torneo_id: c.id, orden: i, jugador1: j1, jugador2: j2, horario: p.horario ?? '',
+      // en la base, los nombres van en MAYÚSCULAS (el trigger además los da de alta en el padrón de jugadores)
+      id: p.id, torneo_id: c.id, orden: i, jugador1: mayusculas(j1), jugador2: mayusculas(j2), horario: p.horario ?? '',
       zona: zi >= 0 ? zi : null, posicion: zi >= 0 ? c.zonas[zi].indexOf(p.id) + 1 : null,
     }
   })
@@ -77,7 +78,11 @@ export function desdeFilas(t: FilaTorneo & { actualizado?: string }, ps: FilaPar
   const c: Categoria = {
     id: t.id, torneo: t.nombre, premio: t.premio ?? '', fechaInicio: t.fecha_inicio ?? '', fechaFin: t.fecha_fin ?? '',
     inscripcion: t.inscripcion != null ? String(t.inscripcion) : '', observacion: t.observacion,
-    parejas: parejas.map((p) => ({ id: p.id, nombre: `${p.jugador1} / ${p.jugador2}`, jugador1: p.jugador1, jugador2: p.jugador2, horario: p.horario })),
+    // en la app se muestran con mayúscula inicial: MASSOT GREGO → Massot Grego
+    parejas: parejas.map((p) => {
+      const j1 = nombrePropio(p.jugador1), j2 = nombrePropio(p.jugador2)
+      return { id: p.id, nombre: `${j1} / ${j2}`, jugador1: j1, jugador2: j2, horario: p.horario }
+    }),
     zonas, cuadro: t.cuadro, desempates: t.desempates ?? {}, formatos,
     publicado: !!t.publicado, cancelado: t.estado === 'cancelado',
     horariosZona: {}, horariosPlayoff: {}, resultadosZona: {}, resultadosPlayoff: {},
@@ -211,6 +216,18 @@ export interface ResumenTorneo {
   campeon: string | null
   /** jugadores inscriptos (para las estadísticas del panel) */
   jugadores: string[]
+}
+
+/** Padrón de jugadores (para el buscador al inscribir parejas), con mayúscula inicial */
+export async function listarJugadores(): Promise<string[]> {
+  const out: string[] = []
+  for (let desde = 0; ; desde += 1000) {
+    const r = await supabase.from(T.jugadores).select('nombre').order('nombre').range(desde, desde + 999)
+    if (r.error) throw new Error(r.error.message)
+    out.push(...((r.data ?? []) as { nombre: string }[]).map((j) => nombrePropio(j.nombre)))
+    if ((r.data ?? []).length < 1000) break
+  }
+  return out
 }
 
 export async function listar(): Promise<ResumenTorneo[]> {

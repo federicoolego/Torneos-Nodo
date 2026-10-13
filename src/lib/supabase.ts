@@ -21,4 +21,5 @@ export const T = {
   instancias: 'torneos_nodo_instancias',
   parejas: 'torneos_nodo_parejas',
   partidos: 'torneos_nodo_partidos',
+  jugadores: 'torneos_nodo_jugadores',
 } as const

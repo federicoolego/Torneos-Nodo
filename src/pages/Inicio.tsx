@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { BarChart3, CloudUpload, Copy, Medal, Plus, Search, Trash2, Trophy, Users } from 'lucide-react'
 import { duplicar, eliminar, listar, migrarLocales, torneosLocales, type ResumenTorneo } from '../lib/almacen'
-import { ESTADOS, MESES, nombreEstado, rangoFechas, type EstadoTorneo } from '../lib/torneo'
+import { ESTADOS, MESES, nombreEstado, nombrePropio, rangoFechas, type EstadoTorneo } from '../lib/torneo'
 import { normalizarTexto } from '../lib/publico'
 import { Alerta, Badge, Button, Input, Select, Spinner, Titulo, Vacio } from '../components/ui'
 import Instructivo from '../components/Instructivo'
@@ -144,7 +144,7 @@ function ranking(nombres: string[], top = 5) {
   for (const x of nombres) {
     const k = clave(x)
     if (!k) continue
-    const e = m.get(k) ?? { nombre: x.trim(), n: 0 }
+    const e = m.get(k) ?? { nombre: nombrePropio(x), n: 0 }
     e.n++
     m.set(k, e)
   }

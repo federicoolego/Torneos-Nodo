@@ -1,10 +1,12 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Check, Clock, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
-  MAX_PAREJAS, MIN_PAREJAS, clavePareja, formatoPesos, jugadoresDe, nombrePropio, nuevoId, type Categoria, type Pareja,
+  MAX_PAREJAS, MIN_PAREJAS, claveJugador, clavePareja, formatoPesos, jugadoresDe, nombrePropio, nuevoId, type Categoria, type Pareja,
 } from '../../lib/torneo'
 import { Alerta, Button, Card, Field, Input, Textarea } from '../ui'
 import { FormatosPorInstancia } from '../Formato'
+import SelectorJugador from '../SelectorJugador'
+import { listarJugadores } from '../../lib/almacen'
 import { instanciasDelTorneo, textoFormatos, zonasBloqueadas } from '../../lib/resultados'
 
 type Props = { cat: Categoria; cambiar: (f: (c: Categoria) => Categoria) => void }
@@ -52,6 +54,17 @@ export function PasoDatos({ cat, cambiar }: Props) {
 
 export function PasoParejas({ cat, cambiar }: Props) {
   const vacio = { j1: '', j2: '', horario: '' }
+  // padrón de jugadores de la base + los de este torneo (los nuevos se dan de alta al guardar)
+  const [padronBase, setPadronBase] = useState<string[]>([])
+  const [errorPadron, setErrorPadron] = useState(false)
+  useEffect(() => { listarJugadores().then(setPadronBase).catch(() => setErrorPadron(true)) }, [])
+  const padron = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const j of [...padronBase, ...cat.parejas.flatMap((p) => jugadoresDe(p))]) if (j.trim()) m.set(claveJugador(j), nombrePropio(j))
+    return [...m.values()]
+  }, [padronBase, cat.parejas])
+  /** si ya existe (aunque esté escrito distinto: tildes, mayúsculas, espacios), se usa el del padrón */
+  const delPadron = (t: string) => padron.find((j) => claveJugador(j) === claveJugador(t)) ?? nombrePropio(t)
   const [form, setForm] = useState(vacio)
   const [editando, setEditando] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -63,9 +76,10 @@ export function PasoParejas({ cat, cambiar }: Props) {
   function guardar(e: FormEvent) {
     e.preventDefault()
     setError('')
-    const j1 = nombrePropio(form.j1)
-    const j2 = nombrePropio(form.j2)
+    const j1 = delPadron(form.j1)
+    const j2 = delPadron(form.j2)
     if (!j1 || !j2) return setError('Completá los dos jugadores.')
+    if (j1.length < 3 || j2.length < 3) return setError('Escribí nombre y apellido de cada jugador.')
     if (clavePareja(j1, '') === clavePareja(j2, '')) return setError('Los dos jugadores no pueden ser la misma persona.')
     const clave = clavePareja(j1, j2)
     const repetida = cat.parejas.find((p) => p.id !== editando && clavePareja(...jugadoresDe(p)) === clave)
@@ -102,10 +116,10 @@ export function PasoParejas({ cat, cambiar }: Props) {
         <form onSubmit={guardar} className="space-y-3">
           <h2 className="font-display text-2xl font-bold">{editando ? 'Editar pareja' : 'Inscribir pareja'}</h2>
           <Field label="Jugador 1 *">
-            <Input id="jugador1" value={form.j1} onChange={(e) => setForm({ ...form, j1: e.target.value })} placeholder="Nombre y apellido" autoComplete="off" disabled={lleno} />
+            <SelectorJugador id="jugador1" valor={form.j1} onChange={(v) => setForm((f) => ({ ...f, j1: v }))} padron={padron} excluir={form.j2} disabled={lleno} />
           </Field>
           <Field label="Jugador 2 *">
-            <Input value={form.j2} onChange={(e) => setForm({ ...form, j2: e.target.value })} placeholder="Nombre y apellido" autoComplete="off" disabled={lleno} />
+            <SelectorJugador valor={form.j2} onChange={(v) => setForm((f) => ({ ...f, j2: v }))} padron={padron} excluir={form.j1} disabled={lleno} />
           </Field>
           <Field label="Problemas de horarios" hint="Opcional. Dejalo vacío si no tienen.">
             <Textarea rows={3} value={form.horario} onChange={(e) => setForm({ ...form, horario: e.target.value })}
@@ -119,7 +133,8 @@ export function PasoParejas({ cat, cambiar }: Props) {
             </Button>
             {editando && <Button type="button" variante="secundario" onClick={() => { setEditando(null); setForm(vacio); setError('') }}>Cancelar</Button>}
           </div>
-          <p className="text-xs text-noche/55">Los nombres se guardan con mayúscula inicial (JUaN perez → Juan Perez).</p>
+          <p className="text-xs text-noche/55">Buscá al jugador en el padrón; si no está, elegí “Agregar … como jugador nuevo”. Se ignoran mayúsculas y tildes, así no se carga dos veces.</p>
+          {errorPadron && <Alerta tipo="aviso">No se pudo cargar el padrón de jugadores: podés escribirlos igual.</Alerta>}
         </form>
       </Card>
       <Card>
