@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { BarChart3, CloudUpload, Copy, Medal, Plus, Search, Trash2, Trophy, Users } from 'lucide-react'
+import { BarChart3, ChevronDown, CloudUpload, Copy, Medal, Plus, Search, Trash2, Trophy, Users } from 'lucide-react'
 import { duplicar, eliminar, listar, migrarLocales, torneosLocales, type ResumenTorneo } from '../lib/almacen'
 import { ESTADOS, MESES, nombreEstado, nombrePropio, rangoFechas, type EstadoTorneo } from '../lib/torneo'
 import { normalizarTexto } from '../lib/publico'
@@ -175,9 +175,10 @@ function Estadisticas({ torneos, filtrado }: { torneos: ResumenTorneo[]; filtrad
   }, [torneos])
 
   return (
-    <details open className="mb-5 rounded-xl bg-white ring-1 ring-noche/10 [&_summary::-webkit-details-marker]:hidden">
+    <details className="group mb-5 rounded-xl bg-white ring-1 ring-noche/10 [&_summary::-webkit-details-marker]:hidden">
       <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 font-display text-lg font-semibold text-noche">
         <BarChart3 className="h-5 w-5 text-cancha" aria-hidden /> Estadísticas{filtrado ? ' (de los torneos filtrados)' : ''}
+        <ChevronDown className="ml-auto h-5 w-5 text-noche/40 transition-transform group-open:rotate-180" aria-hidden />
       </summary>
       <div className="space-y-4 border-t border-noche/10 p-4">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
