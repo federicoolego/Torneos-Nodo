@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, Database, Info } from 'lucide-react'
+import { ChevronDown, Database, Info, Settings, Users } from 'lucide-react'
 
 const CLAVE = 'generador:instructivo-cerrado'
 
@@ -26,7 +26,7 @@ export default function Instructivo() {
             <p className="mb-2 font-semibold text-noche">Armar un torneo, paso a paso</p>
             <ol className="list-decimal space-y-1.5 pl-5">
               <li><strong>Torneo:</strong> nombre (con la categoría, como lo publica el club), fechas y, si querés, inscripción, premio, formato de partido por instancia y una observación.</li>
-              <li><strong>Parejas:</strong> se inscriben de a una (mínimo 6, máximo 24). Si tienen problemas de horario, anotalos: te van a aparecer resaltados al armar las zonas.</li>
+              <li><strong>Parejas:</strong> se inscriben de a una (mínimo 6, máximo 24). Cada jugador se busca en el padrón; si no está, elegí “Agregar … como jugador nuevo”. Si tienen problemas de horario, anotalos: te van a aparecer resaltados al armar las zonas.</li>
               <li><strong>Zonas:</strong> sorteo automático, acomodás a mano lo que necesites y le ponés día y hora a cada partido (con “Completar automático” se reparten solos). Una zona con resultados ya no se puede modificar.</li>
               <li><strong>Playoff:</strong> el cuadro se arma solo con los clasificados (1° Zona A vs 2° Zona B…) y le ponés día y hora a la primera ronda. Con el primer resultado de playoff, los cruces quedan fijos.</li>
               <li><strong>Partidos:</strong> cargás los resultados; las posiciones de cada zona y los cruces del playoff se completan solos. Los partidos que faltan se pueden reprogramar (siempre a una fecha y hora futuras). También está el cronograma en PDF con los resultados.</li>
@@ -42,6 +42,14 @@ export default function Instructivo() {
                 <li>Todo se guarda solo en la <strong>base de datos</strong>: los ves desde cualquier celular o compu entrando con el usuario.</li>
                 <li>Si dos personas cargan resultados a la vez, tocá <strong>Traer cambios</strong> en “Partidos” para ver lo que cargó la otra.</li>
                 <li>Arriba a la derecha de cada torneo se ve si los cambios ya quedaron guardados.</li>
+              </ul>
+            </div>
+            <div className="rounded-lg bg-vidrio p-3">
+              <p className="mb-1.5 flex items-center gap-2 font-semibold text-noche"><Users className="h-4 w-4" aria-hidden /> Jugadores</p>
+              <ul className="list-disc space-y-1 pl-5">
+                <li>Hay un <strong>padrón único</strong> de jugadores: al inscribir una pareja se busca al jugador (sin importar mayúsculas ni tildes), así no se carga dos veces la misma persona.</li>
+                <li>Con el ícono <Settings className="inline h-3.5 w-3.5 align-[-2px]" aria-label="configuración" /> de arriba a la derecha → <strong>Jugadores</strong> podés agregar, corregir el nombre (se actualiza en todos sus torneos), <strong>unificar</strong> un jugador cargado dos veces y eliminar a quien no jugó ningún torneo.</li>
+                <li>Los “posibles duplicados” (mismo nombre con distinta tilde) aparecen marcados para revisarlos.</li>
               </ul>
             </div>
             <div className="rounded-lg bg-vidrio p-3">
