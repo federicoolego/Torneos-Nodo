@@ -63,7 +63,10 @@ export default function TorneoPublico({ id }: { id: string }) {
 
       {/* encabezado */}
       <header className="space-y-2">
-        <Badge tono={tonoEstado(estado)}>{nombreEstado(estado)}</Badge>
+        <div className="flex flex-wrap gap-1">
+          <Badge>{cat.categoria}</Badge>
+          <Badge tono={tonoEstado(estado)}>{nombreEstado(estado)}</Badge>
+        </div>
         <h1 className="font-display text-4xl font-bold leading-none text-noche">{cat.torneo}</h1>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-noche/70">
           {cat.fechaInicio && <span className="inline-flex items-center gap-1"><CalendarDays className="h-4 w-4" aria-hidden />{rangoFechas(cat.fechaInicio, cat.fechaFin)}</span>}

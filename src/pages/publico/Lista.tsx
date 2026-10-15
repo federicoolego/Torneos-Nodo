@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ChevronRight, Search, Ticket, Trophy, Users } from 'lucide-react'
 import { listarPublicos, normalizarTexto, type ResumenPublico } from '../../lib/publico'
-import { ESTADOS, MESES, formatoPesos, nombreEstado, rangoFechas, type EstadoTorneo } from '../../lib/torneo'
+import { CATEGORIAS, ESTADOS, MESES, formatoPesos, nombreEstado, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../../lib/torneo'
 import { Alerta, Badge, Input, Select, Spinner, Vacio } from '../../components/ui'
 
 /** En curso primero, después los que vienen, los terminados y los cancelados */
@@ -13,6 +13,7 @@ export const tonoEstado = (e: EstadoTorneo) => (e === 'en_curso' ? 'verde' : e =
 export default function ListaPublica() {
   const [lista, setLista] = useState<ResumenPublico[] | null>(null)
   const [error, setError] = useState('')
+  const [categoria, setCategoria] = useState<'' | CategoriaTorneo>('')
   const [estado, setEstado] = useState<'' | EstadoTorneo>('')
   const [anio, setAnio] = useState('')
   const [mes, setMes] = useState('')
@@ -27,6 +28,7 @@ export default function ListaPublica() {
   const visibles = useMemo(() => {
     const q = normalizarTexto(texto)
     return (lista ?? [])
+      .filter((t) => !categoria || t.categoria === categoria)
       .filter((t) => !estado || t.estado === estado)
       .filter((t) => !anio || t.fecha_inicio?.startsWith(anio))
       .filter((t) => !mes || t.fecha_inicio?.slice(5, 7) === mes)
@@ -37,7 +39,7 @@ export default function ListaPublica() {
         // los que vienen, del más cercano al más lejano; el resto, del más reciente al más viejo
         return a.estado === 'pendiente' ? fa.localeCompare(fb) : fb.localeCompare(fa)
       })
-  }, [lista, estado, anio, mes, texto])
+  }, [lista, categoria, estado, anio, mes, texto])
 
   return (
     <>
@@ -46,11 +48,15 @@ export default function ListaPublica() {
         <p className="mt-2 text-sm text-noche/70">Zonas, partidos, resultados y playoff de los torneos de NODO, actualizados a medida que se juegan.</p>
       </header>
 
-      <div className="mb-5 grid gap-2 rounded-xl bg-white p-3 ring-1 ring-noche/10 sm:grid-cols-[1.5fr_1fr_0.8fr_1fr]">
+      <div className="mb-5 grid gap-2 rounded-xl bg-white p-3 ring-1 ring-noche/10 sm:grid-cols-[1.4fr_1fr_1fr_0.8fr_1fr]">
         <label className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-noche/40" aria-hidden />
           <Input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Buscar torneo…" className="pl-9" aria-label="Buscar torneo" />
         </label>
+        <Select value={categoria} onChange={(e) => setCategoria(e.target.value as '' | CategoriaTorneo)} aria-label="Categoría">
+          <option value="">Todas las categorías</option>
+          {CATEGORIAS.map((x) => <option key={x} value={x}>{x}</option>)}
+        </Select>
         <Select value={estado} onChange={(e) => setEstado(e.target.value as '' | EstadoTorneo)} aria-label="Estado">
           <option value="">Todos los estados</option>
           {ESTADOS.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
@@ -76,7 +82,10 @@ export default function ListaPublica() {
             <li key={t.id}>
               <a href={`#/torneo/${t.id}`} className="flex h-full items-center gap-3 rounded-xl bg-white p-4 ring-1 ring-noche/10 transition hover:ring-cancha/40">
                 <div className="min-w-0 flex-1 space-y-1">
-                  <Badge tono={tonoEstado(t.estado)}>{nombreEstado(t.estado)}</Badge>
+                  <div className="flex flex-wrap gap-1">
+                    <Badge>{t.categoria}</Badge>
+                    <Badge tono={tonoEstado(t.estado)}>{nombreEstado(t.estado)}</Badge>
+                  </div>
                   <p className="font-display text-2xl font-bold leading-tight text-noche">{t.nombre}</p>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-noche/65">
                     {t.fecha_inicio && <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" aria-hidden />{rangoFechas(t.fecha_inicio, t.fecha_fin ?? '')}</span>}

@@ -132,7 +132,7 @@ export default function Editor({ id, inicial, onVolver }: { id: string; inicial?
       </div>
       <h1 className="font-display text-4xl font-bold leading-none">{cat.torneo || 'Nuevo torneo'}</h1>
       <p className="mt-1 text-sm text-noche/60">
-        {[rangoFechas(cat.fechaInicio, cat.fechaFin), `${cat.parejas.length} parejas`].filter(Boolean).join(' · ')}
+        {[cat.categoria, rangoFechas(cat.fechaInicio, cat.fechaFin), `${cat.parejas.length} parejas`].filter(Boolean).join(' · ')}
       </p>
       {persistido.current && <Publicacion cat={cat} cambiar={cambiar} />}
       <div className="mb-5" />

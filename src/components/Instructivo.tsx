@@ -25,7 +25,7 @@ export default function Instructivo() {
           <div>
             <p className="mb-2 font-semibold text-noche">Armar un torneo, paso a paso</p>
             <ol className="list-decimal space-y-1.5 pl-5">
-              <li><strong>Torneo:</strong> nombre (con la categoría, como lo publica el club), fechas y, si querés, inscripción, premio, formato de partido por instancia y una observación.</li>
+              <li><strong>Torneo:</strong> nombre, categoría (Damas, Caballeros o Mixto), fechas y, si querés, inscripción, premio, formato de partido por instancia y una observación.</li>
               <li><strong>Parejas:</strong> se inscriben de a una (mínimo 6, máximo 24). Cada jugador se busca en el padrón; si no está, elegí “Agregar … como jugador nuevo”. Si tienen problemas de horario, anotalos: te van a aparecer resaltados al armar las zonas.</li>
               <li><strong>Zonas:</strong> sorteo automático, acomodás a mano lo que necesites y le ponés día y hora a cada partido (con “Completar automático” se reparten solos). Una zona con resultados ya no se puede modificar.</li>
               <li><strong>Playoff:</strong> el cuadro se arma solo con los clasificados (1° Zona A vs 2° Zona B…) y le ponés día y hora a la primera ronda. Con el primer resultado de playoff, los cruces quedan fijos.</li>

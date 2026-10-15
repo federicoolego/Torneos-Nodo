@@ -15,10 +15,18 @@ export interface Pareja {
 /** Un lado de primera ronda del playoff: posición `pos` de la zona número `zona` (0 = A) */
 export interface Slot { zona: number; pos: number }
 
-/** Un torneo: datos, parejas, zonas y playoff (el nombre ya incluye la categoría: "7ma Caballeros – Primavera") */
+/** Categoría del torneo (obligatoria; por defecto Damas) */
+export type CategoriaTorneo = 'Damas' | 'Caballeros' | 'Mixto'
+export const CATEGORIAS: CategoriaTorneo[] = ['Damas', 'Caballeros', 'Mixto']
+export const CATEGORIA_DEFECTO: CategoriaTorneo = 'Damas'
+export const esCategoriaTorneo = (v: unknown): v is CategoriaTorneo => CATEGORIAS.includes(v as CategoriaTorneo)
+
+/** Un torneo: datos, parejas, zonas y playoff (el nombre puede incluir el nivel: "7ma - Primavera") */
 export interface Categoria {
   id: string
   torneo: string
+  /** Damas, Caballeros o Mixto */
+  categoria: CategoriaTorneo
   /** YYYY-MM-DD */
   fechaInicio: string
   fechaFin: string
@@ -108,12 +116,14 @@ export interface Resultado { a: string; b: string; sets: [number, number][]; wo?
 export const LETRAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 /** Completa campos que no existían en torneos guardados con versiones anteriores */
 export function normalizar(c: Categoria): Categoria {
-  // versiones anteriores tenían "categoria" aparte: se suma al nombre
-  const { categoria, ...resto } = c as Categoria & { categoria?: string }
-  const torneo = [c.torneo, categoria].map((x) => x?.trim()).filter(Boolean).join(' - ')
+  // versiones anteriores tenían una "categoria" de texto libre (ej. "7ma Damas"): si no es una de las
+  // tres categorías actuales, se suma al nombre del torneo y la categoría queda en la de por defecto
+  const previa = (c as { categoria?: unknown }).categoria
+  const legado = typeof previa === 'string' && previa.trim() && !esCategoriaTorneo(previa) ? previa.trim() : ''
   return {
-    ...resto,
-    torneo,
+    ...c,
+    torneo: [c.torneo, legado].map((x) => x?.trim()).filter(Boolean).join(' - '),
+    categoria: esCategoriaTorneo(previa) ? previa : CATEGORIA_DEFECTO,
     fechaInicio: c.fechaInicio ?? '', fechaFin: c.fechaFin ?? '', observacion: c.observacion ?? '', inscripcion: c.inscripcion ?? '', premio: c.premio ?? '',
     horariosZona: c.horariosZona ?? {}, horariosPlayoff: c.horariosPlayoff ?? {},
     formatos: { ...FORMATOS_DEFECTO, ...(c.formatos ?? {}) },
@@ -139,13 +149,13 @@ export function nuevoId(): string {
 }
 export const esUuid = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
 
-/** Datos obligatorios del paso "Torneo": nombre y fechas (fin igual o posterior al inicio). Recién ahí se crea en la base */
-export const datosCompletos = (c: Pick<Categoria, 'torneo' | 'fechaInicio' | 'fechaFin'>) =>
-  !!c.torneo.trim() && !!c.fechaInicio && !!c.fechaFin && c.fechaFin >= c.fechaInicio
+/** Datos obligatorios del paso "Torneo": nombre, categoría y fechas (fin igual o posterior al inicio). Recién ahí se crea en la base */
+export const datosCompletos = (c: Pick<Categoria, 'torneo' | 'categoria' | 'fechaInicio' | 'fechaFin'>) =>
+  !!c.torneo.trim() && esCategoriaTorneo(c.categoria) && !!c.fechaInicio && !!c.fechaFin && c.fechaFin >= c.fechaInicio
 
 export function nuevaCategoria(): Categoria {
   return {
-    id: nuevoId(), torneo: '', fechaInicio: '', fechaFin: '', observacion: '', inscripcion: '', premio: '', parejas: [], zonas: [],
+    id: nuevoId(), torneo: '', categoria: CATEGORIA_DEFECTO, fechaInicio: '', fechaFin: '', observacion: '', inscripcion: '', premio: '', parejas: [], zonas: [],
     horariosZona: {}, cuadro: null, horariosPlayoff: {}, formatos: { ...FORMATOS_DEFECTO }, resultadosZona: {}, resultadosPlayoff: {}, desempates: {}, publicado: false, cancelado: false,
     actualizado: Date.now(),
   }

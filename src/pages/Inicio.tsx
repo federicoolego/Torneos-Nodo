@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { BarChart3, ChevronDown, CloudUpload, Copy, Medal, Plus, Search, Trash2, Trophy, Users } from 'lucide-react'
 import { duplicar, eliminar, listar, migrarLocales, torneosLocales, type ResumenTorneo } from '../lib/almacen'
-import { ESTADOS, MESES, nombreEstado, nombrePropio, rangoFechas, type EstadoTorneo } from '../lib/torneo'
+import { CATEGORIAS, ESTADOS, MESES, nombreEstado, nombrePropio, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../lib/torneo'
 import { normalizarTexto } from '../lib/publico'
 import { Alerta, Badge, Button, Input, Select, Spinner, Titulo, Vacio } from '../components/ui'
 import Instructivo from '../components/Instructivo'
@@ -13,6 +13,7 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
   const [locales, setLocales] = useState(torneosLocales)
   // filtros (los mismos que la página pública, más "publicado")
   const [texto, setTexto] = useState('')
+  const [categoria, setCategoria] = useState<'' | CategoriaTorneo>('')
   const [estado, setEstado] = useState<'' | EstadoTorneo>('')
   const [anio, setAnio] = useState('')
   const [mes, setMes] = useState('')
@@ -23,13 +24,14 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
     const q = normalizarTexto(texto)
     return (lista ?? [])
       .filter((t) => !q || normalizarTexto(t.torneo).includes(q))
+      .filter((t) => !categoria || t.categoria === categoria)
       .filter((t) => !estado || t.estado === estado)
       .filter((t) => !anio || t.fechaInicio.startsWith(anio))
       .filter((t) => !mes || t.fechaInicio.slice(5, 7) === mes)
       .filter((t) => !publicacion || t.publicado === (publicacion === 'si'))
       .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || '') || b.actualizado - a.actualizado)
-  }, [lista, texto, estado, anio, mes, publicacion])
-  const hayFiltros = !!(texto || estado || anio || mes || publicacion)
+  }, [lista, texto, categoria, estado, anio, mes, publicacion])
+  const hayFiltros = !!(texto || categoria || estado || anio || mes || publicacion)
 
   const refrescar = useCallback(async () => {
     try { setLista(await listar()) } catch (e) { setLista([]); setMsg({ tipo: 'error', txt: `No se pudo leer la base: ${e instanceof Error ? e.message : e}` }) }
@@ -66,11 +68,15 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
       )}
       {msg && <div className="mb-4"><Alerta tipo={msg.tipo}>{msg.txt}</Alerta></div>}
       {!!lista?.length && (
-        <div className="mb-4 grid gap-2 rounded-xl bg-white p-3 ring-1 ring-noche/10 sm:grid-cols-[1.5fr_1fr_0.8fr_1fr_1fr]">
+        <div className="mb-4 grid gap-2 rounded-xl bg-white p-3 ring-1 ring-noche/10 sm:grid-cols-[1.4fr_1fr_1fr_0.8fr_1fr_1fr]">
           <label className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-noche/40" aria-hidden />
             <Input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Buscar torneo…" className="pl-9" aria-label="Buscar torneo" />
           </label>
+          <Select value={categoria} onChange={(e) => setCategoria(e.target.value as '' | CategoriaTorneo)} aria-label="Categoría">
+            <option value="">Todas las categorías</option>
+            {CATEGORIAS.map((x) => <option key={x} value={x}>{x}</option>)}
+          </Select>
           <Select value={estado} onChange={(e) => setEstado(e.target.value as '' | EstadoTorneo)} aria-label="Estado">
             <option value="">Todos los estados</option>
             {ESTADOS.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
@@ -98,7 +104,7 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
         </Vacio>
       ) : visibles.length === 0 ? (
         <Vacio titulo="No hay torneos con esos filtros">
-          <button className="font-semibold text-cancha" onClick={() => { setTexto(''); setEstado(''); setAnio(''); setMes(''); setPublicacion('') }}>Limpiar filtros</button>
+          <button className="font-semibold text-cancha" onClick={() => { setTexto(''); setCategoria(''); setEstado(''); setAnio(''); setMes(''); setPublicacion('') }}>Limpiar filtros</button>
         </Vacio>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
@@ -107,6 +113,7 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
               <button onClick={() => onAbrir(c.id)} className="min-w-0 flex-1 text-left">
                 <p className="truncate font-display text-xl font-bold">{c.torneo || 'Torneo sin nombre'}</p>
                 <div className="mt-0.5 flex flex-wrap gap-1">
+                  <Badge>{c.categoria}</Badge>
                   <Badge tono={c.estado === 'en_curso' ? 'verde' : c.estado === 'finalizado' ? 'azul' : c.estado === 'cancelado' ? 'rojo' : 'ambar'}>{nombreEstado(c.estado)}</Badge>
                   {c.publicado && <Badge tono="pelota">Publicado</Badge>}
                 </div>
@@ -151,7 +158,13 @@ function ranking(nombres: string[], top = 5) {
   return [...m.values()].sort((a, b) => b.n - a.n || a.nombre.localeCompare(b.nombre)).slice(0, top)
 }
 
-function Estadisticas({ torneos, filtrado }: { torneos: ResumenTorneo[]; filtrado: boolean }) {
+function Estadisticas({ torneos: base, filtrado }: { torneos: ResumenTorneo[]; filtrado: boolean }) {
+  // filtro propio de las estadísticas, encima de los filtros de la lista (no cambia la lista)
+  const [sel, setSel] = useState<'' | CategoriaTorneo>('')
+  const cuentas = useMemo(() => Object.fromEntries(CATEGORIAS.map((c) => [c, base.filter((t) => t.categoria === c).length])) as Record<CategoriaTorneo, number>, [base])
+  // si la categoría elegida ya no tiene torneos (por ejemplo, cambió un filtro de la lista), vuelve a "Todas"
+  const activa: '' | CategoriaTorneo = sel && cuentas[sel] ? sel : ''
+  const torneos = useMemo(() => (activa ? base.filter((t) => t.categoria === activa) : base), [base, activa])
   const st = useMemo(() => {
     const activos = torneos.filter((t) => t.estado !== 'cancelado')
     const parejas = activos.reduce((s, t) => s + t.parejas, 0)
@@ -177,10 +190,19 @@ function Estadisticas({ torneos, filtrado }: { torneos: ResumenTorneo[]; filtrad
   return (
     <details className="group mb-5 rounded-xl bg-white ring-1 ring-noche/10 [&_summary::-webkit-details-marker]:hidden">
       <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 font-display text-lg font-semibold text-noche">
-        <BarChart3 className="h-5 w-5 text-cancha" aria-hidden /> Estadísticas{filtrado ? ' (de los torneos filtrados)' : ''}
+        <BarChart3 className="h-5 w-5 text-cancha" aria-hidden /> Estadísticas{activa ? ` · ${activa}` : ''}{filtrado ? ' (de los torneos filtrados)' : ''}
         <ChevronDown className="ml-auto h-5 w-5 text-noche/40 transition-transform group-open:rotate-180" aria-hidden />
       </summary>
       <div className="space-y-4 border-t border-noche/10 p-4">
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Categoría de las estadísticas">
+          <span className="text-xs font-semibold uppercase tracking-wide text-noche/55">Categoría</span>
+          {([{ id: '', label: 'Todas', n: base.length }, ...CATEGORIAS.map((c) => ({ id: c, label: c, n: cuentas[c] }))] as { id: '' | CategoriaTorneo; label: string; n: number }[]).map((o) => (
+            <button key={o.id || 'todas'} onClick={() => setSel(o.id)} disabled={!o.n} aria-pressed={activa === o.id}
+              className={`rounded-full px-3 py-1 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${activa === o.id ? 'bg-noche text-white' : 'bg-vidrio text-noche/75 hover:bg-cancha-suave'}`}>
+              {o.label} <span className="num text-xs opacity-70">{o.n}</span>
+            </button>
+          ))}
+        </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <Kpi titulo="Torneos" valor={st.total}
             detalle={[st.porEstado.en_curso && `${st.porEstado.en_curso} en curso`, st.porEstado.pendiente && `${st.porEstado.pendiente} pendientes`, st.porEstado.finalizado && `${st.porEstado.finalizado} finalizados`, st.porEstado.cancelado && `${st.porEstado.cancelado} cancelados`].filter(Boolean).join(' · ')} />

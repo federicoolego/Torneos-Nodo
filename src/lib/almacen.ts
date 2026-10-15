@@ -4,14 +4,14 @@
 import { supabase, T } from './supabase'
 import { estadoTorneo, evaluar, resolverTorneo } from './resultados'
 import {
-  FORMATOS_DEFECTO, INSTANCIAS, esUuid, instanciaDeRonda, jugadoresDe, mayusculas, nombrePropio, normalizar, nuevoId,
-  type Categoria, type EstadoTorneo, type Formato, type Horario, type Instancia, type Resultado, type Slot,
+  CATEGORIA_DEFECTO, FORMATOS_DEFECTO, INSTANCIAS, esCategoriaTorneo, esUuid, instanciaDeRonda, jugadoresDe, mayusculas, nombrePropio, normalizar, nuevoId,
+  type Categoria, type CategoriaTorneo, type EstadoTorneo, type Formato, type Horario, type Instancia, type Resultado, type Slot,
 } from './torneo'
 
 // ------------------------------------------------------------------ filas
 
 export interface FilaTorneo {
-  id: string; nombre: string; premio: string; fecha_inicio: string | null; fecha_fin: string | null
+  id: string; nombre: string; categoria: CategoriaTorneo; premio: string; fecha_inicio: string | null; fecha_fin: string | null
   inscripcion: number | null; observacion: string; cant_zonas: number; cuadro: (Slot | null)[][] | null; desempates: Record<string, string[]>
   publicado: boolean; estado: EstadoTorneo; campeon: string | null
 }
@@ -28,7 +28,7 @@ function aFilas(c: Categoria): Filas {
   const valido = (id: string | undefined | null) => (id && ids.has(id) ? id : null)
   const campeonId = resolverTorneo(c).campeon
   const torneo: FilaTorneo = {
-    id: c.id, nombre: c.torneo, premio: c.premio, fecha_inicio: c.fechaInicio || null, fecha_fin: c.fechaFin || null,
+    id: c.id, nombre: c.torneo, categoria: c.categoria, premio: c.premio, fecha_inicio: c.fechaInicio || null, fecha_fin: c.fechaFin || null,
     inscripcion: c.inscripcion ? Number(c.inscripcion) : null, observacion: c.observacion, cant_zonas: c.zonas.length,
     cuadro: c.cuadro, desempates: c.desempates,
     // para la página pública: visible, estado calculado y nombre del campeón
@@ -76,7 +76,7 @@ export function desdeFilas(t: FilaTorneo & { actualizado?: string }, ps: FilaPar
   const formatos = { ...FORMATOS_DEFECTO }
   for (const i of is) formatos[i.instancia] = i.formato
   const c: Categoria = {
-    id: t.id, torneo: t.nombre, premio: t.premio ?? '', fechaInicio: t.fecha_inicio ?? '', fechaFin: t.fecha_fin ?? '',
+    id: t.id, torneo: t.nombre, categoria: esCategoriaTorneo(t.categoria) ? t.categoria : CATEGORIA_DEFECTO, premio: t.premio ?? '', fechaInicio: t.fecha_inicio ?? '', fechaFin: t.fecha_fin ?? '',
     inscripcion: t.inscripcion != null ? String(t.inscripcion) : '', observacion: t.observacion,
     // en la app se muestran con mayúscula inicial: MASSOT GREGO → Massot Grego
     parejas: parejas.map((p) => {
@@ -209,7 +209,7 @@ export async function guardarAhora(c: Categoria) {
 // ------------------------------------------------------------------ lectura
 
 export interface ResumenTorneo {
-  id: string; torneo: string; fechaInicio: string; fechaFin: string
+  id: string; torneo: string; categoria: CategoriaTorneo; fechaInicio: string; fechaFin: string
   parejas: number; zonas: number; playoff: boolean; actualizado: number
   publicado: boolean; estado: EstadoTorneo
   /** nombre de la pareja campeona (si terminó) */
@@ -233,7 +233,7 @@ export async function listarJugadores(): Promise<string[]> {
 export async function listar(): Promise<ResumenTorneo[]> {
   const { data, error } = await supabase
     .from(T.torneos)
-    .select(`id, nombre, fecha_inicio, fecha_fin, cant_zonas, cuadro, actualizado, publicado, estado, campeon, parejas:${T.parejas}(count)`)
+    .select(`id, nombre, categoria, fecha_inicio, fecha_fin, cant_zonas, cuadro, actualizado, publicado, estado, campeon, parejas:${T.parejas}(count)`)
     .order('actualizado', { ascending: false })
   if (error) throw new Error(error.message)
   // jugadores de todos los torneos (para las estadísticas), de a 1000 filas
@@ -249,7 +249,7 @@ export async function listar(): Promise<ResumenTorneo[]> {
     if ((r.data ?? []).length < 1000) break
   }
   return ((data ?? []) as unknown as (FilaTorneo & { actualizado: string; parejas: { count: number }[] })[]).map((t) => ({
-    id: t.id, torneo: t.nombre, fechaInicio: t.fecha_inicio ?? '', fechaFin: t.fecha_fin ?? '',
+    id: t.id, torneo: t.nombre, categoria: esCategoriaTorneo(t.categoria) ? t.categoria : CATEGORIA_DEFECTO, fechaInicio: t.fecha_inicio ?? '', fechaFin: t.fecha_fin ?? '',
     parejas: t.parejas?.[0]?.count ?? 0, zonas: t.cant_zonas, playoff: !!t.cuadro, actualizado: Date.parse(t.actualizado),
     publicado: !!t.publicado, estado: t.estado ?? 'pendiente',
     campeon: t.campeon ?? null, jugadores: (jugadores.get(t.id) ?? []).filter((j) => j.trim()),

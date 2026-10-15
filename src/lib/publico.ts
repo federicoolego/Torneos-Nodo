@@ -1,10 +1,10 @@
 // Datos de la página pública (jugadores): solo torneos publicados, vía funciones de la base (sin login)
 import { supabase } from './supabase'
 import { desdeFilas, type FilaInstancia, type FilaPareja, type FilaPartido, type FilaTorneo } from './almacen'
-import type { Categoria, EstadoTorneo } from './torneo'
+import type { Categoria, CategoriaTorneo, EstadoTorneo } from './torneo'
 
 export interface ResumenPublico {
-  id: string; nombre: string; fecha_inicio: string | null; fecha_fin: string | null; estado: EstadoTorneo
+  id: string; nombre: string; categoria: CategoriaTorneo; fecha_inicio: string | null; fecha_fin: string | null; estado: EstadoTorneo
   inscripcion: number | null; premio: string; campeon: string | null; parejas: number
 }
 

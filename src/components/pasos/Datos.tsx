@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Check, Clock, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
-  MAX_PAREJAS, MIN_PAREJAS, claveJugador, clavePareja, formatoPesos, jugadoresDe, nombrePropio, nuevoId, type Categoria, type Pareja,
+  CATEGORIAS, MAX_PAREJAS, MIN_PAREJAS, claveJugador, clavePareja, formatoPesos, jugadoresDe, nombrePropio, nuevoId, type Categoria, type Pareja,
 } from '../../lib/torneo'
-import { Alerta, Button, Card, Field, Input, Textarea } from '../ui'
+import { Alerta, Button, Card, Field, Input, Select, Textarea } from '../ui'
 import { FormatosPorInstancia } from '../Formato'
 import SelectorJugador from '../SelectorJugador'
 import { listarJugadores } from '../../lib/almacen'
@@ -17,6 +17,11 @@ export function PasoDatos({ cat, cambiar }: Props) {
     <Card className="space-y-4">
       <Field label="Nombre del torneo *">
         <Input value={cat.torneo} onChange={(e) => cambiar((c) => ({ ...c, torneo: e.target.value }))} placeholder="Ej: 7ma Caballeros - Torneo Primavera" />
+      </Field>
+      <Field label="Categoría *">
+        <Select value={cat.categoria} onChange={(e) => cambiar((c) => ({ ...c, categoria: e.target.value as typeof c.categoria }))}>
+          {CATEGORIAS.map((x) => <option key={x} value={x}>{x}</option>)}
+        </Select>
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Fecha de inicio *">
