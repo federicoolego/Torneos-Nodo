@@ -20,9 +20,9 @@ export default function HorariosZona({ cat, cambiar }: Props) {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="font-display text-xl font-semibold">Días y horarios</h3>
-          <p className="max-w-xl text-sm text-noche/65">Día y hora de cada partido. Con “Completar automático” se reparten en turnos y después ajustás a mano. Para reprogramar, la nueva fecha y hora tienen que ser futuras.</p>
+          <p className="max-w-xl text-sm text-noche/65">Día y hora de cada partido. Con “Completar automático” se reparten en turnos y después ajustás a mano. Los días tienen que estar dentro de las fechas del torneo y, para reprogramar, la nueva fecha y hora tienen que ser futuras.</p>
         </div>
-        <CompletarHorarios grupos={grupos} fechaInicial={cat.fechaInicio} actuales={cat.horariosZona} jugados={jugados}
+        <CompletarHorarios grupos={grupos} fechaInicial={cat.fechaInicio} desde={cat.fechaInicio} hasta={cat.fechaFin} actuales={cat.horariosZona} jugados={jugados}
           onAplicar={(h) => cambiar((c) => ({ ...c, horariosZona: h }))} />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
@@ -43,7 +43,7 @@ export default function HorariosZona({ cat, cambiar }: Props) {
               {ps.map((p) => (
                 <li key={p.key} className="space-y-2 p-3">
                   <p className="text-sm"><span className="font-semibold text-cancha">{p.titulo}:</span> {p.a} <span className="text-noche/45">vs</span> {p.b}</p>
-                  <EditorHorario valor={cat.horariosZona[p.key]} onChange={(h) => set(p.key, h)} requerido jugado={jugados.has(p.key)} />
+                  <EditorHorario valor={cat.horariosZona[p.key]} onChange={(h) => set(p.key, h)} desde={cat.fechaInicio} hasta={cat.fechaFin} requerido jugado={jugados.has(p.key)} />
                 </li>
               ))}
             </ul>

@@ -80,7 +80,7 @@ export default function PasoPartidos({ cat, cambiar, onRecargar }: Props) {
               <EncabezadoInstancia titulo={nombreInstancia(ronda[0].instancia)} cat={cat} cambiar={cambiar} instancia={ronda[0].instancia} />
               <ul className="grid gap-3 md:grid-cols-2">
                 {visibles.map((p) => (
-                  <li key={p.key}><CargaPartido p={p} horario={cat.horariosPlayoff[p.key]} onGuardar={(r) => setResultado(p, r)} onHorario={(h) => setHorario(p, h)} /></li>
+                  <li key={p.key}><CargaPartido p={p} horario={cat.horariosPlayoff[p.key]} onGuardar={(r) => setResultado(p, r)} onHorario={(h) => setHorario(p, h)} desde={cat.fechaInicio} hasta={cat.fechaFin} /></li>
                 ))}
               </ul>
             </section>
@@ -146,7 +146,7 @@ function ZonaCard({ z, cat, cambiar, nombre, onResultado, onHorario }: {
       )}
       <ul className="space-y-2 border-t border-noche/10 bg-vidrio/50 p-3">
         {z.partidos.map((p) => (
-          <li key={p.key}><CargaPartido p={p} horario={cat.horariosZona[p.key]} onGuardar={(r) => onResultado(p, r)} onHorario={(h) => onHorario(p, h)} /></li>
+          <li key={p.key}><CargaPartido p={p} horario={cat.horariosZona[p.key]} onGuardar={(r) => onResultado(p, r)} onHorario={(h) => onHorario(p, h)} desde={cat.fechaInicio} hasta={cat.fechaFin} /></li>
         ))}
       </ul>
     </div>
@@ -184,8 +184,10 @@ const borradorDe = (r: Resultado | undefined, n: number): Borrador => ({
   wo: r?.wo ?? '',
 })
 
-function CargaPartido({ p, horario, onGuardar, onHorario }: {
+function CargaPartido({ p, horario, onGuardar, onHorario, desde, hasta }: {
   p: Partido; horario: Horario | undefined; onGuardar: (r: Resultado | null) => void; onHorario: (h: Horario) => void
+  /** fechas del torneo */
+  desde?: string; hasta?: string
 }) {
   const [editando, setEditando] = useState(false)
   const [reprogramando, setReprogramando] = useState(false)
@@ -232,7 +234,7 @@ function CargaPartido({ p, horario, onGuardar, onHorario }: {
       {reprogramando && !jugado && (
         <div className="mb-2 space-y-1 rounded-md bg-vidrio p-2">
           <p className="text-[11px] font-semibold text-noche/60">Reprogramar (mismos rivales, fecha y hora futuras)</p>
-          <EditorHorario valor={horario} onChange={onHorario} />
+          <EditorHorario valor={horario} onChange={onHorario} desde={desde} hasta={hasta} />
         </div>
       )}
 

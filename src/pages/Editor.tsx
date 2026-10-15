@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, CloudUpload, Copy, ExternalLink, Globe, Loader2, RotateCcw, Share2 } from 'lucide-react'
 import { cargar, escucharGuardado, estadoGuardado, guardar, vaciar, type EstadoGuardado } from '../lib/almacen'
 import {
-  MAX_PAREJAS, MIN_PAREJAS, datosCompletos, erroresCuadro, nombreEstado, zonasArmadas, firmaZonas, horarioCompleto, partidosDeZona, rangoFechas, rondasPlayoff, type Categoria,
+  MAX_PAREJAS, MIN_PAREJAS, datosCompletos, erroresCuadro, precargarHorarios, nombreEstado, zonasArmadas, firmaZonas, horarioCompleto, partidosDeZona, rangoFechas, rondasPlayoff, type Categoria,
 } from '../lib/torneo'
 import { estadoTorneo, resolverTorneo } from '../lib/resultados'
 import { Alerta, Badge, Button, Modal, Spinner } from '../components/ui'
@@ -28,7 +28,13 @@ export default function Editor({ id, inicial, onVolver }: { id: string; inicial?
   useEffect(() => {
     if (inicial) return
     cargar(id)
-      .then((c) => (c ? setCat(c) : setErrorCarga('No se encontró el torneo (puede que lo hayan eliminado).')))
+      .then((c) => {
+        if (!c) return setErrorCarga('No se encontró el torneo (puede que lo hayan eliminado).')
+        // completa lo que falte en los partidos sin jugar (día del torneo de un solo día, complejo por defecto)
+        const c2 = precargarHorarios(c)
+        setCat(c2)
+        if (c2 !== c) guardar({ ...c2, actualizado: Date.now() })
+      })
       .catch((e) => setErrorCarga(e instanceof Error ? e.message : 'No se pudo cargar el torneo.'))
   }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -45,7 +51,7 @@ export default function Editor({ id, inicial, onVolver }: { id: string; inicial?
       const n = f(c)
       // si cambia la forma de las zonas (cantidad o tamaños), el cuadro de playoff ya no sirve
       const n2 = firmaZonas(n.zonas) !== firmaZonas(c.zonas) ? { ...n, cuadro: null } : n
-      const final = { ...n2, actualizado: Date.now() }
+      const final = { ...precargarHorarios(n2), actualizado: Date.now() }
       if (persistido.current || datosCompletos(final)) {
         persistido.current = true
         guardar(final)

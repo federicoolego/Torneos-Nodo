@@ -76,9 +76,9 @@ export default function PasoPlayoff({ cat, cambiar }: Props) {
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="font-display text-xl font-semibold">Días y horarios</h3>
-              <p className="text-sm text-noche/65">Día y hora: obligatorio en la primera ronda; en las siguientes es opcional. Para reprogramar, la nueva fecha y hora tienen que ser futuras.</p>
+              <p className="text-sm text-noche/65">Día y hora: obligatorio en la primera ronda; en las siguientes es opcional. Los días tienen que estar dentro de las fechas del torneo y, para reprogramar, la nueva fecha y hora tienen que ser futuras.</p>
             </div>
-            <CompletarHorarios grupos={grupos} fechaInicial={cat.fechaFin || cat.fechaInicio} actuales={cat.horariosPlayoff} jugados={jugados} onAplicar={(h) => cambiar((c) => ({ ...c, horariosPlayoff: h }))} />
+            <CompletarHorarios grupos={grupos} fechaInicial={cat.fechaFin || cat.fechaInicio} actuales={cat.horariosPlayoff} desde={cat.fechaInicio} hasta={cat.fechaFin} jugados={jugados} onAplicar={(h) => cambiar((c) => ({ ...c, horariosPlayoff: h }))} />
           </div>
           <div className="space-y-5">
             {rondas.map((r, ri) => r.some((p) => !p.bye) && (
@@ -88,7 +88,7 @@ export default function PasoPlayoff({ cat, cambiar }: Props) {
                   {r.filter((p) => !p.bye).map((p) => (
                     <li key={p.key} className="space-y-2 rounded-lg bg-vidrio p-3">
                       <p className="text-sm"><span className="font-semibold text-cancha">{p.titulo}:</span> {p.a} <span className="text-noche/45">vs</span> {p.b}</p>
-                      <EditorHorario valor={cat.horariosPlayoff[p.key]} onChange={(h) => setH(p.key, h)} jugado={jugados.has(p.key)} requerido={ri === 0 || rondas[0].every((x) => x.bye) && ri === 1} />
+                      <EditorHorario valor={cat.horariosPlayoff[p.key]} onChange={(h) => setH(p.key, h)} desde={cat.fechaInicio} hasta={cat.fechaFin} jugado={jugados.has(p.key)} requerido={ri === 0 || rondas[0].every((x) => x.bye) && ri === 1} />
                     </li>
                   ))}
                 </ul>
