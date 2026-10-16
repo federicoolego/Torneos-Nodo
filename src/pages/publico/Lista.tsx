@@ -3,6 +3,8 @@ import { CalendarDays, ChevronRight, Search, Ticket, Trophy, Users } from 'lucid
 import { listarPublicos, normalizarTexto, type ResumenPublico } from '../../lib/publico'
 import { CATEGORIAS, ESTADOS, MESES, formatoPesos, nombreEstado, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../../lib/torneo'
 import { Alerta, Badge, Input, Select, Spinner, Vacio } from '../../components/ui'
+import Estadisticas from '../../components/Estadisticas'
+import { BadgeCategoria, bordeCategoria } from '../../components/Categoria'
 
 /** En curso primero, después los que vienen, los terminados y los cancelados */
 const ORDEN: Record<EstadoTorneo, number> = { en_curso: 0, pendiente: 1, finalizado: 2, cancelado: 3 }
@@ -40,6 +42,9 @@ export default function ListaPublica() {
         return a.estado === 'pendiente' ? fa.localeCompare(fb) : fb.localeCompare(fa)
       })
   }, [lista, categoria, estado, anio, mes, texto])
+  const hayFiltros = !!(texto || categoria || estado || anio || mes)
+  // las estadísticas usan los mismos torneos que la lista (que ya son solo los publicados)
+  const datos = useMemo(() => visibles.map((t) => ({ ...t, jugadores: t.jugadores ?? [] })), [visibles])
 
   return (
     <>
@@ -72,6 +77,8 @@ export default function ListaPublica() {
       </div>
 
       {error && <div className="mb-4"><Alerta tipo="error">{error}</Alerta></div>}
+      {hayFiltros && !!lista?.length && <p className="-mt-2 mb-3 text-xs text-noche/55">{visibles.length} de {lista.length} torneos</p>}
+      {!!visibles.length && <Estadisticas torneos={datos} filtrado={hayFiltros} publico />}
       {lista === null ? <Spinner texto="Cargando torneos…" /> : visibles.length === 0 ? (
         <Vacio titulo={lista.length ? 'No hay torneos con esos filtros' : 'Todavía no hay torneos publicados'}>
           {lista.length ? 'Probá cambiando el estado, el año o el mes.' : 'Cuando el club publique un torneo, lo vas a ver acá.'}
@@ -80,10 +87,10 @@ export default function ListaPublica() {
         <ul className="grid gap-3 sm:grid-cols-2">
           {visibles.map((t) => (
             <li key={t.id}>
-              <a href={`#/torneo/${t.id}`} className="flex h-full items-center gap-3 rounded-xl bg-white p-4 ring-1 ring-noche/10 transition hover:ring-cancha/40">
+              <a href={`#/torneo/${t.id}`} className={`flex h-full items-center gap-3 rounded-xl bg-white p-4 ring-1 ring-noche/10 transition hover:ring-cancha/40 ${bordeCategoria(t.categoria)}`}>
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap gap-1">
-                    <Badge>{t.categoria}</Badge>
+                    <BadgeCategoria categoria={t.categoria} />
                     <Badge tono={tonoEstado(t.estado)}>{nombreEstado(t.estado)}</Badge>
                   </div>
                   <p className="font-display text-2xl font-bold leading-tight text-noche">{t.nombre}</p>

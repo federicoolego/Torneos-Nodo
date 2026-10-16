@@ -4,6 +4,11 @@ import { configurado } from './lib/supabase'
 import { Alerta, Spinner } from './components/ui'
 import ListaPublica from './pages/publico/Lista'
 import TorneoPublico from './pages/publico/Torneo'
+import AvisoVersion from './components/AvisoVersion'
+import { BUILD, FECHA_BUILD, VERSION, recargarSiFaltanArchivos } from './lib/version'
+
+// si quedó abierta una versión vieja y le faltan archivos (por ejemplo, el panel de admin), recarga sola
+recargarSiFaltanArchivos()
 
 // El panel de organizadores se carga solo al entrar a #/admin: la página pública queda liviana
 const Admin = lazy(() => import('./pages/Admin'))
@@ -11,7 +16,13 @@ const Admin = lazy(() => import('./pages/Admin'))
 export const logoUrl = () => `${import.meta.env.BASE_URL}logo-nodo.webp`
 
 export function Firma() {
-  return <p className="py-4 text-center text-xs text-noche/45"><span aria-hidden>🎾</span> Desarrollado por Federico Olego <span aria-hidden>🎾</span></p>
+  const fecha = new Date(FECHA_BUILD).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+  return (
+    <div className="py-4 text-center text-xs text-noche/45">
+      <p><span aria-hidden>🎾</span> Desarrollado por Federico Olego <span aria-hidden>🎾</span></p>
+      <p className="num mt-0.5 text-[10px] text-noche/35" title={`Build ${BUILD} · ${fecha}`}>v{VERSION}</p>
+    </div>
+  )
 }
 
 /** Ruta actual: '#/' (torneos publicados) · '#/torneo/<id>' · '#/admin' */
@@ -38,7 +49,7 @@ export default function App() {
     )
   }
   if (admin) {
-    return <Suspense fallback={<div className="grid min-h-screen place-items-center"><Spinner /></div>}><Admin /></Suspense>
+    return <><Suspense fallback={<div className="grid min-h-screen place-items-center"><Spinner /></div>}><Admin /></Suspense><AvisoVersion admin /></>
   }
   const m = ruta.match(/^#\/torneo\/([0-9a-f-]{36})/i)
   return (
@@ -58,6 +69,7 @@ export default function App() {
         {m ? <TorneoPublico key={m[1]} id={m[1]} /> : <ListaPublica />}
       </main>
       <footer className="pb-4"><Firma /></footer>
+      <AvisoVersion />
     </div>
   )
 }

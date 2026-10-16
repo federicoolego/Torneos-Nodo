@@ -4,6 +4,7 @@ import { cargarPublico, normalizarTexto } from '../../lib/publico'
 import { LETRAS, formatoPesos, nombreEstado, nombreInstancia, rangoFechas, textoHorario, type Categoria, type Horario } from '../../lib/torneo'
 import { estadoTorneo, instanciasDelTorneo, resolverTorneo, textoFormatos, type Partido, type ZonaResuelta } from '../../lib/resultados'
 import { Alerta, Badge, Input, Spinner, Tabs, Vacio } from '../../components/ui'
+import { BadgeCategoria } from '../../components/Categoria'
 import { tonoEstado } from './Lista'
 
 type Pestana = 'zonas' | 'partidos' | 'playoff'
@@ -64,7 +65,7 @@ export default function TorneoPublico({ id }: { id: string }) {
       {/* encabezado */}
       <header className="space-y-2">
         <div className="flex flex-wrap gap-1">
-          <Badge>{cat.categoria}</Badge>
+          <BadgeCategoria categoria={cat.categoria} />
           <Badge tono={tonoEstado(estado)}>{nombreEstado(estado)}</Badge>
         </div>
         <h1 className="font-display text-4xl font-bold leading-none text-noche">{cat.torneo}</h1>

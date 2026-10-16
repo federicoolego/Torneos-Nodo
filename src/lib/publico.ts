@@ -6,12 +6,14 @@ import type { Categoria, CategoriaTorneo, EstadoTorneo } from './torneo'
 export interface ResumenPublico {
   id: string; nombre: string; categoria: CategoriaTorneo; fecha_inicio: string | null; fecha_fin: string | null; estado: EstadoTorneo
   inscripcion: number | null; premio: string; campeon: string | null; parejas: number
+  /** jugadores inscriptos (para las estadísticas); llega vacío si no se corrió torneos_nodo_publico_estadisticas.sql */
+  jugadores?: string[]
 }
 
 export async function listarPublicos(): Promise<ResumenPublico[]> {
   const { data, error } = await supabase.rpc('torneos_nodo_publicos')
   if (error) throw new Error(error.message)
-  return (data ?? []) as ResumenPublico[]
+  return ((data ?? []) as ResumenPublico[]).map((t) => ({ ...t, jugadores: (t.jugadores ?? []).filter((j) => j?.trim()) }))
 }
 
 /** Torneo publicado completo (null si no existe o no está publicado) */

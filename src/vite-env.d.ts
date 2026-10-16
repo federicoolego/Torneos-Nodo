@@ -7,3 +7,8 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+// versión de la app (la inyecta vite.config.ts en el build)
+declare const __APP_VERSION__: string
+declare const __APP_BUILD__: string
+declare const __APP_FECHA__: string

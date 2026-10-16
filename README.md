@@ -26,6 +26,9 @@ compu que no permite compartir archivos, las descarga para adjuntarlas a mano.
 - `…/` → torneos publicados (para jugadores, sin login). `…/#/torneo/<id>` → un torneo (link para compartir).
 - `…/#/admin` → panel de organizadores (login con usuario NODO).
 - La página pública lee solo con las funciones `torneos_nodo_publicos()` y `torneos_nodo_publico(id)` (ver `supabase/torneos_nodo_publico.sql`): solo torneos publicados y sin datos internos.
+- La página pública también muestra **Estadísticas** (las mismas del panel, sin el dato de publicación), calculadas solo sobre los torneos publicados.
+  Requiere correr `supabase/torneos_nodo_publico_estadisticas.sql` (agrega los jugadores al listado público).
+- Cada categoría tiene su color (borde de la tarjeta y etiqueta): Damas rosa, Caballeros azul, Mixto violeta. Se cambian en `tailwind.config.js` (`damas`, `caballeros`, `mixto`).
 
 ## Base de datos y acceso
 
@@ -42,6 +45,14 @@ compu que no permite compartir archivos, las descarga para adjuntarlas a mano.
 4. Cada push publica en `https://<usuario>.github.io/Torneos-Nodo/`.
 
 Con dominio propio, cambiá en `.github/workflows/deploy.yml` la línea `BASE_PATH` por `BASE_PATH: /`.
+
+## Versión y aviso de actualización
+
+- La versión está en `package.json` (`version`) y se ve en el pie de página (`v1.1.0`; pasando el mouse, el build y la fecha).
+- Cada build publica `version.json` con la versión y el **build** (commit corto en GitHub Actions). La app lo consulta cada 5 minutos
+  y al volver a la pestaña: si el build publicado es distinto del que se está usando, muestra el cartel **“Hay una versión nueva · Actualizar”**.
+- El aviso sale en cada deploy aunque no se cambie `version`; conviene subirla cuando hay cambios visibles (1.1.0 → 1.2.0).
+- Si una pestaña vieja intenta abrir un archivo que ya no existe (por ejemplo, el panel de admin), la app recarga sola.
 
 ## Local
 
