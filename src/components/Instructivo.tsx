@@ -34,6 +34,8 @@ export default function Instructivo() {
               <li><strong>Imágenes:</strong> zonas y playoff (con nombres y resultados a medida que se cargan) listas para compartir por WhatsApp (también con el botón verde de abajo a la derecha).</li>
             </ol>
             <p className="mt-2 text-xs text-noche/60">Cada categoría es un torneo aparte. Para otra categoría, usá “Duplicar” y cambiá el nombre y las parejas.</p>
+            <p className="mt-2 text-xs text-noche/60"><strong>Importar torneos:</strong> carga un archivo .sql (por ejemplo, el que se arma desde el Excel de la fecha) con torneos, parejas, zonas y horarios. Antes de importar muestra qué va a cargar; si un torneo ya existe, se deja como está salvo que tildes “Actualizar”. Nunca toca resultados.</p>
+            <p className="mt-2 text-xs text-noche/60"><strong>Cronograma unificado:</strong> tildá uno o más torneos en la lista y tocá “Cronograma”: todos los partidos juntos, por día y horario, en PDF, para imprimir o en Word. Avisa si hay más partidos a la vez que canchas o un jugador en dos partidos que se pisan.</p>
           </div>
           <div className="space-y-3">
             <div className="rounded-lg bg-cancha-suave/60 p-3 ring-1 ring-cancha/15">

@@ -366,3 +366,11 @@ export async function migrarLocales() {
   try { localStorage.setItem(`${CLAVE_LOCAL}:migrado`, texto); localStorage.removeItem(CLAVE_LOCAL) } catch { /* nada */ }
   return res
 }
+
+/** Varios torneos completos (para el cronograma unificado), en el orden de `ids` */
+export async function cargarVarios(ids: string[]): Promise<Categoria[]> {
+  if (ids.some((id) => pendientes.has(id))) await vaciar()
+  const cats = await traer(ids)
+  const m = new Map(cats.map((c) => [c.id, c]))
+  return ids.map((id) => m.get(id)).filter((c): c is Categoria => !!c)
+}
