@@ -274,7 +274,7 @@ export default function CronogramaVarios() {
     <>
       <header className="mb-5">
         <h1 className="flex items-center gap-2 font-display text-4xl font-bold leading-none text-noche">
-          <CalendarDays className="h-8 w-8 text-cancha" aria-hidden /> Cronograma{enc && enc.titulo !== 'Cronograma de partidos' ? ` · ${enc.titulo}` : ''}
+          <CalendarDays className="h-8 w-8 text-cancha" aria-hidden /> Calendario{enc && enc.titulo !== 'Cronograma de partidos' ? ` · ${enc.titulo}` : ''}
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-noche/70">
           Partidos de los torneos pendientes y en curso, ordenados por día y horario (el mismo orden del PDF). Compartí el cronograma o cargá los resultados desde acá.

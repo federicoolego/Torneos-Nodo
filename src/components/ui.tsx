@@ -159,14 +159,15 @@ export function Tabs<T extends string>({
   onChange: (v: T) => void
 }) {
   return (
-    <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-noche/10">
+    // la línea de abajo va como sombra interna (no borde + margen negativo): así no aparece scroll vertical en las pestañas
+    <div role="tablist" className="flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_rgba(4,45,41,0.1)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {opciones.map((o) => (
         <button
           key={o.id}
           role="tab"
           aria-selected={valor === o.id}
           onClick={() => onChange(o.id)}
-          className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-2.5 font-display text-lg font-semibold tracking-wide transition-colors ${
+          className={`flex shrink-0 items-center gap-2 border-b-2 px-4 py-2.5 font-display text-lg font-semibold tracking-wide transition-colors ${
             valor === o.id ? 'border-cancha text-cancha' : 'border-transparent text-noche/55 hover:text-noche'
           }`}
         >

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, Database, Info, Settings, Users } from 'lucide-react'
+import { ChevronDown, Database, Info, Users } from 'lucide-react'
 
 const CLAVE = 'generador:instructivo-cerrado'
 
@@ -35,7 +35,7 @@ export default function Instructivo() {
             </ol>
             <p className="mt-2 text-xs text-noche/60">Cada categoría es un torneo aparte. Para otra categoría, usá “Duplicar” y cambiá el nombre y las parejas.</p>
             <p className="mt-2 text-xs text-noche/60"><strong>Importar torneos:</strong> carga un archivo .sql (por ejemplo, el que se arma desde el Excel de la fecha) con torneos, parejas, zonas y horarios. Antes de importar muestra qué va a cargar; si un torneo ya existe, se deja como está salvo que tildes “Actualizar”. Nunca toca resultados.</p>
-            <p className="mt-2 text-xs text-noche/60"><strong>Cronograma:</strong> el ícono de calendario de arriba abre todos los partidos de los torneos pendientes y en curso, juntos y por día y horario: se comparte en PDF, se imprime o se baja en Word, y desde la misma lista se cargan los resultados. Se pueden destildar torneos, sumar otros y ordenarlos. Avisa si hay más partidos a la vez que canchas o un jugador en dos partidos que se pisan.</p>
+            <p className="mt-2 text-xs text-noche/60"><strong>Cronograma:</strong> la pestaña Calendario muestra todos los partidos de los torneos pendientes y en curso, juntos y por día y horario: se comparte en PDF, se imprime o se baja en Word, y desde la misma lista se cargan los resultados. Se pueden destildar torneos, sumar otros y ordenarlos. Avisa si hay más partidos a la vez que canchas o un jugador en dos partidos que se pisan.</p>
           </div>
           <div className="space-y-3">
             <div className="rounded-lg bg-cancha-suave/60 p-3 ring-1 ring-cancha/15">
@@ -50,7 +50,7 @@ export default function Instructivo() {
               <p className="mb-1.5 flex items-center gap-2 font-semibold text-noche"><Users className="h-4 w-4" aria-hidden /> Jugadores</p>
               <ul className="list-disc space-y-1 pl-5">
                 <li>Hay un <strong>padrón único</strong> de jugadores: al inscribir una pareja se busca al jugador (sin importar mayúsculas ni tildes), así no se carga dos veces la misma persona.</li>
-                <li>Con el ícono <Settings className="inline h-3.5 w-3.5 align-[-2px]" aria-label="configuración" /> de arriba a la derecha → <strong>Jugadores</strong> podés agregar, corregir el nombre (se actualiza en todos sus torneos), <strong>unificar</strong> un jugador cargado dos veces y eliminar a quien no jugó ningún torneo.</li>
+                <li>En la pestaña <strong>Jugadores</strong> podés agregar, corregir el nombre (se actualiza en todos sus torneos), <strong>unificar</strong> un jugador cargado dos veces y eliminar a quien no jugó ningún torneo.</li>
                 <li>Los “posibles duplicados” (mismo nombre con distinta tilde) aparecen marcados para revisarlos.</li>
               </ul>
             </div>

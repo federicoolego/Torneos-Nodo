@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { CalendarDays, Globe, LogOut, Settings, Users } from 'lucide-react'
+import { Globe, LogOut } from 'lucide-react'
 import { alCerrarSesion, salir, sesionActiva } from '../lib/auth'
 import { vaciar } from '../lib/almacen'
-import { Spinner } from '../components/ui'
+import { Spinner, Tabs } from '../components/ui'
 import { nuevaCategoria, type Categoria } from '../lib/torneo'
 import Login from './Login'
 import Inicio from './Inicio'
@@ -11,13 +11,16 @@ import { Firma, logoUrl, useRuta } from '../App'
 import Jugadores from './Jugadores'
 import CronogramaVarios from '../components/CronogramaVarios'
 
+type Pestana = 'torneos' | 'calendario' | 'jugadores'
+const RUTAS: Record<Pestana, string> = { torneos: '#/admin', calendario: '#/admin/calendario', jugadores: '#/admin/jugadores' }
+
 /** Panel de organizadores (#/admin): login + armado de torneos */
 export default function Admin() {
   const [logueado, setLogueado] = useState<boolean | null>(null)
   const ruta = useRuta()
-  const enJugadores = ruta.startsWith('#/admin/jugadores')
-  const enCronograma = ruta.startsWith('#/admin/cronograma')
-  const [menu, setMenu] = useState(false)
+  // pestañas del admin: Torneos (#/admin) · Calendario (#/admin/calendario) · Jugadores (#/admin/jugadores)
+  const pestana: Pestana = ruta.startsWith('#/admin/jugadores') ? 'jugadores'
+    : ruta.startsWith('#/admin/calendario') || ruta.startsWith('#/admin/cronograma') ? 'calendario' : 'torneos'
   const [abierta, setAbierta] = useState<string | null>(null)
   // torneo nuevo todavía sin guardar: se crea en la base recién con los datos obligatorios completos
   const [nuevo, setNuevo] = useState<Categoria | null>(null)
@@ -56,25 +59,6 @@ export default function Admin() {
               className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/80 ring-1 ring-white/25 hover:bg-white/10 hover:text-white">
               <Globe className="h-4 w-4" aria-hidden /> Torneos
             </button>
-            {/* cronograma de todos los torneos en juego: PDF + carga de resultados */}
-            <button onClick={async () => { await vaciar(); abrir(null); window.location.hash = '#/admin/cronograma' }} aria-label="Cronograma y carga de resultados" title="Cronograma y carga de resultados"
-              className={enCronograma ? 'text-pelota' : 'text-white/70 hover:text-white'}>
-              <CalendarDays className="h-5 w-5" />
-            </button>
-            {/* configuración: por ahora, el padrón de jugadores */}
-            <div className="relative">
-              <button onClick={() => setMenu(!menu)} aria-label="Configuración" title="Configuración" aria-expanded={menu} className="text-white/70 hover:text-white">
-                <Settings className="h-5 w-5" />
-              </button>
-              {menu && (
-                <div className="absolute right-0 top-8 z-40 w-48 overflow-hidden rounded-lg bg-white py-1 text-sm text-noche shadow-lg ring-1 ring-noche/10" onMouseLeave={() => setMenu(false)}>
-                  <button onClick={async () => { setMenu(false); await vaciar(); abrir(null); window.location.hash = '#/admin/jugadores' }}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-vidrio">
-                    <Users className="h-4 w-4 text-cancha" aria-hidden /> Jugadores
-                  </button>
-                </div>
-              )}
-            </div>
             <button onClick={async () => { await vaciar(); await salir(); setLogueado(false) }} aria-label="Cerrar sesión" title="Cerrar sesión" className="text-white/70 hover:text-white">
               <LogOut className="h-5 w-5" />
             </button>
@@ -82,7 +66,15 @@ export default function Admin() {
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">
-        {enJugadores ? <Jugadores /> : enCronograma ? <CronogramaVarios /> : abierta ? <Editor key={abierta} id={abierta} inicial={nuevo ?? undefined} onVolver={() => abrir(null)} /> : <Inicio onAbrir={abrir} onNuevo={crear} />}
+        <div className="mb-5">
+          <Tabs<Pestana>
+            opciones={[{ id: 'torneos', label: 'Torneos' }, { id: 'calendario', label: 'Calendario' }, { id: 'jugadores', label: 'Jugadores' }]}
+            valor={pestana}
+            // sube lo pendiente antes de cambiar; "Torneos" también cierra el torneo abierto y vuelve a la lista
+            onChange={async (p) => { await vaciar(); abrir(null); window.location.hash = RUTAS[p] }}
+          />
+        </div>
+        {pestana === 'jugadores' ? <Jugadores /> : pestana === 'calendario' ? <CronogramaVarios /> : abierta ? <Editor key={abierta} id={abierta} inicial={nuevo ?? undefined} onVolver={() => abrir(null)} /> : <Inicio onAbrir={abrir} onNuevo={crear} />}
       </main>
       <Firma />
     </div>
