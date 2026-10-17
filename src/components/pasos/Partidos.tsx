@@ -184,7 +184,8 @@ const borradorDe = (r: Resultado | undefined, n: number): Borrador => ({
   wo: r?.wo ?? '',
 })
 
-function CargaPartido({ p, horario, onGuardar, onHorario, desde, hasta }: {
+/** Carga / edición del resultado de un partido (también la usa el cronograma unificado) */
+export function CargaPartido({ p, horario, onGuardar, onHorario, desde, hasta }: {
   p: Partido; horario: Horario | undefined; onGuardar: (r: Resultado | null) => void; onHorario: (h: Horario) => void
   /** fechas del torneo */
   desde?: string; hasta?: string

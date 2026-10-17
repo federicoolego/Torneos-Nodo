@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarDays, CloudUpload, Copy, Plus, Search, Trash2, X } from 'lucide-react'
+import { CloudUpload, Copy, Plus, Search, Trash2 } from 'lucide-react'
 import { duplicar, eliminar, listar, migrarLocales, torneosLocales, type ResumenTorneo } from '../lib/almacen'
 import { CATEGORIAS, ESTADOS, MESES, nombreEstado, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../lib/torneo'
 import { normalizarTexto } from '../lib/publico'
 import { Alerta, Badge, Button, Input, Select, Spinner, Titulo, Vacio } from '../components/ui'
 import Instructivo from '../components/Instructivo'
 import ImportarTorneos from '../components/ImportarTorneos'
-import CronogramaVarios from '../components/CronogramaVarios'
 import Estadisticas from '../components/Estadisticas'
 import { BadgeCategoria, bordeCategoria } from '../components/Categoria'
 
@@ -15,10 +14,6 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'error'; txt: string } | null>(null)
   const [ocupado, setOcupado] = useState(false)
   const [locales, setLocales] = useState(torneosLocales)
-  // torneos elegidos para el cronograma unificado (en el orden en que se eligen) y cronograma abierto
-  const [sel, setSel] = useState<string[]>([])
-  const [cronograma, setCronograma] = useState<string[] | null>(null)
-  const alternar = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
   // filtros (los mismos que la página pública, más "publicado")
   const [texto, setTexto] = useState('')
   const [categoria, setCategoria] = useState<'' | CategoriaTorneo>('')
@@ -45,8 +40,6 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
     try { setLista(await listar()) } catch (e) { setLista([]); setMsg({ tipo: 'error', txt: `No se pudo leer la base: ${e instanceof Error ? e.message : e}` }) }
   }, [])
   useEffect(() => { void refrescar() }, [refrescar])
-  // si se elimina un torneo elegido, sale de la selección
-  useEffect(() => { if (lista) setSel((s) => s.filter((id) => lista.some((t) => t.id === id))) }, [lista])
 
   /** Corre una acción mostrando el error si falla */
   async function accion(f: () => Promise<void>) {
@@ -64,13 +57,10 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
   // no se guarda nada todavía: el torneo se crea al completar los datos obligatorios
   const nueva = () => onNuevo()
 
-  if (cronograma) return <CronogramaVarios ids={cronograma} onVolver={() => setCronograma(null)} />
-
-  const visiblesSinElegir = visibles.filter((t) => !sel.includes(t.id))
 
   return (
     <>
-      <Titulo bajada="Cada torneo (una categoría) se arma por separado. Todo queda guardado en la base de datos. Tildá uno o más torneos para armar un cronograma unificado." accion={
+      <Titulo bajada="Cada torneo (una categoría) se arma por separado. Todo queda guardado en la base de datos. El cronograma de todos los torneos en juego (PDF y carga de resultados) está en el ícono de calendario de arriba." accion={
         <div className="flex flex-wrap gap-2">
           <ImportarTorneos
             onImportado={async (txt) => { await refrescar(); setMsg({ tipo: 'ok', txt }) }}
@@ -130,9 +120,7 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
           {visibles.map((c) => (
-            <li key={c.id} className={`flex items-center gap-3 rounded-xl bg-white p-4 ring-1 ${bordeCategoria(c.categoria)} ${sel.includes(c.id) ? 'ring-2 ring-cancha' : 'ring-noche/10'}`}>
-              <input type="checkbox" checked={sel.includes(c.id)} onChange={() => alternar(c.id)} aria-label={`Elegir ${c.torneo || 'torneo'} para el cronograma`}
-                title="Elegir para el cronograma unificado" className="h-5 w-5 shrink-0 cursor-pointer accent-[#0F6B57]" />
+            <li key={c.id} className={`flex items-center gap-3 rounded-xl bg-white p-4 ring-1 ${bordeCategoria(c.categoria)} ring-noche/10`}>
               <button onClick={() => onAbrir(c.id)} className="min-w-0 flex-1 text-left">
                 <p className="truncate font-display text-xl font-bold">{c.torneo || 'Torneo sin nombre'}</p>
                 <div className="mt-0.5 flex flex-wrap gap-1">
@@ -158,24 +146,6 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
             </li>
           ))}
         </ul>
-      )}
-      {sel.length > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-30 px-4" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-          <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl bg-noche px-4 py-3 text-white shadow-xl">
-            <span className="mr-auto text-sm"><strong className="num">{sel.length}</strong> torneo{sel.length === 1 ? '' : 's'} elegido{sel.length === 1 ? '' : 's'}</span>
-            {visiblesSinElegir.length > 0 && (
-              <button onClick={() => setSel((s) => [...s, ...visiblesSinElegir.map((t) => t.id)])} className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white/80 ring-1 ring-white/25 hover:bg-white/10">
-                Elegir los {visibles.length} visibles
-              </button>
-            )}
-            <button onClick={() => setSel([])} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/80 hover:bg-white/10">
-              <X className="h-4 w-4" aria-hidden /> Limpiar
-            </button>
-            <button onClick={() => setCronograma(sel)} className="inline-flex items-center gap-2 rounded-lg bg-pelota px-4 py-2 text-sm font-bold text-noche hover:brightness-95">
-              <CalendarDays className="h-4 w-4" aria-hidden /> Cronograma
-            </button>
-          </div>
-        </div>
       )}
     </>
   )

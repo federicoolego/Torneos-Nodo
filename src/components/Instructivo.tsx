@@ -35,7 +35,7 @@ export default function Instructivo() {
             </ol>
             <p className="mt-2 text-xs text-noche/60">Cada categoría es un torneo aparte. Para otra categoría, usá “Duplicar” y cambiá el nombre y las parejas.</p>
             <p className="mt-2 text-xs text-noche/60"><strong>Importar torneos:</strong> carga un archivo .sql (por ejemplo, el que se arma desde el Excel de la fecha) con torneos, parejas, zonas y horarios. Antes de importar muestra qué va a cargar; si un torneo ya existe, se deja como está salvo que tildes “Actualizar”. Nunca toca resultados.</p>
-            <p className="mt-2 text-xs text-noche/60"><strong>Cronograma unificado:</strong> tildá uno o más torneos en la lista y tocá “Cronograma”: todos los partidos juntos, por día y horario, en PDF, para imprimir o en Word. Avisa si hay más partidos a la vez que canchas o un jugador en dos partidos que se pisan.</p>
+            <p className="mt-2 text-xs text-noche/60"><strong>Cronograma:</strong> el ícono de calendario de arriba abre todos los partidos de los torneos pendientes y en curso, juntos y por día y horario: se comparte en PDF, se imprime o se baja en Word, y desde la misma lista se cargan los resultados. Se pueden destildar torneos, sumar otros y ordenarlos. Avisa si hay más partidos a la vez que canchas o un jugador en dos partidos que se pisan.</p>
           </div>
           <div className="space-y-3">
             <div className="rounded-lg bg-cancha-suave/60 p-3 ring-1 ring-cancha/15">
