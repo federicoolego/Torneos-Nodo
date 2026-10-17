@@ -25,5 +25,16 @@ export async function cargarPublico(id: string): Promise<Categoria | null> {
   return desdeFilas(d.torneo, d.parejas, d.instancias, d.partidos)
 }
 
+/**
+ * Torneos publicados (no cancelados) con partidos entre esas fechas ('YYYY-MM-DD'), completos,
+ * para el calendario. Requiere supabase/torneos_nodo_calendario.sql
+ */
+export async function cargarCalendario(desde: string, hasta: string): Promise<Categoria[]> {
+  const { data, error } = await supabase.rpc('torneos_nodo_calendario', { p_desde: desde, p_hasta: hasta })
+  if (error) throw new Error(error.message)
+  type D = { torneo: FilaTorneo & { actualizado: string }; parejas: FilaPareja[]; instancias: FilaInstancia[]; partidos: FilaPartido[] }
+  return ((data ?? []) as D[]).map((d) => desdeFilas(d.torneo, d.parejas, d.instancias, d.partidos))
+}
+
 /** Para buscar sin importar mayúsculas ni acentos */
 export const normalizarTexto = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()

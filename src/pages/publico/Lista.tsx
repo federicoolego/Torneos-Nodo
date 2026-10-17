@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ChevronRight, Search, Ticket, Trophy, Users } from 'lucide-react'
 import { listarPublicos, normalizarTexto, type ResumenPublico } from '../../lib/publico'
 import { CATEGORIAS, ESTADOS, MESES, formatoPesos, nombreEstado, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../../lib/torneo'
-import { Alerta, Badge, Input, Select, Spinner, Vacio } from '../../components/ui'
+import { Alerta, Badge, Input, Select, Spinner, Tabs, Vacio } from '../../components/ui'
+import Calendario from './Calendario'
 import Estadisticas from '../../components/Estadisticas'
 import { BadgeCategoria, bordeCategoria } from '../../components/Categoria'
 
@@ -11,8 +12,40 @@ const ORDEN: Record<EstadoTorneo, number> = { en_curso: 0, pendiente: 1, finaliz
 
 export const tonoEstado = (e: EstadoTorneo) => (e === 'en_curso' ? 'verde' : e === 'finalizado' ? 'azul' : e === 'cancelado' ? 'rojo' : 'ambar') as 'verde' | 'azul' | 'rojo' | 'ambar'
 
-/** Página inicial para jugadores: torneos publicados con filtros */
+type PestanaInicio = 'torneos' | 'calendario'
+/** pestaña de la página inicial según el link (#/ = Torneos · #/calendario = Calendario) */
+const pestanaDelLink = (): PestanaInicio => (window.location.hash.startsWith('#/calendario') ? 'calendario' : 'torneos')
+
+/** Página inicial para jugadores: pestañas Torneos (por defecto) y Calendario */
 export default function ListaPublica() {
+  const [pestana, setPestana] = useState<PestanaInicio>(pestanaDelLink)
+  useEffect(() => {
+    const f = () => setPestana(pestanaDelLink())
+    window.addEventListener('hashchange', f)
+    return () => window.removeEventListener('hashchange', f)
+  }, [])
+  // el link refleja la pestaña (para compartir el calendario y para volver a ella desde un torneo), sin agregar historial
+  const cambiar = (p: PestanaInicio) => {
+    setPestana(p)
+    history.replaceState(null, '', p === 'calendario' ? '#/calendario' : '#/')
+  }
+  return (
+    <>
+      <div className="mb-5">
+        <Tabs<PestanaInicio> opciones={[{ id: 'torneos', label: 'Torneos' }, { id: 'calendario', label: 'Calendario' }]} valor={pestana} onChange={cambiar} />
+      </div>
+      {pestana === 'calendario' ? (
+        <>
+          <header className="mb-3"><h1 className="font-display text-4xl font-bold leading-none text-noche">Calendario</h1></header>
+          <Calendario />
+        </>
+      ) : <Torneos />}
+    </>
+  )
+}
+
+/** Torneos publicados con filtros */
+function Torneos() {
   const [lista, setLista] = useState<ResumenPublico[] | null>(null)
   const [error, setError] = useState('')
   const [categoria, setCategoria] = useState<'' | CategoriaTorneo>('')

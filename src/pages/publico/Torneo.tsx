@@ -15,8 +15,9 @@ export default function TorneoPublico({ id }: { id: string }) {
   const [cat, setCat] = useState<Categoria | null>(null)
   const [estadoCarga, setEstadoCarga] = useState<'cargando' | 'ok' | 'no-existe' | 'error'>('cargando')
   const [actualizado, setActualizado] = useState<Date | null>(null)
-  const [pestana, setPestana] = useState<Pestana>('zonas')
-  const [busqueda, setBusqueda] = useState('')
+  // desde el calendario se llega con ?p=partidos (y la búsqueda del jugador, si había)
+  const [pestana, setPestana] = useState<Pestana>(() => (parametro('p') === 'partidos' ? 'partidos' : parametro('p') === 'playoff' ? 'playoff' : 'zonas'))
+  const [busqueda, setBusqueda] = useState(() => parametro('q'))
 
   const cargar = useCallback(async () => {
     try {
@@ -121,8 +122,20 @@ export default function TorneoPublico({ id }: { id: string }) {
   )
 }
 
+/** parámetro del link del torneo (#/torneo/<id>?p=partidos&q=garcia) */
+function parametro(clave: string): string {
+  const i = window.location.hash.indexOf('?')
+  return i < 0 ? '' : new URLSearchParams(window.location.hash.slice(i + 1)).get(clave) ?? ''
+}
+
+/** vuelve a la pestaña de donde se llegó (Calendario si se entró desde un partido del calendario) */
 function Volver() {
-  return <a href="#/" className="inline-flex items-center gap-1 text-sm font-semibold text-cancha"><ArrowLeft className="h-4 w-4" aria-hidden /> Torneos</a>
+  const desdeCalendario = window.location.hash.includes('?p=')
+  return (
+    <a href={desdeCalendario ? '#/calendario' : '#/'} className="inline-flex items-center gap-1 text-sm font-semibold text-cancha">
+      <ArrowLeft className="h-4 w-4" aria-hidden /> {desdeCalendario ? 'Calendario' : 'Torneos'}
+    </a>
+  )
 }
 
 function Campeon({ nombre }: { nombre: string }) {
@@ -139,7 +152,8 @@ function Campeon({ nombre }: { nombre: string }) {
 
 function Compartir({ titulo }: { titulo: string }) {
   const [copiado, setCopiado] = useState(false)
-  const url = window.location.href
+  // sin los parámetros del calendario (?p=…&q=…): se comparte el torneo tal cual
+  const url = window.location.href.replace(/\?.*$/, '')
   const compartir = async () => {
     if (navigator.share) { try { await navigator.share({ title: titulo, text: `${titulo} · Torneos NODO`, url }) } catch { /* canceló */ } return }
     window.open(`https://wa.me/?text=${encodeURIComponent(`${titulo} · Torneos NODO\n${url}`)}`, '_blank')
