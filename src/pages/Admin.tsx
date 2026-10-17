@@ -57,7 +57,7 @@ export default function Admin() {
             {/* volver a la página pública de torneos */}
             <button onClick={async () => { await vaciar(); window.location.hash = '#/' }}
               className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/80 ring-1 ring-white/25 hover:bg-white/10 hover:text-white">
-              <Globe className="h-4 w-4" aria-hidden /> Torneos
+              <Globe className="h-4 w-4" aria-hidden /> Ver página pública
             </button>
             <button onClick={async () => { await vaciar(); await salir(); setLogueado(false) }} aria-label="Cerrar sesión" title="Cerrar sesión" className="text-white/70 hover:text-white">
               <LogOut className="h-5 w-5" />
