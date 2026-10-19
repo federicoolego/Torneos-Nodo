@@ -50,7 +50,7 @@ export function EditorDisponibilidad({ valor, dias, texto, onChange }: {
     <div className="space-y-3">
       {texto && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900 ring-1 ring-amber-200">
-          <span className="whitespace-pre-line"><strong>Escribieron:</strong> {texto}</span>
+          <span className="whitespace-pre-line"><strong>Horario escrito antes:</strong> {texto}</span>
           <Button type="button" variante="secundario" className="px-2 py-1 text-xs" onClick={interpretar}><Sparkles className="h-3.5 w-3.5" aria-hidden /> Interpretar el texto</Button>
         </div>
       )}

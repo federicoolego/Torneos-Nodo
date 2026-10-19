@@ -1,4 +1,5 @@
-import { LETRAS, partidosDeZona, type Categoria, type Horario } from '../../lib/torneo'
+import { LETRAS, diasEntre, partidosDeZona, type Categoria, type Horario } from '../../lib/torneo'
+import { textoPareja } from '../../lib/disponibilidad'
 import { clavesJugadas } from '../../lib/resultados'
 import { Card } from '../ui'
 import { CompletarHorarios, EditorHorario } from '../Horarios'
@@ -13,6 +14,8 @@ export default function HorariosZona({ cat, cambiar }: Props) {
   const jugados = clavesJugadas(cat).zona
   // orden para completar automático: primera fecha de todas las zonas, después la segunda…
   const grupos = [1, 2, 3, 4].map((n) => porZona.flatMap((ps) => ps.filter((p) => p.numero === n).map((p) => p.key))).filter((g) => g.length)
+  const dias = diasEntre(cat.fechaInicio, cat.fechaFin)
+  const texto = (id: string) => textoPareja(cat.parejas.find((p) => p.id === id), dias)
   const set = (key: string, h: Horario) => cambiar((c) => ({ ...c, horariosZona: { ...c.horariosZona, [key]: h } }))
 
   return (
@@ -29,12 +32,12 @@ export default function HorariosZona({ cat, cambiar }: Props) {
         {porZona.map((ps, zi) => (
           <section key={zi} className="overflow-hidden rounded-xl bg-white ring-1 ring-noche/10">
             <h4 className="bg-noche px-4 py-2 font-display text-lg font-bold text-white">Zona {LETRAS[zi]}</h4>
-            {cat.zonas[zi].some((id) => cat.parejas.find((p) => p.id === id)?.horario) && (
+            {cat.zonas[zi].some((id) => texto(id)) && (
               <div className="space-y-1 border-b border-noche/5 p-3">
                 {cat.zonas[zi].map((id) => {
                   const p = cat.parejas.find((x) => x.id === id)
-                  return p?.horario ? (
-                    <div key={id} className="text-xs"><span className="font-semibold">{p.nombre}:</span><ProblemaHorario texto={p.horario} compacto /></div>
+                  return p && texto(id) ? (
+                    <div key={id} className="text-xs"><span className="font-semibold">{p.nombre}:</span><ProblemaHorario texto={texto(id)} compacto /></div>
                   ) : null
                 })}
               </div>

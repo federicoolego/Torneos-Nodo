@@ -393,10 +393,10 @@ function PasoParejas({ cats, cambiarCat, colorDe }: { cats: Categoria[]; cambiar
     <div className="space-y-4">
       <Card className="flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-2xl text-sm text-noche/75">
-          Lo que escribieron las parejas (“viernes después de las 19”, “zona sábado”) se pasa a días y horarios para que la app lo pueda respetar.
-          “Interpretar” lo hace solo; después revisá y corregí tocando cada pareja.
+          Revisá los días y horarios de cada pareja (se cargan al inscribirla) y corregí lo que haga falta tocando la pareja.
+          {sinCargar.length > 0 && ' Las parejas cargadas antes, con el horario escrito en texto libre, se pasan solas con “Interpretar”.'}
         </p>
-        <Button onClick={interpretarTodos} disabled={!sinCargar.length}><Sparkles className="h-4 w-4" aria-hidden /> Interpretar {sinCargar.length ? `los ${sinCargar.length} sin cargar` : 'textos'}</Button>
+        {sinCargar.length > 0 && <Button onClick={interpretarTodos}><Sparkles className="h-4 w-4" aria-hidden /> Interpretar los {sinCargar.length} sin cargar</Button>}
       </Card>
       {msg && <Alerta tipo="info">{msg}</Alerta>}
       <div className="grid gap-4 lg:grid-cols-2">

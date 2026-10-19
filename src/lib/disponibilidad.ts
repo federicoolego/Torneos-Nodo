@@ -1,6 +1,6 @@
 // Disponibilidad de las parejas (días y horarios en que pueden jugar) para "Armar fecha".
 // El texto libre ("Viernes después de las 19", "Zona sábado") se puede interpretar solo y después se corrige a mano.
-import { diaCorto, diaSemana, type Disponibilidad, type Franja } from './torneo'
+import { diaCorto, diaSemana, type Disponibilidad, type Franja, type Pareja } from './torneo'
 
 /** "19:30" → 1170. Vacío → null */
 export function aMinutos(h: string): number | null {
@@ -54,6 +54,14 @@ export function resumenDisponibilidad(d: Disponibilidad | undefined, dias: strin
   if (d.preferencia === 'tarde') partes.push('lo más tarde posible')
   return partes.join(' · ')
 }
+/** Lo que hay que tener en cuenta de una pareja: días y horarios cargados + la nota (vacío si no tiene nada) */
+export function textoPareja(p: Pick<Pareja, 'disponibilidad' | 'horario'> | undefined, dias: string[]): string {
+  if (!p) return ''
+  const r = resumenDisponibilidad(p.disponibilidad, dias)
+  const nota = p.horario?.trim() ?? ''
+  return [r && r.charAt(0).toUpperCase() + r.slice(1), nota && (r ? `Nota: ${nota}` : nota)].filter(Boolean).join(' · ')
+}
+
 export function textoFranja(f: Franja): string {
   if (f.desde && f.hasta) return `de ${f.desde} a ${f.hasta}`
   if (f.desde) return `desde ${f.desde}`

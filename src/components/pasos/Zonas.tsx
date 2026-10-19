@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, ListOrdered, Lock, Plus, Shuffle, Trash2 } from 'lucide-react'
-import { LETRAS, clasificados, sugerirZonas, type Categoria } from '../../lib/torneo'
+import { LETRAS, clasificados, diasEntre, sugerirZonas, type Categoria } from '../../lib/torneo'
+import { textoPareja } from '../../lib/disponibilidad'
 import { zonasBloqueadas, playoffIniciado } from '../../lib/resultados'
 import { Alerta, Button, Card, Select } from '../ui'
 import HorariosZona from './HorariosZona'
@@ -10,7 +11,8 @@ type Props = { cat: Categoria; cambiar: (f: (c: Categoria) => Categoria) => void
 export default function PasoZonas({ cat, cambiar }: Props) {
   const zonas = cat.zonas
   const nombre = (id: string) => cat.parejas.find((p) => p.id === id)?.nombre ?? '—'
-  const horarioDe = (id: string) => cat.parejas.find((p) => p.id === id)?.horario ?? ''
+  const dias = diasEntre(cat.fechaInicio, cat.fechaFin)
+  const horarioDe = (id: string) => textoPareja(cat.parejas.find((p) => p.id === id), dias)
   const ubicadas = new Set(zonas.flat())
   const sinZona = cat.parejas.filter((p) => !ubicadas.has(p.id))
   const setZonas = (f: (z: string[][]) => string[][]) => cambiar((c) => ({ ...c, zonas: f(c.zonas) }))
@@ -81,7 +83,7 @@ export default function PasoZonas({ cat, cambiar }: Props) {
               {sinZona.map((p) => (
                 <li key={p.id} className="rounded-xl bg-white p-3 ring-1 ring-noche/10">
                   <p className="text-sm font-semibold">{p.nombre}</p>
-                  {p.horario && <ProblemaHorario texto={p.horario} />}
+                  {horarioDe(p.id) && <ProblemaHorario texto={horarioDe(p.id)} />}
                   <Select className="mt-2 py-1.5 text-sm" value={-1} onChange={(e) => asignar(p.id, Number(e.target.value))} disabled={!zonas.length} aria-label={`Zona para ${p.nombre}`}>
                     {opciones(-1)}
                   </Select>
