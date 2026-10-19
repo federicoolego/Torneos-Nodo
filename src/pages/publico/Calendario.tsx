@@ -71,7 +71,7 @@ const ETIQUETA: Record<EstadoCal, { texto: string; tono: 'neutro' | 'verde' | 'a
 /** Calendario público: todos los partidos de los torneos publicados, por día y horario */
 export default function Calendario() {
   const hoy = hoyLocal()
-  const [dia, setDia] = useState<string | null>(null)
+  const [dia, setDia] = useState<string>(hoy)
   const [cats, setCats] = useState<Categoria[] | null>(null)
   const [error, setError] = useState('')
   const [rango, setRango] = useState({ desde: sumar(hoy, -ATRAS), hasta: sumar(hoy, ADELANTE) })
@@ -117,13 +117,8 @@ export default function Calendario() {
     return m
   }, [filtrados])
 
-  // día inicial: hoy si hay partidos; si no, el próximo con partidos; si no, el último que hubo
-  useEffect(() => {
-    if (dia !== null || !cats) return
-    const fechas = [...new Set(items.map((i) => i.fecha))]
-    setDia(fechas.includes(hoy) ? hoy : fechas.find((f) => f > hoy) ?? fechas[fechas.length - 1] ?? hoy)
-  }, [dia, cats, items, hoy])
-  const actual = dia ?? hoy
+  // día inicial: siempre hoy (aunque no haya partidos; para moverse están las flechas y "próximo con partidos")
+  const actual = dia
 
   // si se navega fuera de lo que ya se trajo, se trae más (agrandando el rango)
   const ir = (f: string) => {
