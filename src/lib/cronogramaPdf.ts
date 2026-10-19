@@ -45,7 +45,7 @@ function generar(d: Doc, logo: string | null, colores: Colores): Blob {
   type Col = { cab: string; valor: (f: FilaCronograma) => string; estilo?: Record<string, unknown> }
   const cols: Col[] = [
     { cab: 'Hora', valor: (f) => f.hora || '—', estilo: { cellWidth: 15, fontStyle: 'bold', fontSize: 11, halign: 'center' } },
-    ...(conSede ? [{ cab: 'Complejo', valor: (f: FilaCronograma) => f.sede || '—', estilo: { cellWidth: 26, fontSize: 9 } }] : []),
+    ...(conSede ? [{ cab: 'Cancha', valor: (f: FilaCronograma) => f.sede || '—', estilo: { cellWidth: 26, fontSize: 9 } }] : []),
     ...(conTorneo ? [{ cab: 'Torneo', valor: (f: FilaCronograma) => f.torneo ?? '', estilo: { cellWidth: 34, fontStyle: 'bold', fontSize: 8.5, textColor: rgb(colores.oscuro) } }] : []),
     { cab: 'Partido', valor: (f) => f.etapa, estilo: { cellWidth: 28, fontStyle: 'bold', fontSize: 8.5 } },
     { cab: 'Pareja', valor: (f) => f.a },

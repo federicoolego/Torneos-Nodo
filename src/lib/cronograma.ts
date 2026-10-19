@@ -31,7 +31,8 @@ const ordenar = (x: FilaCronograma, y: FilaCronograma) =>
 
 export function filasCronograma(cat: Categoria): FilaCronograma[] {
   const out: FilaCronograma[] = []
-  const h = (x?: Horario) => ({ fecha: x?.fecha ?? '', hora: x?.hora ?? '', sede: x?.sede ?? '' })
+  // NODO tiene una sola sede: en la columna va la cancha (si está asignada)
+  const h = (x?: Horario) => ({ fecha: x?.fecha ?? '', hora: x?.hora ?? '', sede: x?.cancha ? `Cancha ${x.cancha}` : x?.sede ?? '' })
   const jugadores = new Map(cat.parejas.map((p) => [p.id, [p.jugador1 ?? '', p.jugador2 ?? ''].filter(Boolean).map(claveJugador)]))
   const de = (...ids: (string | null)[]) => ids.flatMap((id) => (id ? jugadores.get(id) ?? [] : []))
   // nombres reales a medida que se conocen (ganadores de zona, clasificados, cruces) y resultados cargados
@@ -95,14 +96,16 @@ export function superposiciones(filas: FilaCronograma[], canchas: number): strin
     if (enJuego.length > canchas) {
       avisos.push(`${diaCorto(f.fecha)} ${f.hora}: ${enJuego.length} partidos a la vez y hay ${canchas} canchas (${enJuego.map((g) => `${etiqueta(g)} ${g.hora}`).join(' · ')}).`)
     }
+
   }
-  // jugadores en dos partidos que se pisan
+  // jugadores en dos partidos que se pisan (y dos partidos en la misma cancha)
   for (let i = 0; i < vivos.length; i++) {
     for (let j = i + 1; j < vivos.length; j++) {
       const a = vivos[i], b = vivos[j]
       if (a.fecha !== b.fecha) continue
       const ta = minutosDe(a), tb = minutosDe(b)
       if (!(ta < tb + b.minutos && tb < ta + a.minutos)) continue
+      if (a.sede && a.sede === b.sede) avisos.push(`${diaCorto(a.fecha)}: ${a.sede} con dos partidos a la vez (${etiqueta(a)} ${a.hora} · ${etiqueta(b)} ${b.hora}).`)
       const ambos = a.jugadores.filter((x) => b.jugadores.includes(x))
       for (const x of new Set(ambos)) {
         avisos.push(`${nombrePropio(x)} juega ${etiqueta(a)} (${a.hora}) y ${etiqueta(b)} (${b.hora}) el ${diaCorto(a.fecha)}.`)
@@ -141,7 +144,7 @@ function documentoHtml(d: Documento, logo: string | null, colores: Colores): str
     <h2>${dia ? esc(tituloDia(dia)) : 'Sin día asignado'} <span class="cant">${del.length} partido${del.length === 1 ? '' : 's'}</span></h2>
     <table>
       <colgroup><col class="c-hora">${conSede ? '<col class="c-sede">' : ''}${conTorneo ? '<col class="c-torneo">' : ''}<col class="c-etapa"><col class="c-par"><col class="c-vs"><col class="c-par"><col class="c-res"></colgroup>
-      <thead><tr><th>Hora</th>${conSede ? '<th>Complejo</th>' : ''}${conTorneo ? '<th>Torneo</th>' : ''}<th>Partido</th><th>Pareja</th><th></th><th>Pareja</th><th>Resultado</th></tr></thead>
+      <thead><tr><th>Hora</th>${conSede ? '<th>Cancha</th>' : ''}${conTorneo ? '<th>Torneo</th>' : ''}<th>Partido</th><th>Pareja</th><th></th><th>Pareja</th><th>Resultado</th></tr></thead>
       <tbody>
         ${del.map((f) => `<tr>
           <td class="hora">${esc(f.hora || '—')}</td>${conSede ? `<td>${esc(f.sede || '—')}</td>` : ''}${conTorneo ? `<td class="torneo">${esc(f.torneo ?? '')}</td>` : ''}
@@ -248,7 +251,7 @@ export function docWord(html: string): Blob {
     .replace(/<colgroup>[\s\S]*?<\/colgroup>/g, '')
     .replace(/<table>/g, '<table border="1" cellspacing="0" cellpadding="6" width="100%" style="border-collapse:collapse;width:100%">')
     .replace(/<th>([^<]*)<\/th>/g, (_, t: string) => {
-      const ancho = ({ Hora: '9%', Complejo: '12%', Torneo: '14%', Partido: '15%', '': '5%', Resultado: '22%' } as Record<string, string>)[t] ?? ''
+      const ancho = ({ Hora: '9%', Complejo: '12%', Cancha: '10%', Torneo: '14%', Partido: '15%', '': '5%', Resultado: '22%' } as Record<string, string>)[t] ?? ''
       return `<th${ancho ? ` width="${ancho}"` : ''} style="background:${oscuro};color:#ffffff;white-space:nowrap;${borde}">${t.toUpperCase()}</th>`
     })
     .replace(/<td class="hora">/g, `<td nowrap style="${borde}font-weight:bold;font-size:12pt;text-align:center;white-space:nowrap">`)

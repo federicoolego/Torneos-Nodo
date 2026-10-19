@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Check, Clock, Pencil, Plus, Trash2 } from 'lucide-react'
+import { CalendarClock, Check, Clock, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
-  CATEGORIAS, MAX_PAREJAS, MIN_PAREJAS, claveJugador, clavePareja, formatoPesos, jugadoresDe, nombrePropio, nuevoId, type Categoria, type Pareja,
+  CATEGORIAS, MAX_PAREJAS, MIN_PAREJAS, claveJugador, clavePareja, diasEntre, formatoPesos, jugadoresDe, nombrePropio, nuevoId, type Categoria, type Disponibilidad, type Pareja,
 } from '../../lib/torneo'
+import { interpretarTexto } from '../../lib/disponibilidad'
+import { ChipDisponibilidad, EditorDisponibilidad } from '../Disponibilidad'
 import { Alerta, Button, Card, Field, Input, Select, Textarea } from '../ui'
 import { FormatosPorInstancia } from '../Formato'
 import SelectorJugador from '../SelectorJugador'
@@ -58,7 +60,9 @@ export function PasoDatos({ cat, cambiar }: Props) {
 }
 
 export function PasoParejas({ cat, cambiar }: Props) {
-  const vacio = { j1: '', j2: '', horario: '' }
+  const vacio: { j1: string; j2: string; horario: string; disp?: Disponibilidad } = { j1: '', j2: '', horario: '' }
+  const dias = diasEntre(cat.fechaInicio, cat.fechaFin)
+  const [verDisp, setVerDisp] = useState(false)
   // padrón de jugadores de la base + los de este torneo (los nuevos se dan de alta al guardar)
   const [padronBase, setPadronBase] = useState<string[]>([])
   const [errorPadron, setErrorPadron] = useState(false)
@@ -90,7 +94,9 @@ export function PasoParejas({ cat, cambiar }: Props) {
     const repetida = cat.parejas.find((p) => p.id !== editando && clavePareja(...jugadoresDe(p)) === clave)
     if (repetida) return setError(`Esa pareja ya está inscripta: ${repetida.nombre}.`)
     if (!editando && cat.parejas.length >= MAX_PAREJAS) return setError(`El máximo es ${MAX_PAREJAS} parejas.`)
-    const datos = { nombre: `${j1} / ${j2}`, jugador1: j1, jugador2: j2, horario: form.horario.trim() }
+    // días y horarios: lo cargado a mano o, si no, lo que se entiende del texto (se revisa en "Armar fecha")
+    const disponibilidad = form.disp ?? (form.horario.trim() && dias.length ? interpretarTexto(form.horario, dias) ?? undefined : undefined)
+    const datos = { nombre: `${j1} / ${j2}`, jugador1: j1, jugador2: j2, horario: form.horario.trim(), disponibilidad }
     cambiar((c) => ({
       ...c,
       parejas: editando
@@ -99,12 +105,14 @@ export function PasoParejas({ cat, cambiar }: Props) {
     }))
     setForm(vacio)
     setEditando(null)
+    setVerDisp(false)
     document.getElementById('jugador1')?.focus()
   }
 
   function editar(p: Pareja) {
     const [a, b] = jugadoresDe(p)
-    setForm({ j1: a, j2: b, horario: p.horario ?? '' })
+    setForm({ j1: a, j2: b, horario: p.horario ?? '', disp: p.disponibilidad })
+    setVerDisp(!!p.disponibilidad)
     setEditando(p.id)
     setError('')
     document.getElementById('jugador1')?.focus()
@@ -130,13 +138,27 @@ export function PasoParejas({ cat, cambiar }: Props) {
             <Textarea rows={3} value={form.horario} onChange={(e) => setForm({ ...form, horario: e.target.value })}
               placeholder="Ej: No pueden el viernes antes de las 20 hs" disabled={lleno} />
           </Field>
+          {dias.length > 0 && !lleno && (
+            <div className="rounded-lg bg-vidrio p-2.5">
+              <button type="button" onClick={() => setVerDisp(!verDisp)} aria-expanded={verDisp} className="flex w-full items-center gap-2 text-left text-sm font-semibold text-noche">
+                <CalendarClock className="h-4 w-4 text-cancha" aria-hidden /> Días y horarios para armar la fecha
+                <span className="ml-auto text-xs font-normal text-noche/55">{verDisp ? 'Ocultar' : form.disp ? 'Cargados' : 'Opcional'}</span>
+              </button>
+              {verDisp && (
+                <div className="mt-2">
+                  <EditorDisponibilidad valor={form.disp} dias={dias} texto={form.horario.trim() || undefined} onChange={(d) => setForm((f) => ({ ...f, disp: d }))} />
+                </div>
+              )}
+              {!verDisp && <p className="mt-1 text-xs text-noche/55">Si no los cargás, al guardar se interpretan del texto de arriba. Se revisan en “Armar fecha”.</p>}
+            </div>
+          )}
           {error && <Alerta tipo="error">{error}</Alerta>}
           {lleno && <Alerta tipo="aviso">Ya hay {MAX_PAREJAS} parejas, que es el máximo.</Alerta>}
           <div className="flex gap-2">
             <Button type="submit" disabled={lleno}>
               {editando ? <><Check className="h-4 w-4" aria-hidden /> Guardar cambios</> : <><Plus className="h-4 w-4" aria-hidden /> Inscribir pareja</>}
             </Button>
-            {editando && <Button type="button" variante="secundario" onClick={() => { setEditando(null); setForm(vacio); setError('') }}>Cancelar</Button>}
+            {editando && <Button type="button" variante="secundario" onClick={() => { setEditando(null); setForm(vacio); setError(''); setVerDisp(false) }}>Cancelar</Button>}
           </div>
           <p className="text-xs text-noche/55">Buscá al jugador en el padrón; si no está, elegí “Agregar … como jugador nuevo”. Se ignoran mayúsculas y tildes, así no se carga dos veces.</p>
           {errorPadron && <Alerta tipo="aviso">No se pudo cargar el padrón de jugadores: podés escribirlos igual.</Alerta>}
@@ -155,6 +177,7 @@ export function PasoParejas({ cat, cambiar }: Props) {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{p.nombre}</p>
                   {p.horario && <ProblemaHorario texto={p.horario} />}
+                  {(p.horario || p.disponibilidad) && dias.length > 0 && <div className="mt-1"><ChipDisponibilidad valor={p.disponibilidad} dias={dias} texto={p.horario} /></div>}
                 </div>
                 <button onClick={() => editar(p)} aria-label={`Editar ${p.nombre}`} className="p-1 text-noche/45 hover:text-cancha"><Pencil className="h-3.5 w-3.5" /></button>
                 <button onClick={() => quitar(p.id)} disabled={fija(p.id)} title={fija(p.id) ? 'Su zona ya tiene resultados' : undefined} aria-label={`Quitar ${p.nombre}`} className="p-1 text-noche/45 hover:text-red disabled:opacity-25"><Trash2 className="h-3.5 w-3.5" /></button>

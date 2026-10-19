@@ -5,7 +5,7 @@ import { supabase, T } from './supabase'
 import { estadoTorneo, evaluar, resolverTorneo } from './resultados'
 import {
   CATEGORIA_DEFECTO, FORMATOS_DEFECTO, INSTANCIAS, esCategoriaTorneo, esUuid, instanciaDeRonda, jugadoresDe, mayusculas, nombrePropio, normalizar, nuevoId,
-  type Categoria, type CategoriaTorneo, type EstadoTorneo, type Formato, type Horario, type Instancia, type Resultado, type Slot,
+  type Categoria, type CategoriaTorneo, type Disponibilidad, type EstadoTorneo, type Formato, type Horario, type Instancia, type Resultado, type Slot,
 } from './torneo'
 
 // ------------------------------------------------------------------ filas
@@ -15,10 +15,16 @@ export interface FilaTorneo {
   inscripcion: number | null; observacion: string; cant_zonas: number; cuadro: (Slot | null)[][] | null; desempates: Record<string, string[]>
   publicado: boolean; estado: EstadoTorneo; campeon: string | null
 }
-export interface FilaPareja { id: string; torneo_id: string; orden: number; jugador1: string; jugador2: string; horario: string; zona: number | null; posicion: number | null }
+export interface FilaPareja {
+  id: string; torneo_id: string; orden: number; jugador1: string; jugador2: string; horario: string; zona: number | null; posicion: number | null
+  /** días y horarios cargados para "Armar fecha" (null = sin cargar) */
+  disponibilidad?: Disponibilidad | null
+}
 export interface FilaInstancia { torneo_id: string; instancia: Instancia; formato: Formato }
 export interface FilaPartido {
   torneo_id: string; clave: string; instancia: Instancia | null; fecha: string | null; hora: string | null; sede: string | null
+  /** cancha 1, 2, 3… (null = sin asignar) */
+  cancha?: number | null
   pareja_a: string | null; pareja_b: string | null; sets: [number, number][] | null; wo: 'a' | 'b' | null; resultado: string | null; ganador: string | null
 }
 interface Filas { torneo: FilaTorneo; parejas: FilaPareja[]; instancias: FilaInstancia[]; partidos: FilaPartido[] }
@@ -40,19 +46,20 @@ function aFilas(c: Categoria): Filas {
     return {
       // en la base, los nombres van en MAYÚSCULAS (el trigger además los da de alta en el padrón de jugadores)
       id: p.id, torneo_id: c.id, orden: i, jugador1: mayusculas(j1), jugador2: mayusculas(j2), horario: p.horario ?? '',
-      zona: zi >= 0 ? zi : null, posicion: zi >= 0 ? c.zonas[zi].indexOf(p.id) + 1 : null,
+      zona: zi >= 0 ? zi : null, posicion: zi >= 0 ? c.zonas[zi].indexOf(p.id) + 1 : null, disponibilidad: p.disponibilidad ?? null,
     }
   })
   const instancias: FilaInstancia[] = INSTANCIAS.map((i) => ({ torneo_id: c.id, instancia: i.id, formato: c.formatos[i.id] }))
 
   const partidos: FilaPartido[] = []
   const fila = (clave: string, instancia: Instancia | null, h: Horario | undefined, r: Resultado | undefined) => {
-    const conHorario = !!(h?.fecha || h?.hora || h?.sede)
+    const cancha = h?.cancha ? Number(h.cancha) || null : null
+    const conHorario = !!(h?.fecha || h?.hora || h?.sede || cancha)
     if (!conHorario && !r) return
     const ev = r && instancia ? evaluar(c.formatos[instancia], r) : undefined
     const a = valido(r?.a), b = valido(r?.b)
     partidos.push({
-      torneo_id: c.id, clave, instancia, fecha: h?.fecha || null, hora: h?.hora || null, sede: h?.sede || null,
+      torneo_id: c.id, clave, instancia, fecha: h?.fecha || null, hora: h?.hora || null, sede: h?.sede || null, cancha,
       pareja_a: a, pareja_b: b, sets: r && !r.wo ? r.sets : null, wo: r?.wo ?? null,
       resultado: r ? (r.wo ? 'W.O.' : r.sets.map(([x, y]) => `${x}-${y}`).join(' ')) : null,
       ganador: ev?.ok ? (ev.ganador === 'a' ? a : b) : null,
@@ -81,7 +88,7 @@ export function desdeFilas(t: FilaTorneo & { actualizado?: string }, ps: FilaPar
     // en la app se muestran con mayúscula inicial: MASSOT GREGO → Massot Grego
     parejas: parejas.map((p) => {
       const j1 = nombrePropio(p.jugador1), j2 = nombrePropio(p.jugador2)
-      return { id: p.id, nombre: `${j1} / ${j2}`, jugador1: j1, jugador2: j2, horario: p.horario }
+      return { id: p.id, nombre: `${j1} / ${j2}`, jugador1: j1, jugador2: j2, horario: p.horario, ...(p.disponibilidad ? { disponibilidad: p.disponibilidad } : {}) }
     }),
     zonas, cuadro: t.cuadro, desempates: t.desempates ?? {}, formatos,
     publicado: !!t.publicado, cancelado: t.estado === 'cancelado',
@@ -91,8 +98,8 @@ export function desdeFilas(t: FilaTorneo & { actualizado?: string }, ps: FilaPar
   for (const p of pts) {
     const k = p.clave.slice(1)
     const zona = p.clave[0] === 'Z'
-    if (p.fecha || p.hora || p.sede) {
-      const h: Horario = { fecha: p.fecha ?? '', hora: p.hora ? p.hora.slice(0, 5) : '', ...(p.sede ? { sede: p.sede } : {}) }
+    if (p.fecha || p.hora || p.sede || p.cancha) {
+      const h: Horario = { fecha: p.fecha ?? '', hora: p.hora ? p.hora.slice(0, 5) : '', ...(p.sede ? { sede: p.sede } : {}), ...(p.cancha ? { cancha: String(p.cancha) } : {}) }
       ;(zona ? c.horariosZona : c.horariosPlayoff)[k] = h
     }
     if (p.sets || p.wo) {

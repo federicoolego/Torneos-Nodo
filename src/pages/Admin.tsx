@@ -10,16 +10,17 @@ import Editor from './Editor'
 import { Firma, logoUrl, useRuta } from '../App'
 import Jugadores from './Jugadores'
 import CronogramaVarios from '../components/CronogramaVarios'
+import Fechas from './Fechas'
 
-type Pestana = 'torneos' | 'calendario' | 'jugadores'
-const RUTAS: Record<Pestana, string> = { torneos: '#/admin', calendario: '#/admin/calendario', jugadores: '#/admin/jugadores' }
+type Pestana = 'torneos' | 'fechas' | 'calendario' | 'jugadores'
+const RUTAS: Record<Pestana, string> = { torneos: '#/admin', fechas: '#/admin/fechas', calendario: '#/admin/calendario', jugadores: '#/admin/jugadores' }
 
 /** Panel de organizadores (#/admin): login + armado de torneos */
 export default function Admin() {
   const [logueado, setLogueado] = useState<boolean | null>(null)
   const ruta = useRuta()
-  // pestañas del admin: Torneos (#/admin) · Calendario (#/admin/calendario) · Jugadores (#/admin/jugadores)
-  const pestana: Pestana = ruta.startsWith('#/admin/jugadores') ? 'jugadores'
+  // pestañas del admin: Torneos (#/admin) · Armar fecha (#/admin/fechas) · Calendario (#/admin/calendario) · Jugadores (#/admin/jugadores)
+  const pestana: Pestana = ruta.startsWith('#/admin/jugadores') ? 'jugadores' : ruta.startsWith('#/admin/fechas') ? 'fechas'
     : ruta.startsWith('#/admin/calendario') || ruta.startsWith('#/admin/cronograma') ? 'calendario' : 'torneos'
   const [abierta, setAbierta] = useState<string | null>(null)
   // torneo nuevo todavía sin guardar: se crea en la base recién con los datos obligatorios completos
@@ -68,13 +69,13 @@ export default function Admin() {
       <main className="mx-auto max-w-5xl px-4 py-6">
         <div className="mb-5">
           <Tabs<Pestana>
-            opciones={[{ id: 'torneos', label: 'Torneos' }, { id: 'calendario', label: 'Calendario' }, { id: 'jugadores', label: 'Jugadores' }]}
+            opciones={[{ id: 'torneos', label: 'Torneos' }, { id: 'fechas', label: 'Armar fecha' }, { id: 'calendario', label: 'Calendario' }, { id: 'jugadores', label: 'Jugadores' }]}
             valor={pestana}
             // sube lo pendiente antes de cambiar; "Torneos" también cierra el torneo abierto y vuelve a la lista
             onChange={async (p) => { await vaciar(); abrir(null); window.location.hash = RUTAS[p] }}
           />
         </div>
-        {pestana === 'jugadores' ? <Jugadores /> : pestana === 'calendario' ? <CronogramaVarios /> : abierta ? <Editor key={abierta} id={abierta} inicial={nuevo ?? undefined} onVolver={() => abrir(null)} /> : <Inicio onAbrir={abrir} onNuevo={crear} />}
+        {pestana === 'jugadores' ? <Jugadores /> : pestana === 'fechas' ? <Fechas /> : pestana === 'calendario' ? <CronogramaVarios /> : abierta ? <Editor key={abierta} id={abierta} inicial={nuevo ?? undefined} onVolver={() => abrir(null)} /> : <Inicio onAbrir={abrir} onNuevo={crear} />}
       </main>
       <Firma />
     </div>

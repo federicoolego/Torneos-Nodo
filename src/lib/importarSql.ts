@@ -23,8 +23,8 @@ const COLUMNAS: Record<TablaImport, string[]> = {
   torneos: ['id', 'nombre', 'categoria', 'premio', 'fecha_inicio', 'fecha_fin', 'inscripcion', 'observacion', 'cant_zonas', 'cuadro', 'desempates', 'publicado', 'estado', 'campeon'],
   jugadores: ['nombre'],
   instancias: ['torneo_id', 'instancia', 'formato'],
-  parejas: ['id', 'torneo_id', 'orden', 'jugador1', 'jugador2', 'horario', 'zona', 'posicion'],
-  partidos: ['torneo_id', 'clave', 'instancia', 'fecha', 'hora', 'sede', 'pareja_a', 'pareja_b', 'sets', 'wo', 'resultado', 'ganador'],
+  parejas: ['id', 'torneo_id', 'orden', 'jugador1', 'jugador2', 'horario', 'zona', 'posicion', 'disponibilidad'],
+  partidos: ['torneo_id', 'clave', 'instancia', 'fecha', 'hora', 'sede', 'cancha', 'pareja_a', 'pareja_b', 'sets', 'wo', 'resultado', 'ganador'],
 }
 /** clave única de cada tabla (la del ON CONFLICT) */
 const CLAVE: Record<TablaImport, string[]> = {

@@ -1,7 +1,24 @@
 // Lógica de zonas y playoff (modelo en memoria; se guarda en Supabase desde almacen.ts)
 
-/** NODO tiene una sola sede: `sede` existe por compatibilidad con la base y no se carga. `cancha` quedó de versiones anteriores */
+/** NODO tiene una sola sede: `sede` existe por compatibilidad con la base y no se carga. `cancha`: "1", "2", "3" (vacío = sin asignar) */
 export interface Horario { fecha: string; hora: string; sede?: string; cancha?: string }
+
+/** NODO: sede única con 3 canchas */
+export const CANCHAS_NODO = 3
+
+/** Franja horaria de un día ("HH:MM"). `desde` vacío = desde que abren las canchas · `hasta` vacío = hasta el cierre */
+export interface Franja { desde: string; hasta: string }
+/**
+ * Días y horarios en que puede jugar una pareja (lo usa "Armar fecha").
+ * · `dias[fecha]` ausente = puede todo el día · `[]` = no puede ese día · franjas = solo en esas franjas
+ * · `zona`: días en que quieren jugar la zona (vacío = cualquiera de los días disponibles)
+ * · `preferencia`: lo más temprano / lo más tarde posible (se intenta, no es obligatorio)
+ */
+export interface Disponibilidad {
+  dias: Record<string, Franja[]>
+  zona?: string[]
+  preferencia?: '' | 'temprano' | 'tarde'
+}
 
 export interface Pareja {
   id: string
@@ -9,8 +26,10 @@ export interface Pareja {
   nombre: string
   jugador1?: string
   jugador2?: string
-  /** problemas de horario de la pareja (vacío si no tiene) */
+  /** problemas de horario de la pareja, como los dijeron (vacío si no tiene) */
   horario?: string
+  /** los mismos problemas de horario, cargados por día (para armar la fecha automática). undefined = sin cargar */
+  disponibilidad?: Disponibilidad
 }
 /** Un lado de primera ronda del playoff: posición `pos` de la zona número `zona` (0 = A) */
 export interface Slot { zona: number; pos: number }
@@ -432,6 +451,21 @@ export function enPasado(fecha: string, hora?: string): boolean {
   if (!hora) return fecha < hoyLocal()
   return new Date(`${fecha}T${hora}:00`).getTime() < Date.now()
 }
+
+/** Días entre dos fechas "YYYY-MM-DD", inclusive (máximo 14) */
+export function diasEntre(desde: string, hasta: string): string[] {
+  if (!desde) return []
+  const out: string[] = []
+  let f = desde
+  const fin = hasta && hasta >= desde ? hasta : desde
+  while (f <= fin && out.length < 14) {
+    out.push(f)
+    f = sumarMinutos(f, '12:00', 24 * 60).fecha
+  }
+  return out
+}
+/** 0 = domingo … 6 = sábado */
+export const diaSemana = (f: string) => new Date(`${f}T12:00:00`).getDay()
 
 /** Suma minutos a una fecha/hora local "YYYY-MM-DD" + "HH:MM" */
 export function sumarMinutos(fecha: string, hora: string, min: number): { fecha: string; hora: string } {

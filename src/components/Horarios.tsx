@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Lock, Wand2 } from 'lucide-react'
-import { enPasado, hoyLocal, rangoFechas, sumarMinutos, textoHorario, type Horario } from '../lib/torneo'
+import { CANCHAS_NODO, enPasado, hoyLocal, rangoFechas, sumarMinutos, textoHorario, type Horario } from '../lib/torneo'
 import { Alerta, Button, Input, Modal, Select } from './ui'
 
 /** Días en que se puede programar un partido: del inicio del torneo (o de hoy, si ya empezó) al fin */
@@ -48,18 +48,24 @@ export function EditorHorario({ valor, onChange, requerido = false, jugado = fal
   const error = errorHorario(guardado, d, desde, hasta)
   // el día guardado quedó fuera del torneo (por ejemplo, se cambiaron las fechas del torneo después de programar)
   const fuera = fueraDelTorneo(guardado.fecha, desde, hasta)
+  // se conservan los demás datos del partido (la cancha) al cambiar día u hora
   const cambiar = (n: Horario) => {
     setD(n)
-    if (!errorHorario(guardado, n, desde, hasta)) onChange(n)
+    if (!errorHorario(guardado, n, desde, hasta)) onChange({ ...valor, ...n })
   }
+  const cancha = valor?.cancha ?? ''
   const falta = requerido && (!d.fecha || !d.hora)
   return (
     <div className="space-y-1">
-      <div className="grid grid-cols-[1.4fr_1fr] gap-2 sm:max-w-sm">
+      <div className="grid grid-cols-[1.4fr_1fr_0.9fr] gap-2 sm:max-w-md">
         <Input type="date" value={d.fecha} min={min} max={max} onChange={(e) => cambiar({ ...d, fecha: e.target.value })} aria-label="Día"
           className={`py-1.5 ${error || fuera ? 'ring-red' : falta && !d.fecha ? 'ring-amber-400' : ''}`} />
         <Input type="time" value={d.hora} onChange={(e) => cambiar({ ...d, hora: e.target.value })} aria-label="Hora"
           className={`py-1.5 ${error ? 'ring-red' : falta && !d.hora ? 'ring-amber-400' : ''}`} />
+        <Select value={cancha} onChange={(e) => onChange({ ...guardado, ...valor, cancha: e.target.value || undefined })} aria-label="Cancha" className="py-1.5">
+          <option value="">Cancha —</option>
+          {Array.from({ length: CANCHAS_NODO }, (_, i) => <option key={i} value={String(i + 1)}>Cancha {i + 1}</option>)}
+        </Select>
       </div>
       {error && <p className="text-xs text-red">{error} No se guardó: sigue {textoHorario(valor)}.</p>}
       {!error && fuera && desde && hasta && <p className="text-xs text-red">Este día quedó fuera de las fechas del torneo ({rangoFechas(desde, hasta)}). Cambialo.</p>}

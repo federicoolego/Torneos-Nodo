@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, Database, Info, Users } from 'lucide-react'
+import { CalendarRange, ChevronDown, Database, Info, Users } from 'lucide-react'
 
 const CLAVE = 'generador:instructivo-cerrado'
 
@@ -26,8 +26,8 @@ export default function Instructivo() {
             <p className="mb-2 font-semibold text-noche">Armar un torneo, paso a paso</p>
             <ol className="list-decimal space-y-1.5 pl-5">
               <li><strong>Torneo:</strong> nombre, categoría (Damas, Caballeros o Mixto), fechas y, si querés, inscripción, premio, formato de partido por instancia y una observación.</li>
-              <li><strong>Parejas:</strong> se inscriben de a una (mínimo 6, máximo 24). Cada jugador se busca en el padrón; si no está, elegí “Agregar … como jugador nuevo”. Si tienen problemas de horario, anotalos: te van a aparecer resaltados al armar las zonas.</li>
-              <li><strong>Zonas:</strong> sorteo automático, acomodás a mano lo que necesites y le ponés día y hora a cada partido (con “Completar automático” se reparten solos). Una zona con resultados ya no se puede modificar.</li>
+              <li><strong>Parejas:</strong> se inscriben de a una (mínimo 6, máximo 24). Cada jugador se busca en el padrón; si no está, elegí “Agregar … como jugador nuevo”. Si tienen problemas de horario, anotalos tal cual te los dicen: al guardar se pasan solos a días y horarios (se revisan en “Armar fecha”).</li>
+              <li><strong>Zonas:</strong> si se juegan varios torneos el mismo fin de semana, lo más cómodo es armar zonas y horarios de todos juntos desde <strong>Armar fecha</strong> (ver al costado). Si no, acá: sorteo automático, acomodás a mano y le ponés día, hora y cancha a cada partido. Una zona con resultados ya no se puede modificar.</li>
               <li><strong>Playoff:</strong> el cuadro se arma solo con los clasificados (1° Zona A vs 2° Zona B…) y le ponés día y hora a la primera ronda. Con el primer resultado de playoff, los cruces quedan fijos.</li>
               <li><strong>Partidos:</strong> cargás los resultados; las posiciones de cada zona y los cruces del playoff se completan solos. Los partidos que faltan se pueden reprogramar (siempre a una fecha y hora futuras). También está el cronograma en PDF con los resultados.</li>
               <li><strong>Publicar:</strong> con las zonas armadas, el botón “Publicar” (arriba, en cada torneo) lo muestra en la página pública de torneos para los jugadores, que se actualiza sola con horarios y resultados. El estado (Pendiente, En curso, Finalizado) se calcula solo; “Cancelar torneo” es manual.</li>
@@ -45,6 +45,17 @@ export default function Instructivo() {
                 <li>Si dos personas cargan resultados a la vez, tocá <strong>Traer cambios</strong> en “Partidos” para ver lo que cargó la otra.</li>
                 <li>Arriba a la derecha de cada torneo se ve si los cambios ya quedaron guardados.</li>
               </ul>
+            </div>
+            <div className="rounded-lg bg-pelota/25 p-3 ring-1 ring-pelota/60">
+              <p className="mb-1.5 flex items-center gap-2 font-semibold text-noche"><CalendarRange className="h-4 w-4" aria-hidden /> Armar fecha: zonas y horarios automáticos</p>
+              <p className="mb-1.5">Junta los torneos que se juegan el mismo fin de semana y arma zonas y horarios de todos, en las mismas canchas, sin choques.</p>
+              <ol className="list-decimal space-y-1 pl-5">
+                <li><strong>Torneos y canchas:</strong> elegís los torneos (ya creados, con sus parejas), cuántas canchas hay, el horario de cada día (viernes desde las 18, sábado desde las 10, domingo desde las 12, editable) y cuánto dura cada partido (45′ zonas, octavos y cuartos; 1 h semi y final).</li>
+                <li><strong>Horarios de las parejas:</strong> “Interpretar” pasa lo que escribieron (“viernes después de las 19”, “zona sábado”) a días y horarios. Revisá cada una: <em>Todo el día / Solo en… / No puede</em>, el día en que quieren la zona y si prefieren temprano o tarde.</li>
+                <li><strong>Zonas:</strong> “Armar zonas por horarios” junta a las parejas que pueden jugar en los mismos horarios. Podés intercambiar parejas entre zonas.</li>
+                <li><strong>Grilla de partidos:</strong> “Armar horarios” reparte todos los partidos (zonas y playoff) por día y cancha: nadie juega dos partidos a la vez (aunque esté en dos categorías), el playoff va después de las zonas y se respetan los horarios pedidos. Lo que no se puede respetar queda marcado (rojo: choque · ámbar: pedido de horario) y lo decidís vos: tocá el partido, cambialo y fijalo. “Volver a armar” mantiene los fijados.</li>
+                <li><strong>Aplicar a los torneos:</strong> carga día, hora y cancha en cada torneo. Después seguís como siempre: publicar, imágenes, Calendario y resultados.</li>
+              </ol>
             </div>
             <div className="rounded-lg bg-vidrio p-3">
               <p className="mb-1.5 flex items-center gap-2 font-semibold text-noche"><Users className="h-4 w-4" aria-hidden /> Jugadores</p>

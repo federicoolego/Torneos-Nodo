@@ -22,4 +22,5 @@ export const T = {
   parejas: 'torneos_nodo_parejas',
   partidos: 'torneos_nodo_partidos',
   jugadores: 'torneos_nodo_jugadores',
+  jornadas: 'torneos_nodo_jornadas',
 } as const
