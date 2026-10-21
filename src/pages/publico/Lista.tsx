@@ -4,6 +4,7 @@ import { categoriasPublicas, listarPublicos, normalizarTexto, type ResumenPublic
 import { CATEGORIAS, ESTADOS, MESES, formatoPesos, nombreEstado, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../../lib/torneo'
 import { Alerta, Badge, Input, Select, Spinner, Tabs, Vacio } from '../../components/ui'
 import Calendario from './Calendario'
+import CategoriasPublicas from './Categorias'
 import PanelEstadisticas from '../../components/PanelEstadisticas'
 import type { DatoEstadistica } from '../../components/Estadisticas'
 import { BadgeCategoria, bordeCategoria } from '../../components/Categoria'
@@ -13,12 +14,12 @@ const ORDEN: Record<EstadoTorneo, number> = { en_curso: 0, pendiente: 1, finaliz
 
 export const tonoEstado = (e: EstadoTorneo) => (e === 'en_curso' ? 'verde' : e === 'finalizado' ? 'azul' : e === 'cancelado' ? 'rojo' : 'ambar') as 'verde' | 'azul' | 'rojo' | 'ambar'
 
-type PestanaInicio = 'torneos' | 'calendario' | 'estadisticas'
-const LINKS: Record<PestanaInicio, string> = { torneos: '#/', calendario: '#/calendario', estadisticas: '#/estadisticas' }
-/** pestaña de la página inicial según el link (#/ = Torneos · #/calendario = Calendario · #/estadisticas = Estadísticas) */
+type PestanaInicio = 'torneos' | 'calendario' | 'estadisticas' | 'categorias'
+const LINKS: Record<PestanaInicio, string> = { torneos: '#/', calendario: '#/calendario', estadisticas: '#/estadisticas', categorias: '#/categorias' }
+/** pestaña de la página inicial según el link (#/ · #/calendario · #/estadisticas · #/categorias) */
 const pestanaDelLink = (): PestanaInicio => {
   const h = window.location.hash
-  return h.startsWith('#/calendario') ? 'calendario' : h.startsWith('#/estadisticas') ? 'estadisticas' : 'torneos'
+  return h.startsWith('#/calendario') ? 'calendario' : h.startsWith('#/estadisticas') ? 'estadisticas' : h.startsWith('#/categorias') ? 'categorias' : 'torneos'
 }
 
 /** Torneos publicados con los datos que usan las estadísticas */
@@ -42,14 +43,14 @@ export default function ListaPublica() {
   return (
     <>
       <div className="mb-5">
-        <Tabs<PestanaInicio> opciones={[{ id: 'torneos', label: 'Torneos' }, { id: 'calendario', label: 'Calendario' }, { id: 'estadisticas', label: 'Estadísticas' }]} valor={pestana} onChange={cambiar} />
+        <Tabs<PestanaInicio> opciones={[{ id: 'torneos', label: 'Torneos' }, { id: 'calendario', label: 'Calendario' }, { id: 'estadisticas', label: 'Estadísticas' }, { id: 'categorias', label: 'Categorías' }]} valor={pestana} onChange={cambiar} />
       </div>
       {pestana === 'calendario' ? (
         <>
           <header className="mb-3"><h1 className="font-display text-4xl font-bold leading-none text-noche">Calendario</h1></header>
           <Calendario />
         </>
-      ) : pestana === 'estadisticas' ? <PanelEstadisticas cargar={cargarEstadisticas} cargarCategorias={categoriasPublicas} enlace={enlaceTorneo} /> : <Torneos />}
+      ) : pestana === 'categorias' ? <CategoriasPublicas /> : pestana === 'estadisticas' ? <PanelEstadisticas cargar={cargarEstadisticas} cargarCategorias={categoriasPublicas} enlace={enlaceTorneo} /> : <Torneos />}
     </>
   )
 }

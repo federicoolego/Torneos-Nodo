@@ -45,7 +45,7 @@ export async function cargarCalendario(desde: string, hasta: string): Promise<Ca
 export const normalizarTexto = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
 
 /**
- * Categoría actual de los jugadores que jugaron algún torneo publicado (filtro "Categorías" de las estadísticas).
+ * Categoría actual de los jugadores con categoría asignada (pestaña Categorías y filtro "Categorías" de las estadísticas).
  * Requiere supabase/torneos_nodo_publico_categorias.sql
  */
 export async function categoriasPublicas(): Promise<{ nombre: string; categoria: string | null }[]> {

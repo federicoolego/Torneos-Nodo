@@ -1,9 +1,10 @@
 -- =====================================================================
 -- Generador de Torneos · NODO — categorías de jugador en la página pública
 -- (requiere torneos_nodo_jugadores_categoria.sql)
--- · torneos_nodo_publico_categorias(): nombre y categoría actual de los jugadores con categoría asignada
---   que jugaron algún torneo publicado (para el filtro "Categorías" de Estadísticas). Sin login.
--- Idempotente: se puede volver a correr.
+-- · torneos_nodo_publico_categorias(): nombre y categoría actual de TODOS los jugadores con categoría asignada
+--   (los "sin categoría" no salen). La usan la pestaña pública Categorías y el filtro "Categorías" de Estadísticas.
+--   Sin login, solo lectura.
+-- Idempotente: se puede volver a correr (reemplaza la versión anterior, que solo traía a quienes jugaron un torneo publicado).
 -- =====================================================================
 
 create or replace function public.torneos_nodo_publico_categorias()
@@ -12,11 +13,7 @@ language sql stable security definer set search_path = public as $$
   select j.nombre, j.categoria
     from public.torneos_nodo_jugadores j
    where j.categoria is not null
-     and exists (
-       select 1 from public.torneos_nodo_parejas p
-         join public.torneos_nodo_torneos t on t.id = p.torneo_id
-        where t.publicado and (p.jugador1_id = j.id or p.jugador2_id = j.id)
-     )
+   order by j.nombre
 $$;
 
 revoke all on function public.torneos_nodo_publico_categorias() from public;
