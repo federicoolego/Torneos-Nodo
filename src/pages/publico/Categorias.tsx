@@ -4,6 +4,7 @@ import { categoriasPublicas } from '../../lib/publico'
 import { CATEGORIAS_JUGADOR, esCategoriaJugador, rama, type CategoriaJugador } from '../../lib/categorias'
 import { claveJugador, nombrePropio } from '../../lib/torneo'
 import { ESTILO_CATEGORIA } from '../../components/Categoria'
+import { AccionesCategorias, EncabezadoCard, TODAS, useColapso, useCompartirCategorias } from '../../components/CardsCategorias'
 import { Alerta, Input, Spinner, Vacio } from '../../components/ui'
 
 interface Fila { nombre: string; categoria: CategoriaJugador }
@@ -31,6 +32,20 @@ export default function CategoriasPublicas() {
     for (const j of visibles) m.get(j.categoria)!.push(j.nombre)
     return m
   }, [visibles])
+  // para las imágenes: siempre la categoría completa (no lo que coincide con la búsqueda)
+  const completas = useMemo(() => {
+    const m = new Map<CategoriaJugador, string[]>(CATEGORIAS_JUGADOR.map((c) => [c, []]))
+    for (const j of lista ?? []) m.get(j.categoria)!.push(j.nombre)
+    return m
+  }, [lista])
+
+  const { colapsada, alternar, expandirTodas, colapsarTodas } = useColapso()
+  const [generando, compartir] = useCompartirCategorias()
+  // al buscar se expanden todas, para ver las coincidencias
+  useEffect(() => { if (texto.trim()) expandirTodas() }, [texto, expandirTodas])
+  const enPantalla = CATEGORIAS_JUGADOR.filter((c) => porCategoria.get(c)!.length)
+  const todasColapsadas = enPantalla.length > 0 && enPantalla.every((c) => colapsada(c))
+  const grupo = (c: CategoriaJugador) => ({ titulo: c, rama: rama(c), nombres: completas.get(c)! })
 
   return (
     <>
@@ -46,6 +61,11 @@ export default function CategoriasPublicas() {
           {texto && <button onClick={() => setTexto('')} aria-label="Limpiar búsqueda" className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-noche/40"><X className="h-4 w-4" /></button>}
         </label>
         {!!lista?.length && <span className="text-xs text-noche/55">{palabras.length ? `${visibles.length} de ${lista.length}` : lista.length} jugadores</span>}
+        {enPantalla.length > 0 && (
+          <AccionesCategorias todasColapsadas={todasColapsadas} onColapsarTodas={() => colapsarTodas(enPantalla)} onExpandirTodas={expandirTodas}
+            onCompartirTodas={() => void compartir(TODAS, CATEGORIAS_JUGADOR.map(grupo), 'Categorías NODO')}
+            generando={generando === TODAS} puedeCompartir={!!lista?.length} />
+        )}
       </div>
 
       {error && <div className="mb-4"><Alerta tipo="error">{error}</Alerta></div>}
@@ -67,13 +87,13 @@ export default function CategoriasPublicas() {
                     const nombres = porCategoria.get(c)!
                     return (
                       <section key={c} className="overflow-hidden rounded-xl bg-white ring-1 ring-noche/10">
-                        <header className={`flex items-center justify-between gap-2 px-3 py-2 ${ESTILO_CATEGORIA[r].etiqueta}`}>
-                          <h3 className="font-display text-lg font-bold leading-none">{c}</h3>
-                          <span className="num text-sm font-semibold opacity-80">{nombres.length}</span>
-                        </header>
-                        <ul className="max-h-80 overflow-y-auto">
-                          {nombres.map((n) => <li key={n} className="border-b border-noche/5 px-3 py-1.5 text-sm text-noche last:border-0">{n}</li>)}
-                        </ul>
+                        <EncabezadoCard titulo={c} cantidad={nombres.length} colapsada={colapsada(c)} onAlternar={() => alternar(c)}
+                          onCompartir={() => void compartir(c, [grupo(c)], c)} generando={generando === c} clase={ESTILO_CATEGORIA[r].etiqueta} />
+                        {!colapsada(c) && (
+                          <ul className="max-h-80 overflow-y-auto">
+                            {nombres.map((n) => <li key={n} className="border-b border-noche/5 px-3 py-1.5 text-sm text-noche last:border-0">{n}</li>)}
+                          </ul>
+                        )}
                       </section>
                     )
                   })}

@@ -4,6 +4,7 @@ import { FALTA_SQL_CATEGORIA, asignarCategoria, listarBase } from '../lib/jugado
 import { CATEGORIAS_JUGADOR, esCategoriaJugador, rama, type CategoriaJugador } from '../lib/categorias'
 import { claveJugador, nombrePropio } from '../lib/torneo'
 import { ESTILO_CATEGORIA } from '../components/Categoria'
+import { AccionesCategorias, EncabezadoCard, TODAS, useColapso, useCompartirCategorias, type GrupoImagen } from '../components/CardsCategorias'
 import { Alerta, Input, Spinner, Titulo, Vacio } from '../components/ui'
 
 interface Fila { id: string; nombre: string; categoria: CategoriaJugador | null }
@@ -55,6 +56,23 @@ export default function Categorias() {
     return m
   }, [visibles])
   const totalSin = (lista ?? []).filter((j) => !j.categoria).length
+  // para las imágenes: siempre el grupo completo (no lo que coincide con la búsqueda), con los nombres como se muestran
+  const completos = useMemo(() => {
+    const m = new Map<Grupo, string[]>([[SIN, []], ...CATEGORIAS_JUGADOR.map((c) => [c, []] as [Grupo, string[]])])
+    for (const j of lista ?? []) m.get(j.categoria ?? SIN)!.push(nombrePropio(j.nombre))
+    for (const v of m.values()) v.sort((a, b) => a.localeCompare(b, 'es'))
+    return m
+  }, [lista])
+  const grupoImagen = (g: Grupo): GrupoImagen => ({ titulo: g === SIN ? 'Sin categoría asignada' : g, rama: g === SIN ? null : rama(g), nombres: completos.get(g)! })
+
+  const { colapsada, alternar, expandirTodas, colapsarTodas } = useColapso()
+  const [generando, compartir] = useCompartirCategorias()
+  // al buscar se expanden todas, para ver las coincidencias
+  useEffect(() => { if (texto.trim()) expandirTodas() }, [texto, expandirTodas])
+  const enPantalla: Grupo[] = [SIN, ...CATEGORIAS_JUGADOR].filter((g) => !palabras.length || (porGrupo.get(g)?.length ?? 0) > 0)
+  const todasColapsadas = enPantalla.length > 0 && enPantalla.every((g) => colapsada(g))
+  // "Compartir todas": solo las categorías (los jugadores sin asignar se comparten desde su card)
+  const hayConCategoria = CATEGORIAS_JUGADOR.some((c) => completos.get(c)!.length)
 
   const card = (g: Grupo) => {
     const filas = porGrupo.get(g) ?? []
@@ -64,11 +82,10 @@ export default function Categorias() {
     const estilo = esSin ? null : ESTILO_CATEGORIA[rama(g)]
     return (
       <section key={g} className={`flex flex-col overflow-hidden rounded-xl bg-white ring-1 ${esSin ? 'ring-amber-300' : 'ring-noche/10'}`}>
-        <header className={`flex items-center justify-between gap-2 px-3 py-2 ${esSin ? 'bg-amber-50 text-amber-900' : estilo!.etiqueta}`}>
-          <h2 className="font-display text-lg font-bold leading-none">{esSin ? 'Sin asignar' : g}</h2>
-          <span className="num text-sm font-semibold opacity-80">{filas.length}</span>
-        </header>
-        {filas.length === 0 ? <p className="px-3 py-3 text-xs text-noche/45">{esSin ? 'Todos los jugadores tienen categoría.' : 'Sin jugadores.'}</p> : (
+        <EncabezadoCard titulo={esSin ? 'Sin asignar' : g} cantidad={filas.length} colapsada={colapsada(g)} onAlternar={() => alternar(g)}
+          onCompartir={() => void compartir(g, [grupoImagen(g)], esSin ? 'Sin categoría asignada' : g)} generando={generando === g}
+          clase={esSin ? 'bg-amber-50 text-amber-900' : estilo!.etiqueta} nivel="h2" />
+        {colapsada(g) ? null : filas.length === 0 ? <p className="px-3 py-3 text-xs text-noche/45">{esSin ? 'Todos los jugadores tienen categoría.' : 'Sin jugadores.'}</p> : (
           <ul className={`overflow-y-auto ${esSin ? 'grid max-h-[28rem] sm:grid-cols-2 sm:gap-x-2 lg:grid-cols-3' : 'max-h-80'}`}>
             {filas.map((j) => (
               <li key={j.id} className="flex items-center gap-2 border-b border-noche/5 px-3 py-1.5">
@@ -105,6 +122,11 @@ export default function Categorias() {
           <span className="text-xs text-noche/55">
             {palabras.length ? `${visibles.length} de ${lista.length} jugadores` : `${lista.length} jugadores`}{totalSin ? ` · ${totalSin} sin categoría` : ''}
           </span>
+        )}
+        {!!lista?.length && (
+          <AccionesCategorias todasColapsadas={todasColapsadas} onColapsarTodas={() => colapsarTodas(enPantalla)} onExpandirTodas={expandirTodas}
+            onCompartirTodas={() => void compartir(TODAS, CATEGORIAS_JUGADOR.map(grupoImagen), 'Categorías NODO')}
+            generando={generando === TODAS} puedeCompartir={hayConCategoria} />
         )}
       </div>
 

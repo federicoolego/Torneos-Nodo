@@ -70,7 +70,11 @@ function rect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h:
 
 // ------------------------------------------------------------------ íconos (trazos de lucide, 24×24)
 type Nodo = ['path', string] | ['rect', number, number, number, number, number] | ['circle', number, number, number]
-const ICONOS: Record<'trofeo' | 'premio' | 'calendario' | 'ticket', Nodo[]> = {
+const ICONOS: Record<'trofeo' | 'premio' | 'calendario' | 'ticket' | 'usuarios', Nodo[]> = {
+  usuarios: [
+    ['path', 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'], ['circle', 9, 7, 4],
+    ['path', 'M22 21v-2a4 4 0 0 0-3-3.87'], ['path', 'M16 3.13a4 4 0 0 1 0 7.75'],
+  ],
   trofeo: [
     ['path', 'M6 9H4.5a2.5 2.5 0 0 1 0-5H6'], ['path', 'M18 9h1.5a2.5 2.5 0 0 0 0-5H18'], ['path', 'M4 22h16'],
     ['path', 'M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22'],
@@ -588,4 +592,122 @@ export async function imagenRanking({ titulo, filtros, columna, columnaExtra, fi
   }
   pie(ctx, alto - 36)
   return aBlob(canvas)
+}
+
+// ------------------------------------------------------------------ categorías de jugadores
+
+/** Jugadores por columna y columnas por imagen: si no entran, se arman más imágenes */
+const FILAS_POR_COLUMNA = 25
+const COLUMNAS_POR_IMAGEN = 2
+/** Hasta esta cantidad va en una sola columna (queda más prolijo) */
+const MAX_UNA_COLUMNA = 12
+
+/** Color de la rama (mismos que tailwind.config.js); null = sin categoría asignada */
+const COLOR_RAMA = { Damas: '#C93A78', Caballeros: '#2463C2', sin: '#B7791F' } as const
+
+/**
+ * Imágenes de una categoría de jugadores (ej. "7ma Damas") con todos sus jugadores y el total.
+ * Hasta 2 columnas de 25 nombres por imagen; si hay más, devuelve varias imágenes (1 de 2, 2 de 2…)
+ */
+export async function imagenesCategoria({ titulo, rama, nombres }: {
+  titulo: string; rama: 'Damas' | 'Caballeros' | null; nombres: string[]
+}): Promise<Blob[]> {
+  await fuentes()
+  const img = await logo()
+  const color = COLOR_RAMA[rama ?? 'sin']
+  const porImagen = FILAS_POR_COLUMNA * COLUMNAS_POR_IMAGEN
+  const partes: string[][] = []
+  for (let i = 0; i < nombres.length; i += porImagen) partes.push(nombres.slice(i, i + porImagen))
+  if (!partes.length) partes.push([])
+  const total = nombres.length
+  const hoy = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+  const out: Blob[] = []
+  for (let pi = 0; pi < partes.length; pi++) {
+    const parte = partes[pi]
+    const desde = pi * porImagen
+    const cols = total <= MAX_UNA_COLUMNA ? 1 : COLUMNAS_POR_IMAGEN
+    const filas = Math.max(1, Math.ceil(parte.length / cols))
+
+    const logoTam = 150
+    const altoCab = logoTam + 2 * 40
+    const altoFila = 56
+    const altoCols = 44
+    const altoTabla = altoCols + filas * altoFila
+    const nota = partes.length > 1 ? `Jugadores ${desde + 1} a ${desde + parte.length} de ${total} · Imagen ${pi + 1} de ${partes.length}` : ''
+    const alto = altoCab + 10 + 40 + altoTabla + (nota ? 52 : 16) + 96
+
+    const canvas = document.createElement('canvas')
+    canvas.width = ANCHO
+    canvas.height = alto
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = C.fondo
+    ctx.fillRect(0, 0, ANCHO, alto)
+
+    // encabezado: logo + categoría + total de jugadores
+    ctx.fillStyle = C.noche
+    ctx.fillRect(0, 0, ANCHO, altoCab)
+    ctx.fillStyle = color
+    ctx.fillRect(0, altoCab, ANCHO, 10)
+    ctx.drawImage(img, MARGEN, (altoCab - logoTam) / 2, logoTam, logoTam)
+    const tx = MARGEN + logoTam + 40
+    const anchoTexto = ANCHO - tx - MARGEN
+    icono(ctx, 'usuarios', tx, altoCab / 2 - 66, 48, C.lima)
+    ctx.fillStyle = C.blanco
+    let t = 66
+    ctx.font = `700 ${t}px ${DISPLAY}`
+    while (t > 40 && ctx.measureText(titulo).width > anchoTexto - 64) { t--; ctx.font = `700 ${t}px ${DISPLAY}` }
+    ctx.fillText(recortar(ctx, titulo, anchoTexto - 64), tx + 64, altoCab / 2 - 18)
+    ctx.font = `600 34px ${DISPLAY}`
+    ctx.fillStyle = C.lima
+    ctx.fillText(recortar(ctx, `${total} ${total === 1 ? 'jugador' : 'jugadores'} · al ${hoy}`, anchoTexto), tx, altoCab / 2 + 32)
+
+    // tabla de nombres, por columnas (se lee de arriba hacia abajo, columna por columna)
+    const x = MARGEN, ancho = ANCHO - 2 * MARGEN
+    const anchoCol = ancho / cols
+    const cNum = 64
+    const y0 = altoCab + 10 + 40
+    ctx.save()
+    ctx.beginPath(); ctx.roundRect(x, y0, ancho, altoTabla, 16); ctx.clip()
+    ctx.fillStyle = C.blanco; ctx.fillRect(x, y0, ancho, altoTabla)
+    ctx.fillStyle = color; ctx.fillRect(x, y0, ancho, altoCols)
+    ctx.fillStyle = C.blanco; ctx.font = `700 17px ${TEXTO}`
+    for (let c = 0; c < cols; c++) {
+      const cx = x + c * anchoCol
+      ctx.textAlign = 'center'; ctx.fillText('N°', cx + cNum / 2, y0 + 29)
+      ctx.textAlign = 'left'; ctx.fillText('JUGADOR', cx + cNum + 8, y0 + 29)
+    }
+    // franjas alternadas
+    for (let f = 0; f < filas; f++) {
+      const fy = y0 + altoCols + f * altoFila
+      if (f % 2 === 1) { ctx.fillStyle = '#F7FAF9'; ctx.fillRect(x, fy, ancho, altoFila) }
+      ctx.fillStyle = C.linea; ctx.fillRect(x, fy + altoFila - 1, ancho, 1)
+    }
+    if (!parte.length) {
+      ctx.fillStyle = C.gris; ctx.font = `500 26px ${TEXTO}`; ctx.textAlign = 'center'
+      ctx.fillText('Sin jugadores en esta categoría', ANCHO / 2, y0 + altoCols + 36)
+    }
+    parte.forEach((nombre, k) => {
+      const c = Math.floor(k / filas)
+      const f = k % filas
+      const cx = x + c * anchoCol
+      const mid = y0 + altoCols + f * altoFila + altoFila / 2
+      ctx.textAlign = 'center'; ctx.font = `600 21px ${TEXTO}`; ctx.fillStyle = C.gris
+      ctx.fillText(String(desde + k + 1), cx + cNum / 2, mid + 7)
+      ctx.textAlign = 'left'; ctx.font = `600 26px ${TEXTO}`; ctx.fillStyle = C.texto
+      ctx.fillText(recortar(ctx, nombre, anchoCol - cNum - 24), cx + cNum + 8, mid + 9)
+    })
+    // separador entre columnas
+    for (let c = 1; c < cols; c++) { ctx.fillStyle = C.linea; ctx.fillRect(x + c * anchoCol, y0 + altoCols, 2, altoTabla - altoCols) }
+    ctx.restore()
+    ctx.textAlign = 'left'
+    if (nota) {
+      ctx.fillStyle = C.gris; ctx.font = `500 22px ${TEXTO}`; ctx.textAlign = 'center'
+      ctx.fillText(nota, ANCHO / 2, y0 + altoTabla + 36)
+      ctx.textAlign = 'left'
+    }
+    pie(ctx, alto - 36)
+    out.push(await aBlob(canvas))
+  }
+  return out
 }
