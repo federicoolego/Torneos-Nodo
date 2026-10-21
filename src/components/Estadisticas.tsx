@@ -135,8 +135,8 @@ async function compartirImagen(blob: Blob, nombre: string, titulo: string) {
  * `publico`: versión para jugadores (sin datos de publicación: ahí solo llegan torneos publicados).
  * `enlace`: link a cada torneo desde el detalle de un jugador (solo en la página pública).
  */
-export default function Estadisticas({ torneos: base, filtrado, publico = false, enlace, filtros = [], conPuntos = false, conCompartir = false }: {
-  torneos: DatoEstadistica[]; filtrado: boolean; publico?: boolean; enlace?: (id: string) => string
+export default function Estadisticas({ torneos: base, publico = false, enlace, filtros = [], conPuntos = false, conCompartir = false }: {
+  torneos: DatoEstadistica[]; filtrado?: boolean; publico?: boolean; enlace?: (id: string) => string
   /** filtros de la lista aplicados, para la imagen ("Caballeros", "2026", "Octubre"…) */
   filtros?: string[]
   /** ranking de puntos */
@@ -218,7 +218,7 @@ export default function Estadisticas({ torneos: base, filtrado, publico = false,
   return (
     <details className="group mb-5 rounded-xl bg-white ring-1 ring-noche/10 [&_summary::-webkit-details-marker]:hidden">
       <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 font-display text-lg font-semibold text-noche">
-        <BarChart3 className="h-5 w-5 text-cancha" aria-hidden /> Estadísticas{activa ? ` · ${activa}` : ''}{filtrado ? ' (de los torneos filtrados)' : ''}
+        <BarChart3 className="h-5 w-5 text-cancha" aria-hidden /> Estadísticas{activa ? ` · ${activa}` : ''}
         <ChevronDown className="ml-auto h-5 w-5 text-noche/40 transition-transform group-open:rotate-180" aria-hidden />
       </summary>
       <div className="space-y-4 border-t border-noche/10 p-4">
