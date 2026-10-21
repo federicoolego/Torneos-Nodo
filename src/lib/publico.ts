@@ -1,4 +1,10 @@
 // Datos de la página pública (jugadores): solo torneos publicados, vía funciones de la base (sin login)
+
+/**
+ * Categorías de jugador en la página pública: pestaña "Categorías" y filtro "Categorías" de Estadísticas.
+ * false = ocultas (el admin las sigue viendo y editando) · true = visibles para todos.
+ */
+export const MOSTRAR_CATEGORIAS_PUBLICAS = false
 import { supabase } from './supabase'
 import { desdeFilas, type FilaInstancia, type FilaPareja, type FilaPartido, type FilaTorneo } from './almacen'
 import type { Categoria, CategoriaTorneo, EstadoTorneo } from './torneo'

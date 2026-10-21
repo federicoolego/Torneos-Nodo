@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ChevronRight, Search, Ticket, Trophy, Users } from 'lucide-react'
-import { categoriasPublicas, listarPublicos, normalizarTexto, type ResumenPublico } from '../../lib/publico'
+import { MOSTRAR_CATEGORIAS_PUBLICAS, categoriasPublicas, listarPublicos, normalizarTexto, type ResumenPublico } from '../../lib/publico'
 import { CATEGORIAS, ESTADOS, MESES, formatoPesos, nombreEstado, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../../lib/torneo'
 import { Alerta, Badge, Input, Select, Spinner, Tabs, Vacio } from '../../components/ui'
 import Calendario from './Calendario'
@@ -19,12 +19,14 @@ const LINKS: Record<PestanaInicio, string> = { torneos: '#/', calendario: '#/cal
 /** pestaña de la página inicial según el link (#/ · #/calendario · #/estadisticas · #/categorias) */
 const pestanaDelLink = (): PestanaInicio => {
   const h = window.location.hash
-  return h.startsWith('#/calendario') ? 'calendario' : h.startsWith('#/estadisticas') ? 'estadisticas' : h.startsWith('#/categorias') ? 'categorias' : 'torneos'
+  return h.startsWith('#/calendario') ? 'calendario' : h.startsWith('#/estadisticas') ? 'estadisticas' : h.startsWith('#/categorias') && MOSTRAR_CATEGORIAS_PUBLICAS ? 'categorias' : 'torneos'
 }
 
 /** Torneos publicados con los datos que usan las estadísticas */
 const cargarEstadisticas = async (): Promise<DatoEstadistica[]> =>
   (await listarPublicos()).map((t) => ({ ...t, fechaInicio: t.fecha_inicio, fechaFin: t.fecha_fin, jugadores: t.jugadores ?? [] }))
+/** categorías ocultas: el filtro de Estadísticas no se muestra */
+const sinCategorias = () => Promise.reject(new Error('Categorías ocultas'))
 const enlaceTorneo = (id: string) => `#/torneo/${id}`
 
 /** Página inicial para jugadores: pestañas Torneos (por defecto), Calendario y Estadísticas */
@@ -43,14 +45,14 @@ export default function ListaPublica() {
   return (
     <>
       <div className="mb-5">
-        <Tabs<PestanaInicio> opciones={[{ id: 'torneos', label: 'Torneos' }, { id: 'calendario', label: 'Calendario' }, { id: 'estadisticas', label: 'Estadísticas' }, { id: 'categorias', label: 'Categorías' }]} valor={pestana} onChange={cambiar} />
+        <Tabs<PestanaInicio> opciones={[{ id: 'torneos', label: 'Torneos' }, { id: 'calendario', label: 'Calendario' }, { id: 'estadisticas', label: 'Estadísticas' }, ...(MOSTRAR_CATEGORIAS_PUBLICAS ? [{ id: 'categorias' as const, label: 'Categorías' }] : [])]} valor={pestana} onChange={cambiar} />
       </div>
       {pestana === 'calendario' ? (
         <>
           <header className="mb-3"><h1 className="font-display text-4xl font-bold leading-none text-noche">Calendario</h1></header>
           <Calendario />
         </>
-      ) : pestana === 'categorias' ? <CategoriasPublicas /> : pestana === 'estadisticas' ? <PanelEstadisticas cargar={cargarEstadisticas} cargarCategorias={categoriasPublicas} enlace={enlaceTorneo} /> : <Torneos />}
+      ) : pestana === 'categorias' ? <CategoriasPublicas /> : pestana === 'estadisticas' ? <PanelEstadisticas cargar={cargarEstadisticas} cargarCategorias={MOSTRAR_CATEGORIAS_PUBLICAS ? categoriasPublicas : sinCategorias} enlace={enlaceTorneo} /> : <Torneos />}
     </>
   )
 }
