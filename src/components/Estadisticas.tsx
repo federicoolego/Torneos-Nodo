@@ -1,45 +1,75 @@
-import { useMemo, useState, type ReactNode } from 'react'
-import { BarChart3, ChevronDown, Medal, Trophy, Users } from 'lucide-react'
-import { CATEGORIAS, nombrePropio, type CategoriaTorneo, type EstadoTorneo } from '../lib/torneo'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, Medal, Search, Trophy, Users, X } from 'lucide-react'
+import { CATEGORIAS, nombrePropio, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../lib/torneo'
 import { normalizarTexto } from '../lib/publico'
-import { ESTILO_CATEGORIA } from './Categoria'
+import { BadgeCategoria, ESTILO_CATEGORIA } from './Categoria'
+import { Input } from './ui'
 
 /** Lo mínimo que necesitan las estadísticas de cada torneo (sirve para el panel y para la página pública) */
 export interface DatoEstadistica {
+  id?: string
+  /** nombre del torneo (para el detalle de cada jugador) */
+  nombre?: string
+  fechaInicio?: string | null
+  fechaFin?: string | null
   categoria: CategoriaTorneo
   estado: EstadoTorneo
   parejas: number
   /** jugadores inscriptos */
   jugadores: string[]
+  /** parejas inscriptas [jugador1, jugador2] (para mostrar el compañero); si no llegan, el detalle sale sin compañero */
+  duplas?: [string, string][]
   /** nombre de la pareja campeona ("Juan Pérez / Luis Gómez") */
   campeon: string | null
   /** solo en el panel de organizadores */
   publicado?: boolean
 }
 
+/** Un torneo en el historial de un jugador */
+interface Participacion {
+  id?: string; torneo: string; categoria: CategoriaTorneo; fechaInicio: string; fechaFin: string; estado: EstadoTorneo
+  companero: string | null; campeon: boolean
+}
+
+interface FilaRanking { clave: string; nombre: string; n: number; torneos: Participacion[] }
+
+const POR_PAGINA = 10
+
 /** "juan  PÉREZ" y "Juan Perez" cuentan como el mismo jugador */
 const clave = (n: string) => normalizarTexto(n).replace(/\s+/g, ' ')
 
-/** Ranking de jugadores: cuántas veces aparece cada uno (se muestra el nombre como se escribió la primera vez) */
-function ranking(nombres: string[], top = 5) {
-  const m = new Map<string, { nombre: string; n: number }>()
-  for (const x of nombres) {
-    const k = clave(x)
+/** Agrupa por jugador; ordena por cantidad y después por nombre (se muestra el nombre como se escribió la primera vez) */
+function ranking(items: { nombre: string; p: Participacion }[]): FilaRanking[] {
+  const m = new Map<string, FilaRanking>()
+  for (const { nombre, p } of items) {
+    const k = clave(nombre)
     if (!k) continue
-    const e = m.get(k) ?? { nombre: nombrePropio(x), n: 0 }
+    const e = m.get(k) ?? { clave: k, nombre: nombrePropio(nombre), n: 0, torneos: [] }
     e.n++
+    e.torneos.push(p)
     m.set(k, e)
   }
-  return [...m.values()].sort((a, b) => b.n - a.n || a.nombre.localeCompare(b.nombre)).slice(0, top)
+  return [...m.values()]
+    .map((f) => ({ ...f, torneos: f.torneos.sort((a, b) => b.fechaInicio.localeCompare(a.fechaInicio)) }))
+    .sort((a, b) => b.n - a.n || a.nombre.localeCompare(b.nombre))
+}
+
+/** Puesto con empates (1, 1, 3…) */
+function puestos(filas: FilaRanking[]): Map<string, number> {
+  const out = new Map<string, number>()
+  filas.forEach((f, i) => out.set(f.clave, i > 0 && filas[i - 1].n === f.n ? out.get(filas[i - 1].clave)! : i + 1))
+  return out
 }
 
 /**
  * Estadísticas sobre los torneos que se le pasan (ya filtrados por la lista).
  * `publico`: versión para jugadores (sin datos de publicación: ahí solo llegan torneos publicados).
+ * `enlace`: link a cada torneo desde el detalle de un jugador (solo en la página pública).
  */
-export default function Estadisticas({ torneos: base, filtrado, publico = false }: { torneos: DatoEstadistica[]; filtrado: boolean; publico?: boolean }) {
+export default function Estadisticas({ torneos: base, filtrado, publico = false, enlace }: { torneos: DatoEstadistica[]; filtrado: boolean; publico?: boolean; enlace?: (id: string) => string }) {
   // filtro propio de las estadísticas, encima de los filtros de la lista (no cambia la lista)
   const [sel, setSel] = useState<'' | CategoriaTorneo>('')
+  const [texto, setTexto] = useState('')
   const cuentas = useMemo(() => Object.fromEntries(CATEGORIAS.map((c) => [c, base.filter((t) => t.categoria === c).length])) as Record<CategoriaTorneo, number>, [base])
   // si la categoría elegida ya no tiene torneos (por ejemplo, cambió un filtro de la lista), vuelve a "Todas"
   const activa: '' | CategoriaTorneo = sel && cuentas[sel] ? sel : ''
@@ -50,10 +80,31 @@ export default function Estadisticas({ torneos: base, filtrado, publico = false 
     const todos = activos.flatMap((t) => t.jugadores)
     const distintos = new Set(todos.map(clave).filter(Boolean)).size
     const finalizados = torneos.filter((t) => t.estado === 'finalizado')
+    const datoTorneo = (t: DatoEstadistica) => ({ id: t.id, torneo: t.nombre ?? '', categoria: t.categoria, fechaInicio: t.fechaInicio ?? '', fechaFin: t.fechaFin ?? '', estado: t.estado })
+    const campeonesDe = (t: DatoEstadistica) => (t.estado === 'finalizado' && t.campeon ? t.campeon.split(' / ').map((x) => x.trim()).filter(Boolean) : [])
+
     // cada campeón suma un título por jugador ("Juan Pérez / Luis Gómez" → 2 jugadores)
-    const campeones = finalizados.flatMap((t) => (t.campeon ? t.campeon.split(' / ') : []))
+    const titulos = finalizados.flatMap((t) => {
+      const cs = campeonesDe(t)
+      return cs.map((nombre) => ({ nombre, p: { ...datoTorneo(t), companero: cs.find((x) => clave(x) !== clave(nombre)) ?? null, campeon: true } }))
+    })
+
     // participaciones: un jugador cuenta una vez por torneo
-    const participaciones = activos.flatMap((t) => [...new Map(t.jugadores.map((j) => [clave(j), j])).values()])
+    const participaciones = activos.flatMap((t) => {
+      const ganadores = new Set(campeonesDe(t).map(clave))
+      const vistos = new Map<string, { nombre: string; companero: string | null }>()
+      const duplas = t.duplas?.length ? t.duplas : null
+      if (duplas) {
+        for (const [a, b] of duplas) {
+          if (a?.trim() && !vistos.has(clave(a))) vistos.set(clave(a), { nombre: a, companero: b?.trim() ? nombrePropio(b) : null })
+          if (b?.trim() && !vistos.has(clave(b))) vistos.set(clave(b), { nombre: b, companero: a?.trim() ? nombrePropio(a) : null })
+        }
+      } else {
+        for (const j of t.jugadores) if (j.trim() && !vistos.has(clave(j))) vistos.set(clave(j), { nombre: j, companero: null })
+      }
+      return [...vistos.entries()].map(([k, v]) => ({ nombre: v.nombre, p: { ...datoTorneo(t), companero: v.companero, campeon: ganadores.has(k) } }))
+    })
+
     return {
       total: torneos.length,
       porEstado: { en_curso: torneos.filter((t) => t.estado === 'en_curso').length, pendiente: torneos.filter((t) => t.estado === 'pendiente').length, finalizado: finalizados.length, cancelado: torneos.filter((t) => t.estado === 'cancelado').length },
@@ -61,7 +112,7 @@ export default function Estadisticas({ torneos: base, filtrado, publico = false 
       parejas,
       promedio: activos.length ? Math.round(parejas / activos.length) : 0,
       distintos,
-      campeones: ranking(campeones),
+      campeones: ranking(titulos.map((x) => ({ ...x, p: { ...x.p, companero: x.p.companero && nombrePropio(x.p.companero) } }))),
       participaciones: ranking(participaciones),
     }
   }, [torneos])
@@ -91,16 +142,24 @@ export default function Estadisticas({ torneos: base, filtrado, publico = false 
           <Kpi titulo="Jugadores distintos" valor={st.distintos} detalle="Cada jugador cuenta una vez" />
           {!publico && <Kpi titulo="Publicados" valor={st.publicados} detalle={`${st.total - st.publicados} sin publicar`} />}
         </div>
-        <div className="grid gap-3 md:grid-cols-2">
+
+        {/* buscador común a los dos rankings */}
+        <label className="relative block">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-noche/40" aria-hidden />
+          <Input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Buscá tu nombre o apellido en los rankings" className="pl-9 pr-9" aria-label="Buscar jugador en los rankings" />
+          {texto && <button onClick={() => setTexto('')} aria-label="Limpiar búsqueda" className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-noche/40"><X className="h-4 w-4" /></button>}
+        </label>
+
+        <div className="grid items-start gap-3 md:grid-cols-2">
           <Ranking titulo="Ranking de campeones" icono={<Trophy className="h-4 w-4 text-cancha" aria-hidden />} unidad={['título', 'títulos']}
-            filas={st.campeones} vacio="Todavía no hay torneos finalizados." />
+            filas={st.campeones} texto={texto} enlace={enlace} vacio="Todavía no hay torneos finalizados." />
           <Ranking titulo="Más participaciones" icono={<Users className="h-4 w-4 text-cancha" aria-hidden />} unidad={['torneo', 'torneos']}
-            filas={st.participaciones} vacio="Todavía no hay parejas cargadas." />
+            filas={st.participaciones} texto={texto} enlace={enlace} vacio="Todavía no hay parejas cargadas." />
         </div>
         <p className="text-[11px] text-noche/45">
           {publico
-            ? 'Sobre los torneos publicados. Los jugadores se identifican por nombre: si está escrito distinto en dos torneos, cuenta como dos. No incluye torneos cancelados (salvo en el total).'
-            : 'Los jugadores se identifican por nombre (sin importar mayúsculas ni acentos): si está escrito distinto en dos torneos, por ejemplo con un apodo, cuenta como dos. No incluye torneos cancelados (salvo en el total).'}
+            ? 'Sobre los torneos publicados. Tocá un jugador para ver sus torneos. Los jugadores se identifican por nombre: si está escrito distinto en dos torneos, cuenta como dos. No incluye torneos cancelados (salvo en el total).'
+            : 'Tocá un jugador para ver sus torneos. Los jugadores se identifican por nombre (sin importar mayúsculas ni acentos): si está escrito distinto en dos torneos, por ejemplo con un apodo, cuenta como dos. No incluye torneos cancelados (salvo en el total).'}
         </p>
       </div>
     </details>
@@ -117,23 +176,94 @@ function Kpi({ titulo, valor, detalle }: { titulo: string; valor: number; detall
   )
 }
 
-function Ranking({ titulo, icono, filas, unidad, vacio }: { titulo: string; icono: ReactNode; filas: { nombre: string; n: number }[]; unidad: [string, string]; vacio: string }) {
+/** Ranking completo con buscador (de afuera), paginado de a 10 y detalle de torneos al tocar un jugador */
+function Ranking({ titulo, icono, filas, unidad, vacio, texto, enlace }: {
+  titulo: string; icono: ReactNode; filas: FilaRanking[]; unidad: [string, string]; vacio: string; texto: string; enlace?: (id: string) => string
+}) {
+  const [pagina, setPagina] = useState(0)
+  const [abierto, setAbierto] = useState<string | null>(null)
+  const puesto = useMemo(() => puestos(filas), [filas])
+  // todas las palabras tienen que aparecer, en cualquier orden ("grego massot" encuentra a "Massot Grego")
+  const palabras = normalizarTexto(texto).split(/\s+/).filter(Boolean)
+  const visibles = palabras.length ? filas.filter((f) => palabras.every((p) => f.clave.includes(p))) : filas
+  const paginas = Math.max(1, Math.ceil(visibles.length / POR_PAGINA))
+  const actual = Math.min(pagina, paginas - 1)
+  const deLaPagina = visibles.slice(actual * POR_PAGINA, (actual + 1) * POR_PAGINA)
+
+  // al buscar o cambiar los datos, vuelve a la primera página y cierra el detalle
+  useEffect(() => { setPagina(0); setAbierto(null) }, [texto, filas])
+
+  const ir = (p: number) => { setPagina(p); setAbierto(null) }
+
   return (
     <div className="rounded-lg bg-vidrio p-3">
-      <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-noche">{icono} {titulo}</p>
-      {filas.length === 0 ? <p className="text-xs text-noche/55">{vacio}</p> : (
-        <ol className="space-y-1">
-          {filas.map((f, i) => (
-            <li key={f.nombre} className="flex items-center gap-2 text-sm">
-              <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold ${i === 0 ? 'bg-pelota text-noche' : 'bg-white text-noche/60'}`}>
-                {i === 0 ? <Medal className="h-3 w-3" aria-hidden /> : i + 1}
-              </span>
-              <span className="min-w-0 flex-1 truncate">{f.nombre}</span>
-              <span className="num text-xs font-semibold text-noche/70">{f.n} {f.n === 1 ? unidad[0] : unidad[1]}</span>
-            </li>
-          ))}
-        </ol>
+      <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-noche">
+        {icono} {titulo}
+        {!!filas.length && <span className="num ml-auto text-xs font-normal text-noche/55">{palabras.length ? `${visibles.length} de ${filas.length}` : filas.length} {filas.length === 1 ? 'jugador' : 'jugadores'}</span>}
+      </p>
+      {filas.length === 0 ? <p className="text-xs text-noche/55">{vacio}</p> : visibles.length === 0 ? (
+        <p className="text-xs text-noche/55">Ningún jugador coincide con “{texto.trim()}”.</p>
+      ) : (
+        <>
+          <ol className="space-y-1">
+            {deLaPagina.map((f) => {
+              const pos = puesto.get(f.clave) ?? 0
+              const abiertoAca = abierto === f.clave
+              return (
+                <li key={f.clave} className={`rounded-md ${abiertoAca ? 'bg-white ring-1 ring-noche/10' : ''}`}>
+                  <button onClick={() => setAbierto(abiertoAca ? null : f.clave)} aria-expanded={abiertoAca}
+                    className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm hover:bg-white/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cancha">
+                    <span className={`grid h-5 min-w-5 shrink-0 place-items-center rounded-full px-1 text-[11px] font-bold ${pos === 1 ? 'bg-pelota text-noche' : 'bg-white text-noche/60'}`}>
+                      {pos === 1 ? <Medal className="h-3 w-3" aria-label="1°" /> : pos}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{f.nombre}</span>
+                    <span className="num text-xs font-semibold text-noche/70">{f.n} {f.n === 1 ? unidad[0] : unidad[1]}</span>
+                    <ChevronDown className={`h-4 w-4 shrink-0 text-noche/35 transition-transform ${abiertoAca ? 'rotate-180' : ''}`} aria-hidden />
+                  </button>
+                  {abiertoAca && <Detalle torneos={f.torneos} enlace={enlace} />}
+                </li>
+              )
+            })}
+          </ol>
+          {paginas > 1 && (
+            <div className="mt-2 flex items-center justify-between gap-2 border-t border-noche/10 pt-2 text-xs text-noche/60">
+              <button onClick={() => ir(actual - 1)} disabled={actual === 0} aria-label="Página anterior"
+                className="inline-flex items-center gap-0.5 rounded-md px-2 py-1 font-semibold hover:bg-white disabled:cursor-not-allowed disabled:opacity-35">
+                <ChevronLeft className="h-4 w-4" aria-hidden /> Anterior
+              </button>
+              <span className="num">Página {actual + 1} de {paginas}</span>
+              <button onClick={() => ir(actual + 1)} disabled={actual >= paginas - 1} aria-label="Página siguiente"
+                className="inline-flex items-center gap-0.5 rounded-md px-2 py-1 font-semibold hover:bg-white disabled:cursor-not-allowed disabled:opacity-35">
+                Siguiente <ChevronRight className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
+  )
+}
+
+/** Torneos de un jugador: torneo, categoría, fecha y compañero */
+function Detalle({ torneos, enlace }: { torneos: Participacion[]; enlace?: (id: string) => string }) {
+  return (
+    <ul className="space-y-1.5 px-2 pb-2 pt-1">
+      {torneos.map((t, i) => {
+        const nombre = t.torneo || 'Torneo'
+        return (
+          <li key={`${t.id ?? i}-${i}`} className="rounded-md bg-vidrio/70 px-2 py-1.5 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <BadgeCategoria categoria={t.categoria} />
+              {enlace && t.id
+                ? <a href={enlace(t.id)} className="font-semibold text-noche underline-offset-2 hover:underline">{nombre}</a>
+                : <span className="font-semibold text-noche">{nombre}</span>}
+              {t.campeon && <span className="inline-flex items-center gap-0.5 font-semibold text-cancha"><Trophy className="h-3.5 w-3.5" aria-hidden /> Campeón</span>}
+              {t.fechaInicio && <span className="ml-auto text-noche/55">{rangoFechas(t.fechaInicio, t.fechaFin)}</span>}
+            </div>
+            <p className="mt-0.5 text-noche/70">{t.categoria === 'Damas' ? 'Compañera' : t.categoria === 'Mixto' ? 'Compañero/a' : 'Compañero'}: <span className="font-medium text-noche">{t.companero ?? '—'}</span></p>
+          </li>
+        )
+      })}
+    </ul>
   )
 }

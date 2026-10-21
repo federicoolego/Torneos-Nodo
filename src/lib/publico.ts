@@ -8,12 +8,14 @@ export interface ResumenPublico {
   inscripcion: number | null; premio: string; campeon: string | null; parejas: number
   /** jugadores inscriptos (para las estadísticas); llega vacío si no se corrió torneos_nodo_publico_estadisticas.sql */
   jugadores?: string[]
+  /** parejas [jugador1, jugador2] (para el compañero en las estadísticas); llega vacío si no se corrió la versión nueva de torneos_nodo_publico_estadisticas.sql */
+  duplas?: [string, string][]
 }
 
 export async function listarPublicos(): Promise<ResumenPublico[]> {
   const { data, error } = await supabase.rpc('torneos_nodo_publicos')
   if (error) throw new Error(error.message)
-  return ((data ?? []) as ResumenPublico[]).map((t) => ({ ...t, jugadores: (t.jugadores ?? []).filter((j) => j?.trim()) }))
+  return ((data ?? []) as ResumenPublico[]).map((t) => ({ ...t, jugadores: (t.jugadores ?? []).filter((j) => j?.trim()), duplas: t.duplas ?? [] }))
 }
 
 /** Torneo publicado completo (null si no existe o no está publicado) */

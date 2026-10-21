@@ -34,6 +34,7 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
       .filter((t) => !publicacion || t.publicado === (publicacion === 'si'))
       .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || '') || b.actualizado - a.actualizado)
   }, [lista, texto, categoria, estado, anio, mes, publicacion])
+  const datosEstadisticas = useMemo(() => visibles.map((t) => ({ ...t, nombre: t.torneo })), [visibles])
   const hayFiltros = !!(texto || categoria || estado || anio || mes || publicacion)
 
   const refrescar = useCallback(async () => {
@@ -108,7 +109,7 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
         </div>
       )}
       {hayFiltros && !!lista?.length && <p className="-mt-2 mb-3 text-xs text-noche/55">{visibles.length} de {lista.length} torneos</p>}
-      {!!visibles.length && <Estadisticas torneos={visibles} filtrado={hayFiltros} />}
+      {!!visibles.length && <Estadisticas torneos={datosEstadisticas} filtrado={hayFiltros} />}
       {lista === null ? <Spinner texto="Cargando torneos…" /> : lista.length === 0 ? (
         <Vacio titulo="Todavía no armaste ningún torneo" accion={<Button onClick={nueva}><Plus className="h-4 w-4" aria-hidden /> Nuevo torneo</Button>}>
           Cargás el torneo, las parejas, armás las zonas y el playoff, generás las imágenes para WhatsApp y cargás los resultados.

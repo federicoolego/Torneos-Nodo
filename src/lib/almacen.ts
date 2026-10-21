@@ -223,6 +223,8 @@ export interface ResumenTorneo {
   campeon: string | null
   /** jugadores inscriptos (para las estadísticas del panel) */
   jugadores: string[]
+  /** parejas [jugador1, jugador2] (para el compañero en las estadísticas) */
+  duplas: [string, string][]
 }
 
 /** Padrón de jugadores (para el buscador al inscribir parejas), con mayúscula inicial */
@@ -245,6 +247,7 @@ export async function listar(): Promise<ResumenTorneo[]> {
   if (error) throw new Error(error.message)
   // jugadores de todos los torneos (para las estadísticas), de a 1000 filas
   const jugadores = new Map<string, string[]>()
+  const duplas = new Map<string, [string, string][]>()
   for (let desde = 0; ; desde += 1000) {
     const r = await supabase.from(T.parejas).select('torneo_id, jugador1, jugador2').order('torneo_id').range(desde, desde + 999)
     if (r.error) throw new Error(r.error.message)
@@ -252,6 +255,7 @@ export async function listar(): Promise<ResumenTorneo[]> {
       const l = jugadores.get(p.torneo_id) ?? []
       l.push(p.jugador1, p.jugador2)
       jugadores.set(p.torneo_id, l)
+      duplas.set(p.torneo_id, [...(duplas.get(p.torneo_id) ?? []), [p.jugador1 ?? '', p.jugador2 ?? '']])
     }
     if ((r.data ?? []).length < 1000) break
   }
@@ -259,7 +263,7 @@ export async function listar(): Promise<ResumenTorneo[]> {
     id: t.id, torneo: t.nombre, categoria: esCategoriaTorneo(t.categoria) ? t.categoria : CATEGORIA_DEFECTO, fechaInicio: t.fecha_inicio ?? '', fechaFin: t.fecha_fin ?? '',
     parejas: t.parejas?.[0]?.count ?? 0, zonas: t.cant_zonas, playoff: !!t.cuadro, actualizado: Date.parse(t.actualizado),
     publicado: !!t.publicado, estado: t.estado ?? 'pendiente',
-    campeon: t.campeon ?? null, jugadores: (jugadores.get(t.id) ?? []).filter((j) => j.trim()),
+    campeon: t.campeon ?? null, jugadores: (jugadores.get(t.id) ?? []).filter((j) => j.trim()), duplas: duplas.get(t.id) ?? [],
   }))
 }
 
