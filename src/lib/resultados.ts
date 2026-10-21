@@ -298,6 +298,25 @@ export function resolverTorneo(cat: Categoria): TorneoResuelto {
   return { zonas, playoff, campeon: final?.estado === 'jugado' ? final.ganador : null }
 }
 
+/** Máxima instancia a la que llegó una pareja ('final' = finalista; 'campeon' = ganó el torneo) */
+export type Alcance = Instancia | 'campeon'
+export const ALCANCES: Alcance[] = ['zonas', '16avos', 'octavos', 'cuartos', 'semifinal', 'final', 'campeon']
+export const esAlcance = (v: unknown): v is Alcance => ALCANCES.includes(v as Alcance)
+const NOMBRE_ALCANCE: Record<Alcance, string> = { zonas: 'Zonas', '16avos': '16avos', octavos: 'Octavos', cuartos: 'Cuartos', semifinal: 'Semifinal', final: 'Finalista', campeon: 'Campeón' }
+export const nombreAlcance = (a: Alcance) => NOMBRE_ALCANCE[a] ?? a
+
+/**
+ * Hasta dónde llegó cada pareja: zonas → instancia del playoff en la que aparece (con la pareja ya definida) → campeón.
+ * Las parejas que todavía no están en una zona no figuran.
+ */
+export function alcances(cat: Categoria, resuelto: TorneoResuelto = resolverTorneo(cat)): Map<string, Alcance> {
+  const m = new Map<string, Alcance>()
+  for (const z of cat.zonas) for (const id of z) m.set(id, 'zonas')
+  for (const ronda of resuelto.playoff ?? []) for (const p of ronda) for (const id of [p.a, p.b]) if (id) m.set(id, p.instancia)
+  if (resuelto.campeon) m.set(resuelto.campeon, 'campeon')
+  return m
+}
+
 /** ¿Hay resultados cargados en esa instancia? (para avisar antes de cambiar el formato) */
 export function hayResultados(cat: Categoria, instancia: Instancia): boolean {
   if (instancia === 'zonas') return Object.keys(cat.resultadosZona).length > 0

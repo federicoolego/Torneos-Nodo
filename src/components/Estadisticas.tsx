@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, Medal, Search, Trophy, Users, X } from 'lucide-react'
 import { CATEGORIAS, nombrePropio, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../lib/torneo'
 import { normalizarTexto } from '../lib/publico'
+import { nombreAlcance, type Alcance } from '../lib/resultados'
 import { BadgeCategoria, ESTILO_CATEGORIA } from './Categoria'
 import { Input } from './ui'
 
@@ -17,8 +18,8 @@ export interface DatoEstadistica {
   parejas: number
   /** jugadores inscriptos */
   jugadores: string[]
-  /** parejas inscriptas [jugador1, jugador2] (para mostrar el compañero); si no llegan, el detalle sale sin compañero */
-  duplas?: [string, string][]
+  /** parejas inscriptas [jugador1, jugador2, hasta dónde llegó] (para el compañero y la instancia); si no llegan, el detalle sale sin esos datos */
+  duplas?: [string, string, (Alcance | null)?][]
   /** nombre de la pareja campeona ("Juan Pérez / Luis Gómez") */
   campeon: string | null
   /** solo en el panel de organizadores */
@@ -29,6 +30,8 @@ export interface DatoEstadistica {
 interface Participacion {
   id?: string; torneo: string; categoria: CategoriaTorneo; fechaInicio: string; fechaFin: string; estado: EstadoTorneo
   companero: string | null; campeon: boolean
+  /** máxima instancia a la que llegó en ese torneo (null si no se sabe) */
+  alcance: Alcance | null
 }
 
 interface FilaRanking { clave: string; nombre: string; n: number; torneos: Participacion[] }
@@ -86,23 +89,23 @@ export default function Estadisticas({ torneos: base, filtrado, publico = false,
     // cada campeón suma un título por jugador ("Juan Pérez / Luis Gómez" → 2 jugadores)
     const titulos = finalizados.flatMap((t) => {
       const cs = campeonesDe(t)
-      return cs.map((nombre) => ({ nombre, p: { ...datoTorneo(t), companero: cs.find((x) => clave(x) !== clave(nombre)) ?? null, campeon: true } }))
+      return cs.map((nombre) => ({ nombre, p: { ...datoTorneo(t), companero: cs.find((x) => clave(x) !== clave(nombre)) ?? null, campeon: true, alcance: 'campeon' as Alcance } }))
     })
 
     // participaciones: un jugador cuenta una vez por torneo
     const participaciones = activos.flatMap((t) => {
       const ganadores = new Set(campeonesDe(t).map(clave))
-      const vistos = new Map<string, { nombre: string; companero: string | null }>()
+      const vistos = new Map<string, { nombre: string; companero: string | null; alcance: Alcance | null }>()
       const duplas = t.duplas?.length ? t.duplas : null
       if (duplas) {
-        for (const [a, b] of duplas) {
-          if (a?.trim() && !vistos.has(clave(a))) vistos.set(clave(a), { nombre: a, companero: b?.trim() ? nombrePropio(b) : null })
-          if (b?.trim() && !vistos.has(clave(b))) vistos.set(clave(b), { nombre: b, companero: a?.trim() ? nombrePropio(a) : null })
+        for (const [a, b, x] of duplas) {
+          if (a?.trim() && !vistos.has(clave(a))) vistos.set(clave(a), { nombre: a, companero: b?.trim() ? nombrePropio(b) : null, alcance: x ?? null })
+          if (b?.trim() && !vistos.has(clave(b))) vistos.set(clave(b), { nombre: b, companero: a?.trim() ? nombrePropio(a) : null, alcance: x ?? null })
         }
       } else {
-        for (const j of t.jugadores) if (j.trim() && !vistos.has(clave(j))) vistos.set(clave(j), { nombre: j, companero: null })
+        for (const j of t.jugadores) if (j.trim() && !vistos.has(clave(j))) vistos.set(clave(j), { nombre: j, companero: null, alcance: null })
       }
-      return [...vistos.entries()].map(([k, v]) => ({ nombre: v.nombre, p: { ...datoTorneo(t), companero: v.companero, campeon: ganadores.has(k) } }))
+      return [...vistos.entries()].map(([k, v]) => ({ nombre: v.nombre, p: { ...datoTorneo(t), companero: v.companero, campeon: ganadores.has(k), alcance: ganadores.has(k) ? 'campeon' as Alcance : v.alcance } }))
     })
 
     return {
@@ -257,7 +260,7 @@ function Detalle({ torneos, enlace }: { torneos: Participacion[]; enlace?: (id: 
               {enlace && t.id
                 ? <a href={enlace(t.id)} className="font-semibold text-noche underline-offset-2 hover:underline">{nombre}</a>
                 : <span className="font-semibold text-noche">{nombre}</span>}
-              {t.campeon && <span className="inline-flex items-center gap-0.5 font-semibold text-cancha"><Trophy className="h-3.5 w-3.5" aria-hidden /> Campeón</span>}
+              <Llego t={t} />
               {t.fechaInicio && <span className="ml-auto text-noche/55">{rangoFechas(t.fechaInicio, t.fechaFin)}</span>}
             </div>
             <p className="mt-0.5 text-noche/70">{t.categoria === 'Damas' ? 'Compañera' : t.categoria === 'Mixto' ? 'Compañero/a' : 'Compañero'}: <span className="font-medium text-noche">{t.companero ?? '—'}</span></p>
@@ -265,5 +268,18 @@ function Detalle({ torneos, enlace }: { torneos: Participacion[]; enlace?: (id: 
         )
       })}
     </ul>
+  )
+}
+
+/** Hasta dónde llegó: Campeón con trofeo; el resto, la instancia (en torneos sin terminar, "por ahora") */
+function Llego({ t }: { t: Participacion }) {
+  if (t.campeon || t.alcance === 'campeon') return <span className="inline-flex items-center gap-0.5 font-semibold text-cancha"><Trophy className="h-3.5 w-3.5" aria-hidden /> Campeón</span>
+  if (!t.alcance) return null
+  const enJuego = t.estado !== 'finalizado'
+  return (
+    <span className={`rounded px-1.5 py-0.5 font-semibold ${t.alcance === 'final' ? 'bg-pelota/60 text-noche' : 'bg-white text-noche/75 ring-1 ring-noche/10'}`}
+      title={enJuego ? 'El torneo todavía se está jugando' : undefined}>
+      {nombreAlcance(t.alcance)}{enJuego && <span className="font-normal text-noche/50"> (en juego)</span>}
+    </span>
   )
 }

@@ -2,7 +2,7 @@
 // En memoria se sigue trabajando con `Categoria`; acá se traduce a filas y se sincroniza
 // solo lo que cambió (por fila), así dos personas cargando resultados de partidos distintos no se pisan.
 import { supabase, T } from './supabase'
-import { estadoTorneo, evaluar, resolverTorneo } from './resultados'
+import { alcances, esAlcance, estadoTorneo, evaluar, resolverTorneo, type Alcance } from './resultados'
 import {
   CATEGORIA_DEFECTO, FORMATOS_DEFECTO, INSTANCIAS, esCategoriaTorneo, esUuid, instanciaDeRonda, jugadoresDe, mayusculas, nombrePropio, normalizar, nuevoId,
   type Categoria, type CategoriaTorneo, type Disponibilidad, type EstadoTorneo, type Formato, type Horario, type Instancia, type Resultado, type Slot,
@@ -19,6 +19,8 @@ export interface FilaPareja {
   id: string; torneo_id: string; orden: number; jugador1: string; jugador2: string; horario: string; zona: number | null; posicion: number | null
   /** días y horarios cargados para "Armar fecha" (null = sin cargar) */
   disponibilidad?: Disponibilidad | null
+  /** hasta dónde llegó la pareja (lo calcula la app al guardar; para las estadísticas). Requiere torneos_nodo_alcance.sql */
+  instancia_max?: Alcance | null
 }
 export interface FilaInstancia { torneo_id: string; instancia: Instancia; formato: Formato }
 export interface FilaPartido {
@@ -32,7 +34,9 @@ interface Filas { torneo: FilaTorneo; parejas: FilaPareja[]; instancias: FilaIns
 function aFilas(c: Categoria): Filas {
   const ids = new Set(c.parejas.map((p) => p.id))
   const valido = (id: string | undefined | null) => (id && ids.has(id) ? id : null)
-  const campeonId = resolverTorneo(c).campeon
+  const resuelto = resolverTorneo(c)
+  const campeonId = resuelto.campeon
+  const alcance = alcances(c, resuelto)
   const torneo: FilaTorneo = {
     id: c.id, nombre: c.torneo, categoria: c.categoria, premio: c.premio, fecha_inicio: c.fechaInicio || null, fecha_fin: c.fechaFin || null,
     inscripcion: c.inscripcion ? Number(c.inscripcion) : null, observacion: c.observacion, cant_zonas: c.zonas.length,
@@ -47,6 +51,7 @@ function aFilas(c: Categoria): Filas {
       // en la base, los nombres van en MAYÚSCULAS (el trigger además los da de alta en el padrón de jugadores)
       id: p.id, torneo_id: c.id, orden: i, jugador1: mayusculas(j1), jugador2: mayusculas(j2), horario: p.horario ?? '',
       zona: zi >= 0 ? zi : null, posicion: zi >= 0 ? c.zonas[zi].indexOf(p.id) + 1 : null, disponibilidad: p.disponibilidad ?? null,
+      instancia_max: alcance.get(p.id) ?? null,
     }
   })
   const instancias: FilaInstancia[] = INSTANCIAS.map((i) => ({ torneo_id: c.id, instancia: i.id, formato: c.formatos[i.id] }))
@@ -223,9 +228,11 @@ export interface ResumenTorneo {
   campeon: string | null
   /** jugadores inscriptos (para las estadísticas del panel) */
   jugadores: string[]
-  /** parejas [jugador1, jugador2] (para el compañero en las estadísticas) */
-  duplas: [string, string][]
+  /** parejas [jugador1, jugador2, hasta dónde llegó] (para el compañero y la instancia en las estadísticas) */
+  duplas: Dupla[]
 }
+
+export type Dupla = [string, string, (Alcance | null)?]
 
 /** Padrón de jugadores (para el buscador al inscribir parejas), con mayúscula inicial */
 export async function listarJugadores(): Promise<string[]> {
@@ -247,15 +254,15 @@ export async function listar(): Promise<ResumenTorneo[]> {
   if (error) throw new Error(error.message)
   // jugadores de todos los torneos (para las estadísticas), de a 1000 filas
   const jugadores = new Map<string, string[]>()
-  const duplas = new Map<string, [string, string][]>()
+  const duplas = new Map<string, Dupla[]>()
   for (let desde = 0; ; desde += 1000) {
-    const r = await supabase.from(T.parejas).select('torneo_id, jugador1, jugador2').order('torneo_id').range(desde, desde + 999)
+    const r = await supabase.from(T.parejas).select('torneo_id, orden, jugador1, jugador2, instancia_max').order('torneo_id').order('orden').range(desde, desde + 999)
     if (r.error) throw new Error(r.error.message)
-    for (const p of (r.data ?? []) as { torneo_id: string; jugador1: string; jugador2: string }[]) {
+    for (const p of (r.data ?? []) as { torneo_id: string; jugador1: string; jugador2: string; instancia_max: string | null }[]) {
       const l = jugadores.get(p.torneo_id) ?? []
       l.push(p.jugador1, p.jugador2)
       jugadores.set(p.torneo_id, l)
-      duplas.set(p.torneo_id, [...(duplas.get(p.torneo_id) ?? []), [p.jugador1 ?? '', p.jugador2 ?? '']])
+      duplas.set(p.torneo_id, [...(duplas.get(p.torneo_id) ?? []), [p.jugador1 ?? '', p.jugador2 ?? '', esAlcance(p.instancia_max) ? p.instancia_max : null]])
     }
     if ((r.data ?? []).length < 1000) break
   }
@@ -285,10 +292,13 @@ async function traer(ids?: string[]): Promise<Categoria[]> {
     fotos.set(c.id, foto(f))
     // estado y campeón se calculan en la app: si en la base quedaron viejos (por ejemplo, torneos anteriores
     // a la página pública), se actualizan solos al abrir el torneo
-    if (x.estado !== f.torneo.estado || (x.campeon ?? null) !== f.torneo.campeon) {
-      fotos.get(c.id)!.torneo = ''
-      guardar(c)
-    }
+    const estadoViejo = x.estado !== f.torneo.estado || (x.campeon ?? null) !== f.torneo.campeon
+    if (estadoViejo) fotos.get(c.id)!.torneo = ''
+    // lo mismo con hasta dónde llegó cada pareja (torneos guardados antes de esta versión, importados por SQL…)
+    const enBase = new Map((p.data as FilaPareja[]).filter((y) => y.torneo_id === x.id).map((y) => [y.id, y.instancia_max ?? null]))
+    const alcanceViejo = f.parejas.filter((y) => enBase.has(y.id) && enBase.get(y.id) !== (y.instancia_max ?? null))
+    for (const y of alcanceViejo) fotos.get(c.id)!.parejas.set(y.id, '')
+    if (estadoViejo || alcanceViejo.length) guardar(c)
     return c
   })
 }
@@ -376,6 +386,18 @@ export async function migrarLocales() {
   const res = await importar(JSON.stringify({ app: APP, version: 1, exportado: new Date().toISOString(), torneos: JSON.parse(texto) }))
   try { localStorage.setItem(`${CLAVE_LOCAL}:migrado`, texto); localStorage.removeItem(CLAVE_LOCAL) } catch { /* nada */ }
   return res
+}
+
+/**
+ * Torneos con zonas armadas que todavía no tienen calculado hasta dónde llegó cada pareja:
+ * los abre (eso los corrige y guarda solo) y espera a que se suban. Devuelve cuántos actualizó.
+ */
+export async function completarAlcances(lista: ResumenTorneo[]): Promise<number> {
+  const ids = lista.filter((t) => t.zonas > 0 && t.duplas.length && t.duplas.every((d) => !d[2])).map((t) => t.id)
+  if (!ids.length) return 0
+  await traer(ids)
+  await vaciar()
+  return ids.length
 }
 
 /** Varios torneos completos (para el cronograma unificado), en el orden de `ids` */

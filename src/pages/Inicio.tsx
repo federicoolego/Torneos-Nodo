@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CloudUpload, Copy, Plus, Search, Trash2 } from 'lucide-react'
-import { duplicar, eliminar, listar, migrarLocales, torneosLocales, type ResumenTorneo } from '../lib/almacen'
+import { completarAlcances, duplicar, eliminar, listar, migrarLocales, torneosLocales, type ResumenTorneo } from '../lib/almacen'
 import { CATEGORIAS, ESTADOS, MESES, nombreEstado, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../lib/torneo'
 import { normalizarTexto } from '../lib/publico'
 import { Alerta, Badge, Button, Input, Select, Spinner, Titulo, Vacio } from '../components/ui'
@@ -38,7 +38,12 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
   const hayFiltros = !!(texto || categoria || estado || anio || mes || publicacion)
 
   const refrescar = useCallback(async () => {
-    try { setLista(await listar()) } catch (e) { setLista([]); setMsg({ tipo: 'error', txt: `No se pudo leer la base: ${e instanceof Error ? e.message : e}` }) }
+    try {
+      const l = await listar()
+      setLista(l)
+      // torneos anteriores a "hasta dónde llegó cada pareja": se calcula una vez, en segundo plano
+      completarAlcances(l).then(async (n) => { if (n) setLista(await listar()) }).catch(() => {})
+    } catch (e) { setLista([]); setMsg({ tipo: 'error', txt: `No se pudo leer la base: ${e instanceof Error ? e.message : e}` }) }
   }, [])
   useEffect(() => { void refrescar() }, [refrescar])
 
