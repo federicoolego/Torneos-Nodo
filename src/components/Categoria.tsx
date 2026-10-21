@@ -1,4 +1,5 @@
 import type { CategoriaTorneo } from '../lib/torneo'
+import { corta, rama, type CategoriaJugador } from '../lib/categorias'
 
 /**
  * Color de cada categoría (definidos en tailwind.config.js: damas / caballeros / mixto).
@@ -18,6 +19,16 @@ export function BadgeCategoria({ categoria }: { categoria: CategoriaTorneo }) {
   return (
     <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${ESTILO_CATEGORIA[categoria]?.etiqueta ?? 'bg-vidrio text-noche/70'}`}>
       {categoria}
+    </span>
+  )
+}
+
+/** Etiqueta de la categoría de un jugador (color de Damas / Caballeros); sin categoría, en ámbar */
+export function BadgeCategoriaJugador({ categoria, compacta = false }: { categoria: CategoriaJugador | null; compacta?: boolean }) {
+  if (!categoria) return <span className="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">Sin categoría</span>
+  return (
+    <span title={categoria} className={`inline-flex items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${ESTILO_CATEGORIA[rama(categoria)].etiqueta}`}>
+      {compacta ? corta(categoria) : categoria}
     </span>
   )
 }

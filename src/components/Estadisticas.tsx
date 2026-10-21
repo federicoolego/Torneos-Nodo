@@ -136,7 +136,7 @@ async function compartirImagen(blob: Blob, nombre: string, titulo: string) {
  * `publico`: versión para jugadores (sin datos de publicación: ahí solo llegan torneos publicados).
  * `enlace`: link a cada torneo desde el detalle de un jugador (solo en la página pública).
  */
-export default function Estadisticas({ torneos: base, publico = false, enlace, filtros = [], conPuntos = false, conCompartir = false }: {
+export default function Estadisticas({ torneos: base, publico = false, enlace, filtros = [], conPuntos = false, conCompartir = false, fijo = false }: {
   torneos: DatoEstadistica[]; filtrado?: boolean; publico?: boolean; enlace?: (id: string) => string
   /** filtros de la lista aplicados, para la imagen ("Caballeros", "2026", "Octubre"…) */
   filtros?: string[]
@@ -144,6 +144,8 @@ export default function Estadisticas({ torneos: base, publico = false, enlace, f
   conPuntos?: boolean
   /** botón para compartir cada ranking como imagen */
   conCompartir?: boolean
+  /** siempre visible (pestaña Estadísticas), sin el desplegable */
+  fijo?: boolean
 }) {
   // filtro propio de las estadísticas, encima de los filtros de la lista (no cambia la lista)
   const [sel, setSel] = useState<'' | CategoriaTorneo>('')
@@ -216,13 +218,8 @@ export default function Estadisticas({ torneos: base, publico = false, enlace, f
     }
     : undefined
 
-  return (
-    <details className="group mb-5 rounded-xl bg-white ring-1 ring-noche/10 [&_summary::-webkit-details-marker]:hidden">
-      <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 font-display text-lg font-semibold text-noche">
-        <BarChart3 className="h-5 w-5 text-cancha" aria-hidden /> Estadísticas{activa ? ` · ${activa}` : ''}
-        <ChevronDown className="ml-auto h-5 w-5 text-noche/40 transition-transform group-open:rotate-180" aria-hidden />
-      </summary>
-      <div className="space-y-4 border-t border-noche/10 p-4">
+  const cuerpo = (
+      <div className={`space-y-4 p-4 ${fijo ? '' : 'border-t border-noche/10'}`}>
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Categoría de las estadísticas">
           <span className="text-xs font-semibold uppercase tracking-wide text-noche/55">Categoría</span>
           {([{ id: '', label: 'Todas', n: base.length }, ...CATEGORIAS.map((c) => ({ id: c, label: c, n: cuentas[c] }))] as { id: '' | CategoriaTorneo; label: string; n: number }[]).map((o) => (
@@ -266,6 +263,15 @@ export default function Estadisticas({ torneos: base, publico = false, enlace, f
           {conPuntos && <> Ranking pts (por jugador): {textoReglas()} (el W.O. cuenta como ganado; pasar libre, no). A igual puntaje, primero el que jugó menos torneos.</>}
         </p>
       </div>
+  )
+  if (fijo) return <section className="mb-5 rounded-xl bg-white ring-1 ring-noche/10">{cuerpo}</section>
+  return (
+    <details className="group mb-5 rounded-xl bg-white ring-1 ring-noche/10 [&_summary::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 font-display text-lg font-semibold text-noche">
+        <BarChart3 className="h-5 w-5 text-cancha" aria-hidden /> Estadísticas{activa ? ` · ${activa}` : ''}
+        <ChevronDown className="ml-auto h-5 w-5 text-noche/40 transition-transform group-open:rotate-180" aria-hidden />
+      </summary>
+      {cuerpo}
     </details>
   )
 }

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { ArrowLeft, Check, GitMerge, Pencil, Search, Trash2, UserPlus, X } from 'lucide-react'
-import { agregarJugador, eliminarJugador, listarPadron, renombrarJugador, unificarJugadores, type JugadorPadron } from '../lib/jugadores'
+import { Check, GitMerge, Pencil, Search, Trash2, UserPlus, X } from 'lucide-react'
+import { agregarJugador, eliminarJugador, listarPadronCompleto, renombrarJugador, unificarJugadores, type JugadorPadron } from '../lib/jugadores'
+import { CATEGORIAS_JUGADOR, esCategoriaJugador, rama, type CategoriaJugador } from '../lib/categorias'
+import { BadgeCategoriaJugador } from '../components/Categoria'
 import { claveJugador, mayusculas, nombrePropio } from '../lib/torneo'
-import { Alerta, Badge, Button, Input, Modal, Spinner, Titulo, Vacio } from '../components/ui'
+import { Alerta, Button, Input, Modal, Select, Spinner, Titulo, Vacio } from '../components/ui'
 import SelectorJugador from '../components/SelectorJugador'
 
 /** ABM del padrón de jugadores: agregar, renombrar, unificar duplicados y eliminar (solo si no jugó) */
@@ -11,13 +13,16 @@ export default function Jugadores() {
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'error'; txt: string } | null>(null)
   const [ocupado, setOcupado] = useState(false)
   const [texto, setTexto] = useState('')
-  const [soloDuplicados, setSoloDuplicados] = useState(false)
+  // filtro rápido: todos · sin torneos (candidatos a eliminar) · posibles duplicados (candidatos a unificar)
+  const [filtro, setFiltro] = useState<'todos' | 'sinTorneos' | 'duplicados'>('todos')
   const [nuevo, setNuevo] = useState('')
+  const [nuevaCategoria, setNuevaCategoria] = useState<CategoriaJugador | ''>('')
+  const [conCategoria, setConCategoria] = useState(true)
   const [editando, setEditando] = useState<{ id: string; nombre: string } | null>(null)
   const [unificando, setUnificando] = useState<JugadorPadron | null>(null)
 
   const refrescar = useCallback(async () => {
-    try { setLista(await listarPadron()) } catch (e) { setLista([]); setMsg({ tipo: 'error', txt: e instanceof Error ? e.message : 'No se pudo leer el padrón.' }) }
+    try { const r = await listarPadronCompleto(); setLista(r.jugadores); setConCategoria(r.conCategoria) } catch (e) { setLista([]); setMsg({ tipo: 'error', txt: e instanceof Error ? e.message : 'No se pudo leer el padrón.' }) }
   }, [])
   useEffect(() => { void refrescar() }, [refrescar])
 
@@ -37,11 +42,14 @@ export default function Jugadores() {
   }, [lista])
   const duplicadosDe = (j: JugadorPadron) => (grupos.get(claveJugador(j.nombre)) ?? []).filter((x) => x.id !== j.id)
   const cantDuplicados = useMemo(() => [...grupos.values()].filter((g) => g.length > 1).reduce((s, g) => s + g.length, 0), [grupos])
+  const cantSinTorneos = useMemo(() => (lista ?? []).filter((j) => !j.torneos).length, [lista])
 
   const visibles = useMemo(() => {
     const q = claveJugador(texto)
-    return (lista ?? []).filter((j) => (!q || claveJugador(j.nombre).includes(q)) && (!soloDuplicados || duplicadosDe(j).length > 0))
-  }, [lista, texto, soloDuplicados]) // eslint-disable-line react-hooks/exhaustive-deps
+    return (lista ?? []).filter((j) => (!q || claveJugador(j.nombre).includes(q))
+      && (filtro !== 'sinTorneos' || !j.torneos)
+      && (filtro !== 'duplicados' || duplicadosDe(j).length > 0))
+  }, [lista, texto, filtro]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const existente = (nombre: string, salvo?: string) => (lista ?? []).find((j) => j.id !== salvo && j.nombre === mayusculas(nombre))
 
@@ -51,7 +59,12 @@ export default function Jugadores() {
     if (n.length < 3) return setMsg({ tipo: 'error', txt: 'Escribí nombre y apellido.' })
     const ya = existente(n) ?? (lista ?? []).find((j) => claveJugador(j.nombre) === claveJugador(n))
     if (ya) return setMsg({ tipo: 'error', txt: `Ya existe: ${nombrePropio(ya.nombre)}.` })
-    void accion(async () => { await agregarJugador(n); setNuevo(''); return `Agregado: ${nombrePropio(n)}.` })
+    void accion(async () => {
+      await agregarJugador(n, nuevaCategoria || null)
+      setNuevo('')
+      setNuevaCategoria('')
+      return `Agregado: ${nombrePropio(n)}${nuevaCategoria ? ` (${nuevaCategoria})` : ''}.`
+    })
   }
 
   function guardarEdicion() {
@@ -72,13 +85,19 @@ export default function Jugadores() {
 
   return (
     <>
-      <a href="#/admin" className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-cancha"><ArrowLeft className="h-4 w-4" aria-hidden /> Torneos</a>
       <Titulo bajada="Padrón de jugadores de NODO. Al renombrar, el cambio se aplica en todos sus torneos. Solo se puede eliminar a quien no jugó ningún torneo.">
         Jugadores
       </Titulo>
 
       <form onSubmit={agregar} className="mb-4 flex flex-wrap gap-2 rounded-xl bg-white p-3 ring-1 ring-noche/10">
         <Input value={nuevo} onChange={(e) => setNuevo(e.target.value)} placeholder="Nombre y apellido del jugador nuevo" className="min-w-[14rem] flex-1" aria-label="Jugador nuevo" />
+        {conCategoria && (
+          <Select value={nuevaCategoria} onChange={(e) => setNuevaCategoria(esCategoriaJugador(e.target.value) ? e.target.value : '')} className="w-auto" aria-label="Categoría del jugador nuevo">
+            <option value="">Categoría (opcional)</option>
+            <optgroup label="Damas">{CATEGORIAS_JUGADOR.filter((c) => rama(c) === 'Damas').map((c) => <option key={c} value={c}>{c}</option>)}</optgroup>
+            <optgroup label="Caballeros">{CATEGORIAS_JUGADOR.filter((c) => rama(c) === 'Caballeros').map((c) => <option key={c} value={c}>{c}</option>)}</optgroup>
+          </Select>
+        )}
         <Button type="submit" cargando={ocupado}><UserPlus className="h-4 w-4" aria-hidden /> Agregar</Button>
       </form>
 
@@ -87,19 +106,27 @@ export default function Jugadores() {
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-noche/40" aria-hidden />
           <Input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Buscar jugador…" className="pl-9" aria-label="Buscar jugador" />
         </label>
-        {cantDuplicados > 0 && (
-          <label className="flex items-center gap-2 text-sm text-noche/75">
-            <input type="checkbox" checked={soloDuplicados} onChange={(e) => setSoloDuplicados(e.target.checked)} />
-            Solo posibles duplicados <Badge tono="ambar">{cantDuplicados}</Badge>
-          </label>
-        )}
         {lista && <span className="text-xs text-noche/55">{visibles.length} de {lista.length} jugadores</span>}
       </div>
+      <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Filtro de jugadores">
+        {([
+          { id: 'todos', label: 'Todos', n: lista?.length ?? 0, ayuda: undefined },
+          { id: 'sinTorneos', label: 'Sin torneos', n: cantSinTorneos, ayuda: 'Candidatos a eliminar: no jugaron ningún torneo' },
+          { id: 'duplicados', label: 'Posibles duplicados', n: cantDuplicados, ayuda: 'Candidatos a unificar: mismo nombre sin importar tildes' },
+        ] as const).map((o) => (
+          <button key={o.id} onClick={() => setFiltro(o.id)} aria-pressed={filtro === o.id} title={o.ayuda}
+            className={`rounded-full px-3 py-1 text-sm font-semibold transition-colors ${filtro === o.id ? 'bg-noche text-white' : 'bg-white text-noche/75 ring-1 ring-noche/15 hover:bg-cancha-suave'}`}>
+            {o.label} <span className="num text-xs opacity-70">{o.n}</span>
+          </button>
+        ))}
+      </div>
+      {filtro === 'sinTorneos' && !!cantSinTorneos && <p className="-mt-1 mb-3 text-xs text-noche/55">No jugaron ningún torneo: se pueden eliminar (por ejemplo, si quedaron cargados por error o como duplicado).</p>}
+      {filtro === 'duplicados' && !!cantDuplicados && <p className="-mt-1 mb-3 text-xs text-noche/55">Mismo nombre si se ignoran tildes y mayúsculas. Usá <GitMerge className="inline h-3.5 w-3.5" aria-hidden /> para unificarlos en uno.</p>}
 
       {msg && <div className="mb-3"><Alerta tipo={msg.tipo}>{msg.txt}</Alerta></div>}
 
       {lista === null ? <Spinner texto="Cargando jugadores…" /> : visibles.length === 0 ? (
-        <Vacio titulo={lista.length ? 'No hay jugadores con esa búsqueda' : 'Todavía no hay jugadores'}>
+        <Vacio titulo={!lista.length ? 'Todavía no hay jugadores' : filtro === 'sinTorneos' && !cantSinTorneos ? 'Todos los jugadores jugaron algún torneo' : filtro === 'duplicados' && !cantDuplicados ? 'No hay posibles duplicados' : 'No hay jugadores con esa búsqueda'}>
           {lista.length ? null : 'Se agregan acá o al inscribir parejas en un torneo.'}
         </Vacio>
       ) : (
@@ -119,7 +146,7 @@ export default function Jugadores() {
                   </div>
                 ) : (
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-noche">{nombrePropio(j.nombre)}</p>
+                    <p className="flex flex-wrap items-center gap-1.5 font-medium text-noche">{nombrePropio(j.nombre)}{conCategoria && <BadgeCategoriaJugador categoria={j.categoria} />}</p>
                     <p className="text-xs text-noche/55">
                       {j.torneos ? `${j.torneos} ${j.torneos === 1 ? 'torneo' : 'torneos'}` : 'Sin torneos'}
                       {dups.length > 0 && <> · <span className="font-semibold text-amber-700">¿Duplicado de {dups.map((d) => nombrePropio(d.nombre)).join(', ')}?</span></>}

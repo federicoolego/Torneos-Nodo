@@ -4,7 +4,8 @@ import { listarPublicos, normalizarTexto, type ResumenPublico } from '../../lib/
 import { CATEGORIAS, ESTADOS, MESES, formatoPesos, nombreEstado, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../../lib/torneo'
 import { Alerta, Badge, Input, Select, Spinner, Tabs, Vacio } from '../../components/ui'
 import Calendario from './Calendario'
-import Estadisticas from '../../components/Estadisticas'
+import PanelEstadisticas from '../../components/PanelEstadisticas'
+import type { DatoEstadistica } from '../../components/Estadisticas'
 import { BadgeCategoria, bordeCategoria } from '../../components/Categoria'
 
 /** En curso primero, después los que vienen, los terminados y los cancelados */
@@ -12,11 +13,20 @@ const ORDEN: Record<EstadoTorneo, number> = { en_curso: 0, pendiente: 1, finaliz
 
 export const tonoEstado = (e: EstadoTorneo) => (e === 'en_curso' ? 'verde' : e === 'finalizado' ? 'azul' : e === 'cancelado' ? 'rojo' : 'ambar') as 'verde' | 'azul' | 'rojo' | 'ambar'
 
-type PestanaInicio = 'torneos' | 'calendario'
-/** pestaña de la página inicial según el link (#/ = Torneos · #/calendario = Calendario) */
-const pestanaDelLink = (): PestanaInicio => (window.location.hash.startsWith('#/calendario') ? 'calendario' : 'torneos')
+type PestanaInicio = 'torneos' | 'calendario' | 'estadisticas'
+const LINKS: Record<PestanaInicio, string> = { torneos: '#/', calendario: '#/calendario', estadisticas: '#/estadisticas' }
+/** pestaña de la página inicial según el link (#/ = Torneos · #/calendario = Calendario · #/estadisticas = Estadísticas) */
+const pestanaDelLink = (): PestanaInicio => {
+  const h = window.location.hash
+  return h.startsWith('#/calendario') ? 'calendario' : h.startsWith('#/estadisticas') ? 'estadisticas' : 'torneos'
+}
 
-/** Página inicial para jugadores: pestañas Torneos (por defecto) y Calendario */
+/** Torneos publicados con los datos que usan las estadísticas */
+const cargarEstadisticas = async (): Promise<DatoEstadistica[]> =>
+  (await listarPublicos()).map((t) => ({ ...t, fechaInicio: t.fecha_inicio, fechaFin: t.fecha_fin, jugadores: t.jugadores ?? [] }))
+const enlaceTorneo = (id: string) => `#/torneo/${id}`
+
+/** Página inicial para jugadores: pestañas Torneos (por defecto), Calendario y Estadísticas */
 export default function ListaPublica() {
   const [pestana, setPestana] = useState<PestanaInicio>(pestanaDelLink)
   useEffect(() => {
@@ -27,19 +37,19 @@ export default function ListaPublica() {
   // el link refleja la pestaña (para compartir el calendario y para volver a ella desde un torneo), sin agregar historial
   const cambiar = (p: PestanaInicio) => {
     setPestana(p)
-    history.replaceState(null, '', p === 'calendario' ? '#/calendario' : '#/')
+    history.replaceState(null, '', LINKS[p])
   }
   return (
     <>
       <div className="mb-5">
-        <Tabs<PestanaInicio> opciones={[{ id: 'torneos', label: 'Torneos' }, { id: 'calendario', label: 'Calendario' }]} valor={pestana} onChange={cambiar} />
+        <Tabs<PestanaInicio> opciones={[{ id: 'torneos', label: 'Torneos' }, { id: 'calendario', label: 'Calendario' }, { id: 'estadisticas', label: 'Estadísticas' }]} valor={pestana} onChange={cambiar} />
       </div>
       {pestana === 'calendario' ? (
         <>
           <header className="mb-3"><h1 className="font-display text-4xl font-bold leading-none text-noche">Calendario</h1></header>
           <Calendario />
         </>
-      ) : <Torneos />}
+      ) : pestana === 'estadisticas' ? <PanelEstadisticas cargar={cargarEstadisticas} enlace={enlaceTorneo} /> : <Torneos />}
     </>
   )
 }
@@ -79,10 +89,6 @@ function Torneos() {
       })
   }, [lista, categoria, estado, anio, mes, texto])
   const hayFiltros = !!(texto || categoria || estado || anio || mes)
-  // filtros aplicados, para las imágenes de los rankings
-  const filtros = [categoria, estado && nombreEstado(estado), anio, mes && MESES[Number(mes) - 1], texto.trim() && `Torneo: “${texto.trim()}”`].filter(Boolean) as string[]
-  // las estadísticas usan los mismos torneos que la lista (que ya son solo los publicados)
-  const datos = useMemo(() => visibles.map((t) => ({ ...t, fechaInicio: t.fecha_inicio, fechaFin: t.fecha_fin, jugadores: t.jugadores ?? [] })), [visibles])
 
   return (
     <>
@@ -116,7 +122,6 @@ function Torneos() {
 
       {error && <div className="mb-4"><Alerta tipo="error">{error}</Alerta></div>}
       {hayFiltros && !!lista?.length && <p className="-mt-2 mb-3 text-xs text-noche/55">{visibles.length} de {lista.length} torneos</p>}
-      {!!visibles.length && <Estadisticas torneos={datos} filtrado={hayFiltros} publico enlace={(id) => `#/torneo/${id}`} filtros={filtros} conPuntos conCompartir />}
       {lista === null ? <Spinner texto="Cargando torneos…" /> : visibles.length === 0 ? (
         <Vacio titulo={lista.length ? 'No hay torneos con esos filtros' : 'Todavía no hay torneos publicados'}>
           {lista.length ? <>Probá cambiando el estado, el año o el mes. <button className="font-semibold text-cancha" onClick={() => { setTexto(''); setCategoria(''); setEstado(''); setAnio(''); setMes('') }}>Ver todos</button></> : 'Cuando el club publique un torneo, lo vas a ver acá.'}

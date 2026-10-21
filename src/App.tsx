@@ -25,7 +25,7 @@ export function Firma() {
   )
 }
 
-/** Ruta actual: '#/' (torneos publicados) · '#/torneo/<id>' · '#/admin' */
+/** Ruta actual: '#/' (torneos publicados) · '#/calendario' · '#/estadisticas' · '#/torneo/<id>' · '#/admin' */
 export function useRuta() {
   const [ruta, setRuta] = useState(window.location.hash)
   useEffect(() => {
@@ -56,11 +56,11 @@ export default function App() {
     <div className="min-h-screen">
       <header className="sticky top-0 z-30 bg-noche text-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
-          <a href="#/" className="flex items-center gap-3">
-            <img src={logoUrl()} alt="NODO Club de Pádel & Co." className="h-10 w-10 rounded-lg" />
-            <span className="font-display text-xl font-bold leading-none">Torneos NODO</span>
+          <a href="#/" className="flex min-w-0 items-center gap-3">
+            <img src={logoUrl()} alt="" className="h-10 w-10 shrink-0 rounded-lg" />
+            <span className="font-display text-lg font-bold leading-tight sm:text-xl">NODO Club de Pádel &amp; Co</span>
           </a>
-          <a href="#/admin" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/80 ring-1 ring-white/25 hover:bg-white/10 hover:text-white">
+          <a href="#/admin" className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/80 ring-1 ring-white/25 hover:bg-white/10 hover:text-white">
             <Lock className="h-4 w-4" aria-hidden /> Admin
           </a>
         </div>

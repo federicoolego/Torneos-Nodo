@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Check, Clock, Pencil, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, Check, Clock, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import {
   CATEGORIAS, MAX_PAREJAS, MIN_PAREJAS, claveJugador, clavePareja, diasEntre, formatoPesos, jugadoresDe, nombrePropio, nuevoId, type Categoria, type Disponibilidad, type Pareja,
 } from '../../lib/torneo'
@@ -8,7 +8,9 @@ import { EditorDisponibilidad } from '../Disponibilidad'
 import { Alerta, Button, Card, Field, Input, Select, Textarea } from '../ui'
 import { FormatosPorInstancia } from '../Formato'
 import SelectorJugador from '../SelectorJugador'
-import { listarJugadores } from '../../lib/almacen'
+import { asignarCategoria, listarBase } from '../../lib/jugadores'
+import { CATEGORIAS_JUGADOR, aptitudPareja, esCategoriaJugador, rama, reglaDelTorneo, textoRegla, type Aptitud, type CategoriaJugador } from '../../lib/categorias'
+import { BadgeCategoriaJugador } from '../Categoria'
 import { instanciasDelTorneo, textoFormatos, zonasBloqueadas } from '../../lib/resultados'
 
 type Props = { cat: Categoria; cambiar: (f: (c: Categoria) => Categoria) => void }
@@ -65,7 +67,32 @@ export function PasoParejas({ cat, cambiar }: Props) {
   // padrón de jugadores de la base + los de este torneo (los nuevos se dan de alta al guardar)
   const [padronBase, setPadronBase] = useState<string[]>([])
   const [errorPadron, setErrorPadron] = useState(false)
-  useEffect(() => { listarJugadores().then(setPadronBase).catch(() => setErrorPadron(true)) }, [])
+  // categoría de cada jugador del padrón (clave del nombre → id y categoría)
+  const [fichas, setFichas] = useState<Map<string, { id: string; categoria: CategoriaJugador | null }>>(new Map())
+  const [conCategoria, setConCategoria] = useState(false)
+  const [errorCategoria, setErrorCategoria] = useState('')
+  useEffect(() => {
+    listarBase().then((r) => {
+      setPadronBase(r.jugadores.map((j) => nombrePropio(j.nombre)))
+      setFichas(new Map(r.jugadores.map((j) => [claveJugador(j.nombre), { id: j.id, categoria: j.categoria }])))
+      setConCategoria(r.conCategoria)
+    }).catch(() => setErrorPadron(true))
+  }, [])
+  const regla = useMemo(() => reglaDelTorneo(cat.torneo), [cat.torneo])
+  const categoriaDe = (nombre: string) => fichas.get(claveJugador(nombre))?.categoria ?? null
+  const aptitud = (a: string, b: string): Aptitud | null =>
+    conCategoria && a.trim() && b.trim() ? aptitudPareja(regla, cat.categoria, { nombre: nombrePropio(a), categoria: categoriaDe(a) }, { nombre: nombrePropio(b), categoria: categoriaDe(b) }) : null
+  /** asigna la categoría desde la inscripción (solo a jugadores que ya están en el padrón) */
+  async function asignar(nombre: string, valor: string) {
+    const f = fichas.get(claveJugador(nombre))
+    if (!f) return
+    const nueva = esCategoriaJugador(valor) ? valor : null
+    setErrorCategoria('')
+    try {
+      await asignarCategoria(f.id, nueva)
+      setFichas((m) => new Map(m).set(claveJugador(nombre), { ...f, categoria: nueva }))
+    } catch (e) { setErrorCategoria(e instanceof Error ? e.message : 'No se pudo guardar la categoría.') }
+  }
   const padron = useMemo(() => {
     const m = new Map<string, string>()
     for (const j of [...padronBase, ...cat.parejas.flatMap((p) => jugadoresDe(p))]) if (j.trim()) m.set(claveJugador(j), nombrePropio(j))
@@ -93,6 +120,9 @@ export function PasoParejas({ cat, cambiar }: Props) {
     const repetida = cat.parejas.find((p) => p.id !== editando && clavePareja(...jugadoresDe(p)) === clave)
     if (repetida) return setError(`Esa pareja ya está inscripta: ${repetida.nombre}.`)
     if (!editando && cat.parejas.length >= MAX_PAREJAS) return setError(`El máximo es ${MAX_PAREJAS} parejas.`)
+    // categorías: si no cumple, se avisa y el admin decide (puede haber excepciones)
+    const apt = aptitud(j1, j2)
+    if (apt?.estado === 'no' && !confirm(`La pareja no está apta para este torneo:\n\n• ${apt.motivos.join('\n• ')}\n\n¿Inscribirla igual?`)) return
     // días y horarios: lo que se marcó (por defecto, sin restricciones). Una pareja cargada antes con texto libre
     // y todavía sin días y horarios queda así, para interpretarla en "Armar fecha"
     const previa = editando ? cat.parejas.find((p) => p.id === editando) : undefined
@@ -131,12 +161,17 @@ export function PasoParejas({ cat, cambiar }: Props) {
       <Card>
         <form onSubmit={guardar} className="space-y-3">
           <h2 className="font-display text-2xl font-bold">{editando ? 'Editar pareja' : 'Inscribir pareja'}</h2>
+          {conCategoria && <p className="flex gap-1.5 rounded-md bg-vidrio px-2.5 py-1.5 text-xs text-noche/75"><ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0 text-cancha" aria-hidden />{textoRegla(regla, cat.categoria)}</p>}
           <Field label="Jugador 1 *">
             <SelectorJugador id="jugador1" valor={form.j1} onChange={(v) => setForm((f) => ({ ...f, j1: v }))} padron={padron} excluir={form.j2} disabled={lleno} />
           </Field>
+          {conCategoria && <CategoriaDelJugador nombre={form.j1} enPadron={fichas.has(claveJugador(form.j1))} categoria={categoriaDe(form.j1)} onAsignar={(v) => void asignar(form.j1, v)} />}
           <Field label="Jugador 2 *">
             <SelectorJugador valor={form.j2} onChange={(v) => setForm((f) => ({ ...f, j2: v }))} padron={padron} excluir={form.j1} disabled={lleno} />
           </Field>
+          {conCategoria && <CategoriaDelJugador nombre={form.j2} enPadron={fichas.has(claveJugador(form.j2))} categoria={categoriaDe(form.j2)} onAsignar={(v) => void asignar(form.j2, v)} />}
+          {(() => { const a = aptitud(form.j1, form.j2); return a ? <AvisoAptitud aptitud={a} /> : null })()}
+          {errorCategoria && <Alerta tipo="error">{errorCategoria}</Alerta>}
           {!lleno && (
             <div>
               <p className="mb-1 text-sm font-medium text-noche">Días y horarios en que pueden jugar</p>
@@ -174,7 +209,20 @@ export function PasoParejas({ cat, cambiar }: Props) {
               <li key={p.id} className={`flex items-start gap-2 py-2 text-sm ${editando === p.id ? 'bg-cancha-suave/60' : ''}`}>
                 <span className="num w-6 pt-0.5 text-noche/40">{k + 1}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium">{p.nombre}</p>
+                  {conCategoria ? (() => {
+                    const [a, b] = jugadoresDe(p)
+                    const apt = aptitud(a, b)
+                    return (
+                      <>
+                        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 font-medium">
+                          {nombrePropio(a)} <BadgeCategoriaJugador categoria={categoriaDe(a)} compacta />
+                          <span className="text-noche/35">/</span>
+                          {nombrePropio(b)} <BadgeCategoriaJugador categoria={categoriaDe(b)} compacta />
+                        </p>
+                        {apt?.estado === 'no' && <AvisoAptitud aptitud={apt} compacto />}
+                      </>
+                    )
+                  })() : <p className="font-medium">{p.nombre}</p>}
                   {textoPareja(p, dias) && <ProblemaHorario texto={textoPareja(p, dias)} />}
                 </div>
                 <button onClick={() => editar(p)} aria-label={`Editar ${p.nombre}`} className="p-1 text-noche/45 hover:text-cancha"><Pencil className="h-3.5 w-3.5" /></button>
@@ -184,6 +232,41 @@ export function PasoParejas({ cat, cambiar }: Props) {
           </ol>
         )}
       </Card>
+    </div>
+  )
+}
+
+/** Categoría del jugador elegido; si está en el padrón sin categoría, se puede asignar desde acá */
+function CategoriaDelJugador({ nombre, enPadron, categoria, onAsignar }: { nombre: string; enPadron: boolean; categoria: CategoriaJugador | null; onAsignar: (v: string) => void }) {
+  if (nombre.trim().length < 3) return null
+  if (!enPadron) return <p className="-mt-2 text-xs text-noche/55">Jugador nuevo: después asignale la categoría en la pestaña Categorías.</p>
+  return (
+    <div className="-mt-2 flex flex-wrap items-center gap-2 text-xs text-noche/65">
+      <span>Categoría:</span>
+      {categoria ? <BadgeCategoriaJugador categoria={categoria} /> : (
+        <select value="" onChange={(e) => onAsignar(e.target.value)} aria-label={`Asignar categoría a ${nombre}`}
+          className="rounded-md border-0 bg-amber-50 py-0.5 pl-2 pr-7 text-xs font-semibold text-amber-900 ring-1 ring-inset ring-amber-300 focus:ring-2 focus:ring-cancha">
+          <option value="">Sin categoría · asignar…</option>
+          <optgroup label="Damas">{CATEGORIAS_JUGADOR.filter((c) => rama(c) === 'Damas').map((c) => <option key={c} value={c}>{c}</option>)}</optgroup>
+          <optgroup label="Caballeros">{CATEGORIAS_JUGADOR.filter((c) => rama(c) === 'Caballeros').map((c) => <option key={c} value={c}>{c}</option>)}</optgroup>
+        </select>
+      )}
+    </div>
+  )
+}
+
+/** ¿La pareja cumple con el torneo? (verde: apta · rojo: no apta · ámbar: falta alguna categoría) */
+function AvisoAptitud({ aptitud, compacto = false }: { aptitud: Aptitud; compacto?: boolean }) {
+  const t = compacto ? 'text-[11px]' : 'text-xs'
+  if (aptitud.estado === 'ok') return <p className={`flex items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1 font-medium text-emerald-800 ${t}`}><ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Pareja apta para este torneo</p>
+  const no = aptitud.estado === 'no'
+  return (
+    <div className={`mt-1 flex gap-1.5 rounded-md px-2 py-1 font-medium ring-1 ${t} ${no ? 'bg-red/10 text-red ring-red/25' : 'bg-amber-50 text-amber-900 ring-amber-300'}`}>
+      <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
+      <div>
+        {!compacto && <p className="font-semibold">{no ? 'Pareja no apta' : 'No se puede validar'}</p>}
+        {aptitud.motivos.map((m) => <p key={m}>{m}</p>)}
+      </div>
     </div>
   )
 }
