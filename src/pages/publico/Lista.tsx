@@ -79,6 +79,8 @@ function Torneos() {
       })
   }, [lista, categoria, estado, anio, mes, texto])
   const hayFiltros = !!(texto || categoria || estado || anio || mes)
+  // filtros aplicados, para las imágenes de los rankings
+  const filtros = [categoria, estado && nombreEstado(estado), anio, mes && MESES[Number(mes) - 1], texto.trim() && `Torneo: “${texto.trim()}”`].filter(Boolean) as string[]
   // las estadísticas usan los mismos torneos que la lista (que ya son solo los publicados)
   const datos = useMemo(() => visibles.map((t) => ({ ...t, fechaInicio: t.fecha_inicio, fechaFin: t.fecha_fin, jugadores: t.jugadores ?? [] })), [visibles])
 
@@ -114,7 +116,7 @@ function Torneos() {
 
       {error && <div className="mb-4"><Alerta tipo="error">{error}</Alerta></div>}
       {hayFiltros && !!lista?.length && <p className="-mt-2 mb-3 text-xs text-noche/55">{visibles.length} de {lista.length} torneos</p>}
-      {!!visibles.length && <Estadisticas torneos={datos} filtrado={hayFiltros} publico enlace={(id) => `#/torneo/${id}`} />}
+      {!!visibles.length && <Estadisticas torneos={datos} filtrado={hayFiltros} publico enlace={(id) => `#/torneo/${id}`} filtros={filtros} conPuntos conCompartir />}
       {lista === null ? <Spinner texto="Cargando torneos…" /> : visibles.length === 0 ? (
         <Vacio titulo={lista.length ? 'No hay torneos con esos filtros' : 'Todavía no hay torneos publicados'}>
           {lista.length ? <>Probá cambiando el estado, el año o el mes. <button className="font-semibold text-cancha" onClick={() => { setTexto(''); setCategoria(''); setEstado(''); setAnio(''); setMes('') }}>Ver todos</button></> : 'Cuando el club publique un torneo, lo vas a ver acá.'}

@@ -3,20 +3,22 @@ import { supabase } from './supabase'
 import { desdeFilas, type FilaInstancia, type FilaPareja, type FilaPartido, type FilaTorneo } from './almacen'
 import type { Categoria, CategoriaTorneo, EstadoTorneo } from './torneo'
 import { esAlcance, type Alcance } from './resultados'
+import type { Victorias } from './puntos'
 
 export interface ResumenPublico {
   id: string; nombre: string; categoria: CategoriaTorneo; fecha_inicio: string | null; fecha_fin: string | null; estado: EstadoTorneo
   inscripcion: number | null; premio: string; campeon: string | null; parejas: number
   /** jugadores inscriptos (para las estadísticas); llega vacío si no se corrió torneos_nodo_publico_estadisticas.sql */
   jugadores?: string[]
-  /** parejas [jugador1, jugador2, hasta dónde llegó] (para el compañero y la instancia en las estadísticas); requiere torneos_nodo_alcance.sql */
-  duplas?: [string, string, (Alcance | null)?][]
+  /** parejas [jugador1, jugador2, hasta dónde llegó, partidos ganados por instancia] (compañero, instancia y ranking de puntos);
+   *  la instancia requiere torneos_nodo_alcance.sql y las victorias, torneos_nodo_publico_puntos.sql */
+  duplas?: [string, string, (Alcance | null)?, Victorias?][]
 }
 
 export async function listarPublicos(): Promise<ResumenPublico[]> {
   const { data, error } = await supabase.rpc('torneos_nodo_publicos')
   if (error) throw new Error(error.message)
-  return ((data ?? []) as ResumenPublico[]).map((t) => ({ ...t, jugadores: (t.jugadores ?? []).filter((j) => j?.trim()), duplas: (t.duplas ?? []).map(([a, b, x]) => [a, b, esAlcance(x) ? x : null]) }))
+  return ((data ?? []) as ResumenPublico[]).map((t) => ({ ...t, jugadores: (t.jugadores ?? []).filter((j) => j?.trim()), duplas: (t.duplas ?? []).map(([a, b, x, v]) => [a, b, esAlcance(x) ? x : null, v && typeof v === 'object' ? v : {}]) }))
 }
 
 /** Torneo publicado completo (null si no existe o no está publicado) */
