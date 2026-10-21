@@ -58,7 +58,7 @@ interface Medida {
 const POR_PAGINA = 10
 
 /** "juan  PÉREZ" y "Juan Perez" cuentan como el mismo jugador */
-const clave = (n: string) => normalizarTexto(n).replace(/\s+/g, ' ')
+export const clave = (n: string) => normalizarTexto(n).replace(/\s+/g, ' ')
 
 /** Agrupa por jugador; ordena por cantidad y después por nombre (se muestra el nombre como se escribió la primera vez) */
 function ranking(items: { nombre: string; p: Participacion }[]): FilaRanking[] {
@@ -136,7 +136,7 @@ async function compartirImagen(blob: Blob, nombre: string, titulo: string) {
  * `publico`: versión para jugadores (sin datos de publicación: ahí solo llegan torneos publicados).
  * `enlace`: link a cada torneo desde el detalle de un jugador (solo en la página pública).
  */
-export default function Estadisticas({ torneos: base, publico = false, enlace, filtros = [], conPuntos = false, conCompartir = false, fijo = false }: {
+export default function Estadisticas({ torneos: base, publico = false, enlace, filtros = [], conPuntos = false, conCompartir = false, fijo = false, soloJugadores = null }: {
   torneos: DatoEstadistica[]; filtrado?: boolean; publico?: boolean; enlace?: (id: string) => string
   /** filtros de la lista aplicados, para la imagen ("Caballeros", "2026", "Octubre"…) */
   filtros?: string[]
@@ -146,6 +146,8 @@ export default function Estadisticas({ torneos: base, publico = false, enlace, f
   conCompartir?: boolean
   /** siempre visible (pestaña Estadísticas), sin el desplegable */
   fijo?: boolean
+  /** solo estos jugadores (por `clave`) en los rankings y en "Jugadores distintos" (filtro por categoría de jugador) */
+  soloJugadores?: Set<string> | null
 }) {
   // filtro propio de las estadísticas, encima de los filtros de la lista (no cambia la lista)
   const [sel, setSel] = useState<'' | CategoriaTorneo>('')
@@ -158,7 +160,8 @@ export default function Estadisticas({ torneos: base, publico = false, enlace, f
     const activos = torneos.filter((t) => t.estado !== 'cancelado')
     const parejas = activos.reduce((s, t) => s + t.parejas, 0)
     const todos = activos.flatMap((t) => t.jugadores)
-    const distintos = new Set(todos.map(clave).filter(Boolean)).size
+    const incluir = (n: string) => !soloJugadores || soloJugadores.has(clave(n))
+    const distintos = new Set(todos.map(clave).filter((k) => k && (!soloJugadores || soloJugadores.has(k)))).size
     const finalizados = torneos.filter((t) => t.estado === 'finalizado')
     const datoTorneo = (t: DatoEstadistica) => ({ id: t.id, torneo: t.nombre ?? '', categoria: t.categoria, fechaInicio: t.fechaInicio ?? '', fechaFin: t.fechaFin ?? '', estado: t.estado })
     const campeonesDe = (t: DatoEstadistica) => (t.estado === 'finalizado' && t.campeon ? t.campeon.split(' / ').map((x) => x.trim()).filter(Boolean) : [])
@@ -196,11 +199,11 @@ export default function Estadisticas({ torneos: base, publico = false, enlace, f
       parejas,
       promedio: activos.length ? Math.round(parejas / activos.length) : 0,
       distintos,
-      campeones: ranking(titulos.map((x) => ({ ...x, p: { ...x.p, companero: x.p.companero && nombrePropio(x.p.companero) } }))),
-      participaciones: ranking(participaciones),
-      puntos: rankingPuntos(participaciones),
+      campeones: ranking(titulos.filter((x) => incluir(x.nombre)).map((x) => ({ ...x, p: { ...x.p, companero: x.p.companero && nombrePropio(x.p.companero) } }))),
+      participaciones: ranking(participaciones.filter((x) => incluir(x.nombre))),
+      puntos: rankingPuntos(participaciones.filter((x) => incluir(x.nombre))),
     }
-  }, [torneos])
+  }, [torneos, soloJugadores])
 
   // filtros aplicados (los de la lista + la categoría y el buscador de las estadísticas), para la imagen
   const busqueda = texto.trim()
@@ -220,7 +223,8 @@ export default function Estadisticas({ torneos: base, publico = false, enlace, f
 
   const cuerpo = (
       <div className={`space-y-4 p-4 ${fijo ? '' : 'border-t border-noche/10'}`}>
-        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Categoría de las estadísticas">
+        {/* en la pestaña Estadísticas la categoría del torneo ya está entre los filtros de arriba */}
+        {!fijo && <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Categoría de las estadísticas">
           <span className="text-xs font-semibold uppercase tracking-wide text-noche/55">Categoría</span>
           {([{ id: '', label: 'Todas', n: base.length }, ...CATEGORIAS.map((c) => ({ id: c, label: c, n: cuentas[c] }))] as { id: '' | CategoriaTorneo; label: string; n: number }[]).map((o) => (
             <button key={o.id || 'todas'} onClick={() => setSel(o.id)} disabled={!o.n} aria-pressed={activa === o.id}
@@ -230,7 +234,7 @@ export default function Estadisticas({ torneos: base, publico = false, enlace, f
               {o.label} <span className="num text-xs opacity-70">{o.n}</span>
             </button>
           ))}
-        </div>
+        </div>}
         <div className={`grid grid-cols-2 gap-3 ${publico ? 'md:grid-cols-3' : 'md:grid-cols-4'}`}>
           <Kpi titulo="Torneos" valor={st.total}
             detalle={[st.porEstado.en_curso && `${st.porEstado.en_curso} en curso`, st.porEstado.pendiente && `${st.porEstado.pendiente} pendientes`, st.porEstado.finalizado && `${st.porEstado.finalizado} finalizados`, st.porEstado.cancelado && `${st.porEstado.cancelado} cancelados`].filter(Boolean).join(' · ')} />

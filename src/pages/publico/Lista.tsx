@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ChevronRight, Search, Ticket, Trophy, Users } from 'lucide-react'
-import { listarPublicos, normalizarTexto, type ResumenPublico } from '../../lib/publico'
+import { categoriasPublicas, listarPublicos, normalizarTexto, type ResumenPublico } from '../../lib/publico'
 import { CATEGORIAS, ESTADOS, MESES, formatoPesos, nombreEstado, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../../lib/torneo'
 import { Alerta, Badge, Input, Select, Spinner, Tabs, Vacio } from '../../components/ui'
 import Calendario from './Calendario'
@@ -49,7 +49,7 @@ export default function ListaPublica() {
           <header className="mb-3"><h1 className="font-display text-4xl font-bold leading-none text-noche">Calendario</h1></header>
           <Calendario />
         </>
-      ) : pestana === 'estadisticas' ? <PanelEstadisticas cargar={cargarEstadisticas} enlace={enlaceTorneo} /> : <Torneos />}
+      ) : pestana === 'estadisticas' ? <PanelEstadisticas cargar={cargarEstadisticas} cargarCategorias={categoriasPublicas} enlace={enlaceTorneo} /> : <Torneos />}
     </>
   )
 }

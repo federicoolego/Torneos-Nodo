@@ -43,3 +43,13 @@ export async function cargarCalendario(desde: string, hasta: string): Promise<Ca
 
 /** Para buscar sin importar mayúsculas ni acentos */
 export const normalizarTexto = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+
+/**
+ * Categoría actual de los jugadores que jugaron algún torneo publicado (filtro "Categorías" de las estadísticas).
+ * Requiere supabase/torneos_nodo_publico_categorias.sql
+ */
+export async function categoriasPublicas(): Promise<{ nombre: string; categoria: string | null }[]> {
+  const { data, error } = await supabase.rpc('torneos_nodo_publico_categorias')
+  if (error) throw new Error(error.message)
+  return (data ?? []) as { nombre: string; categoria: string | null }[]
+}

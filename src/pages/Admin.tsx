@@ -14,9 +14,16 @@ import Fechas from './Fechas'
 import Categorias from './Categorias'
 import PanelEstadisticas from '../components/PanelEstadisticas'
 import { listar } from '../lib/almacen'
+import { listarBase } from '../lib/jugadores'
 
 /** Torneos del panel con los datos que usan las estadísticas */
 const cargarEstadisticas = async () => (await listar()).map((t) => ({ ...t, nombre: t.torneo }))
+/** Categoría de cada jugador del padrón (filtro "Categorías"); sin la columna de categoría, el filtro no se muestra */
+const cargarCategorias = async () => {
+  const r = await listarBase()
+  if (!r.conCategoria) throw new Error('Sin categorías')
+  return r.jugadores
+}
 
 type Pestana = 'torneos' | 'fechas' | 'calendario' | 'estadisticas' | 'jugadores' | 'categorias'
 const RUTAS: Record<Pestana, string> = {
@@ -87,7 +94,7 @@ export default function Admin() {
             onChange={async (p) => { await vaciar(); abrir(null); window.location.hash = RUTAS[p] }}
           />
         </div>
-        {pestana === 'jugadores' ? <Jugadores /> : pestana === 'categorias' ? <Categorias /> : pestana === 'estadisticas' ? <PanelEstadisticas cargar={cargarEstadisticas} admin />
+        {pestana === 'jugadores' ? <Jugadores /> : pestana === 'categorias' ? <Categorias /> : pestana === 'estadisticas' ? <PanelEstadisticas cargar={cargarEstadisticas} cargarCategorias={cargarCategorias} admin />
           : pestana === 'fechas' ? <Fechas /> : pestana === 'calendario' ? <CronogramaVarios /> : abierta ? <Editor key={abierta} id={abierta} inicial={nuevo ?? undefined} onVolver={() => abrir(null)} /> : <Inicio onAbrir={abrir} onNuevo={crear} />}
       </main>
       <Firma />
