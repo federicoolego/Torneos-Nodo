@@ -9,6 +9,8 @@ import ImportarTorneos from '../components/ImportarTorneos'
 import Estadisticas from '../components/Estadisticas'
 import { BadgeCategoria, bordeCategoria } from '../components/Categoria'
 
+const ANIO_ACTUAL = String(new Date().getFullYear())
+
 export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => void; onNuevo: () => void }) {
   const [lista, setLista] = useState<ResumenTorneo[] | null>(null)
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'error'; txt: string } | null>(null)
@@ -18,10 +20,11 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
   const [texto, setTexto] = useState('')
   const [categoria, setCategoria] = useState<'' | CategoriaTorneo>('')
   const [estado, setEstado] = useState<'' | EstadoTorneo>('')
-  const [anio, setAnio] = useState('')
+  // por defecto, el año en curso
+  const [anio, setAnio] = useState(ANIO_ACTUAL)
   const [mes, setMes] = useState('')
   const [publicacion, setPublicacion] = useState<'' | 'si' | 'no'>('')
-  const anios = useMemo(() => [...new Set((lista ?? []).map((t) => t.fechaInicio.slice(0, 4)).filter(Boolean))].sort().reverse(), [lista])
+  const anios = useMemo(() => [...new Set([ANIO_ACTUAL, ...(lista ?? []).map((t) => t.fechaInicio.slice(0, 4)).filter(Boolean)])].sort().reverse(), [lista])
   // siempre del más nuevo al más viejo (por fecha de inicio; sin fecha, al final)
   const visibles = useMemo(() => {
     const q = normalizarTexto(texto)
@@ -36,6 +39,11 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
   }, [lista, texto, categoria, estado, anio, mes, publicacion])
   const datosEstadisticas = useMemo(() => visibles.map((t) => ({ ...t, nombre: t.torneo })), [visibles])
   const hayFiltros = !!(texto || categoria || estado || anio || mes || publicacion)
+  // filtros aplicados, para las imágenes de los rankings
+  const filtros = [
+    categoria, estado && nombreEstado(estado), anio, mes && MESES[Number(mes) - 1],
+    publicacion && (publicacion === 'si' ? 'Publicados' : 'No publicados'), texto.trim() && `Torneo: “${texto.trim()}”`,
+  ].filter(Boolean) as string[]
 
   const refrescar = useCallback(async () => {
     try {
@@ -114,7 +122,7 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
         </div>
       )}
       {hayFiltros && !!lista?.length && <p className="-mt-2 mb-3 text-xs text-noche/55">{visibles.length} de {lista.length} torneos</p>}
-      {!!visibles.length && <Estadisticas torneos={datosEstadisticas} filtrado={hayFiltros} />}
+      {!!visibles.length && <Estadisticas torneos={datosEstadisticas} filtrado={hayFiltros} filtros={filtros} conPuntos conCompartir />}
       {lista === null ? <Spinner texto="Cargando torneos…" /> : lista.length === 0 ? (
         <Vacio titulo="Todavía no armaste ningún torneo" accion={<Button onClick={nueva}><Plus className="h-4 w-4" aria-hidden /> Nuevo torneo</Button>}>
           Cargás el torneo, las parejas, armás las zonas y el playoff, generás las imágenes para WhatsApp y cargás los resultados.

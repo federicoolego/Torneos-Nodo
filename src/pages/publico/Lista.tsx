@@ -44,13 +44,16 @@ export default function ListaPublica() {
   )
 }
 
+const ANIO_ACTUAL = String(new Date().getFullYear())
+
 /** Torneos publicados con filtros */
 function Torneos() {
   const [lista, setLista] = useState<ResumenPublico[] | null>(null)
   const [error, setError] = useState('')
   const [categoria, setCategoria] = useState<'' | CategoriaTorneo>('')
   const [estado, setEstado] = useState<'' | EstadoTorneo>('')
-  const [anio, setAnio] = useState('')
+  // por defecto, el año en curso
+  const [anio, setAnio] = useState(ANIO_ACTUAL)
   const [mes, setMes] = useState('')
   const [texto, setTexto] = useState('')
 
@@ -58,7 +61,7 @@ function Torneos() {
     listarPublicos().then(setLista).catch((e) => { setError(e instanceof Error ? e.message : 'No se pudieron cargar los torneos.'); setLista([]) })
   }, [])
 
-  const anios = useMemo(() => [...new Set((lista ?? []).map((t) => t.fecha_inicio?.slice(0, 4)).filter(Boolean) as string[])].sort().reverse(), [lista])
+  const anios = useMemo(() => [...new Set([ANIO_ACTUAL, ...((lista ?? []).map((t) => t.fecha_inicio?.slice(0, 4)).filter(Boolean) as string[])])].sort().reverse(), [lista])
 
   const visibles = useMemo(() => {
     const q = normalizarTexto(texto)
@@ -114,7 +117,7 @@ function Torneos() {
       {!!visibles.length && <Estadisticas torneos={datos} filtrado={hayFiltros} publico enlace={(id) => `#/torneo/${id}`} />}
       {lista === null ? <Spinner texto="Cargando torneos…" /> : visibles.length === 0 ? (
         <Vacio titulo={lista.length ? 'No hay torneos con esos filtros' : 'Todavía no hay torneos publicados'}>
-          {lista.length ? 'Probá cambiando el estado, el año o el mes.' : 'Cuando el club publique un torneo, lo vas a ver acá.'}
+          {lista.length ? <>Probá cambiando el estado, el año o el mes. <button className="font-semibold text-cancha" onClick={() => { setTexto(''); setCategoria(''); setEstado(''); setAnio(''); setMes('') }}>Ver todos</button></> : 'Cuando el club publique un torneo, lo vas a ver acá.'}
         </Vacio>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">

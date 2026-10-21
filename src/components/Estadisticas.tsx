@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, Medal, Search, Trophy, Users, X } from 'lucide-react'
+import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, Loader2, Medal, Search, Share2, Star, Trophy, Users, X } from 'lucide-react'
 import { CATEGORIAS, nombrePropio, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../lib/torneo'
 import { normalizarTexto } from '../lib/publico'
 import { nombreAlcance, type Alcance } from '../lib/resultados'
 import { BadgeCategoria, ESTILO_CATEGORIA } from './Categoria'
 import { Input } from './ui'
+import { desglose, puntosTorneo, textoReglas, type Victorias } from '../lib/puntos'
 
 /** Lo mínimo que necesitan las estadísticas de cada torneo (sirve para el panel y para la página pública) */
 export interface DatoEstadistica {
@@ -18,8 +19,8 @@ export interface DatoEstadistica {
   parejas: number
   /** jugadores inscriptos */
   jugadores: string[]
-  /** parejas inscriptas [jugador1, jugador2, hasta dónde llegó] (para el compañero y la instancia); si no llegan, el detalle sale sin esos datos */
-  duplas?: [string, string, (Alcance | null)?][]
+  /** parejas inscriptas [jugador1, jugador2, hasta dónde llegó, partidos ganados por instancia] (compañero, instancia y puntos); si no llegan, el detalle sale sin esos datos */
+  duplas?: [string, string, (Alcance | null)?, Victorias?][]
   /** nombre de la pareja campeona ("Juan Pérez / Luis Gómez") */
   campeon: string | null
   /** solo en el panel de organizadores */
@@ -32,9 +33,26 @@ interface Participacion {
   companero: string | null; campeon: boolean
   /** máxima instancia a la que llegó en ese torneo (null si no se sabe) */
   alcance: Alcance | null
+  /** partidos ganados por instancia (null si no se sabe) y puntos que sumó en el torneo */
+  victorias: Victorias | null
+  puntos: number
 }
 
+/** `n`: títulos, torneos o puntos, según el ranking */
 interface FilaRanking { clave: string; nombre: string; n: number; torneos: Participacion[] }
+
+/** Cómo se muestra (y se comparte) el valor de cada ranking */
+interface Medida {
+  unidad: [string, string]
+  /** encabezado de la columna en la imagen */
+  columna: string
+  /** dato secundario (en el ranking de puntos: torneos jugados) */
+  extra?: { columna: string; texto: (f: FilaRanking) => string }
+  /** ¿dos filas empatan el puesto? (por defecto, mismo `n`) */
+  igual?: (a: FilaRanking, b: FilaRanking) => boolean
+  /** detalle de puntos por torneo al tocar un jugador */
+  puntos?: boolean
+}
 
 const POR_PAGINA = 10
 
@@ -57,11 +75,59 @@ function ranking(items: { nombre: string; p: Participacion }[]): FilaRanking[] {
     .sort((a, b) => b.n - a.n || a.nombre.localeCompare(b.nombre))
 }
 
+/** Ranking de puntos: suma los puntos de cada torneo; orden: puntos, menos torneos jugados, nombre */
+function rankingPuntos(items: { nombre: string; p: Participacion }[]): FilaRanking[] {
+  const m = new Map<string, FilaRanking>()
+  for (const { nombre, p } of items) {
+    const k = clave(nombre)
+    if (!k) continue
+    const e = m.get(k) ?? { clave: k, nombre: nombrePropio(nombre), n: 0, torneos: [] }
+    e.n += p.puntos
+    e.torneos.push(p)
+    m.set(k, e)
+  }
+  return [...m.values()]
+    .map((f) => ({ ...f, torneos: f.torneos.sort((a, b) => b.fechaInicio.localeCompare(a.fechaInicio)) }))
+    .sort((a, b) => b.n - a.n || a.torneos.length - b.torneos.length || a.nombre.localeCompare(b.nombre))
+}
+
+const mismoN = (a: FilaRanking, b: FilaRanking) => a.n === b.n
+
 /** Puesto con empates (1, 1, 3…) */
-function puestos(filas: FilaRanking[]): Map<string, number> {
+function puestos(filas: FilaRanking[], igual: (a: FilaRanking, b: FilaRanking) => boolean = mismoN): Map<string, number> {
   const out = new Map<string, number>()
-  filas.forEach((f, i) => out.set(f.clave, i > 0 && filas[i - 1].n === f.n ? out.get(filas[i - 1].clave)! : i + 1))
+  filas.forEach((f, i) => out.set(f.clave, i > 0 && igual(filas[i - 1], f) ? out.get(filas[i - 1].clave)! : i + 1))
   return out
+}
+
+const MEDIDAS = {
+  campeones: { unidad: ['título', 'títulos'], columna: 'Títulos' },
+  participaciones: { unidad: ['torneo', 'torneos'], columna: 'Torneos' },
+  puntos: {
+    unidad: ['pt', 'pts'], columna: 'Puntos', puntos: true,
+    extra: { columna: 'Torneos', texto: (f) => `${f.torneos.length} ${f.torneos.length === 1 ? 'torneo' : 'torneos'}` },
+    igual: (a, b) => a.n === b.n && a.torneos.length === b.torneos.length,
+  },
+} satisfies Record<string, Medida>
+
+/** Comparte la imagen (menú nativo: WhatsApp…) o, si el navegador no deja, la descarga */
+async function compartirImagen(blob: Blob, nombre: string, titulo: string) {
+  const file = new File([blob], nombre, { type: 'image/png' })
+  if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: titulo })
+      return
+    } catch (e) {
+      // canceló: no se hace nada. Si el navegador no dejó abrir el menú (por ejemplo, Safari tras generar la imagen), se descarga
+      if (e instanceof DOMException && e.name === 'AbortError') return
+    }
+  }
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = nombre
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 5000)
 }
 
 /**
@@ -69,7 +135,15 @@ function puestos(filas: FilaRanking[]): Map<string, number> {
  * `publico`: versión para jugadores (sin datos de publicación: ahí solo llegan torneos publicados).
  * `enlace`: link a cada torneo desde el detalle de un jugador (solo en la página pública).
  */
-export default function Estadisticas({ torneos: base, filtrado, publico = false, enlace }: { torneos: DatoEstadistica[]; filtrado: boolean; publico?: boolean; enlace?: (id: string) => string }) {
+export default function Estadisticas({ torneos: base, filtrado, publico = false, enlace, filtros = [], conPuntos = false, conCompartir = false }: {
+  torneos: DatoEstadistica[]; filtrado: boolean; publico?: boolean; enlace?: (id: string) => string
+  /** filtros de la lista aplicados, para la imagen ("Caballeros", "2026", "Octubre"…) */
+  filtros?: string[]
+  /** ranking de puntos */
+  conPuntos?: boolean
+  /** botón para compartir cada ranking como imagen */
+  conCompartir?: boolean
+}) {
   // filtro propio de las estadísticas, encima de los filtros de la lista (no cambia la lista)
   const [sel, setSel] = useState<'' | CategoriaTorneo>('')
   const [texto, setTexto] = useState('')
@@ -89,23 +163,27 @@ export default function Estadisticas({ torneos: base, filtrado, publico = false,
     // cada campeón suma un título por jugador ("Juan Pérez / Luis Gómez" → 2 jugadores)
     const titulos = finalizados.flatMap((t) => {
       const cs = campeonesDe(t)
-      return cs.map((nombre) => ({ nombre, p: { ...datoTorneo(t), companero: cs.find((x) => clave(x) !== clave(nombre)) ?? null, campeon: true, alcance: 'campeon' as Alcance } }))
+      return cs.map((nombre) => ({ nombre, p: { ...datoTorneo(t), companero: cs.find((x) => clave(x) !== clave(nombre)) ?? null, campeon: true, alcance: 'campeon' as Alcance, victorias: null, puntos: 0 } }))
     })
 
     // participaciones: un jugador cuenta una vez por torneo
     const participaciones = activos.flatMap((t) => {
       const ganadores = new Set(campeonesDe(t).map(clave))
-      const vistos = new Map<string, { nombre: string; companero: string | null; alcance: Alcance | null }>()
+      const vistos = new Map<string, { nombre: string; companero: string | null; alcance: Alcance | null; victorias: Victorias | null }>()
       const duplas = t.duplas?.length ? t.duplas : null
       if (duplas) {
-        for (const [a, b, x] of duplas) {
-          if (a?.trim() && !vistos.has(clave(a))) vistos.set(clave(a), { nombre: a, companero: b?.trim() ? nombrePropio(b) : null, alcance: x ?? null })
-          if (b?.trim() && !vistos.has(clave(b))) vistos.set(clave(b), { nombre: b, companero: a?.trim() ? nombrePropio(a) : null, alcance: x ?? null })
+        for (const [a, b, x, v] of duplas) {
+          const g = v ?? null
+          if (a?.trim() && !vistos.has(clave(a))) vistos.set(clave(a), { nombre: a, companero: b?.trim() ? nombrePropio(b) : null, alcance: x ?? null, victorias: g })
+          if (b?.trim() && !vistos.has(clave(b))) vistos.set(clave(b), { nombre: b, companero: a?.trim() ? nombrePropio(a) : null, alcance: x ?? null, victorias: g })
         }
       } else {
-        for (const j of t.jugadores) if (j.trim() && !vistos.has(clave(j))) vistos.set(clave(j), { nombre: j, companero: null, alcance: null })
+        for (const j of t.jugadores) if (j.trim() && !vistos.has(clave(j))) vistos.set(clave(j), { nombre: j, companero: null, alcance: null, victorias: null })
       }
-      return [...vistos.entries()].map(([k, v]) => ({ nombre: v.nombre, p: { ...datoTorneo(t), companero: v.companero, campeon: ganadores.has(k), alcance: ganadores.has(k) ? 'campeon' as Alcance : v.alcance } }))
+      return [...vistos.entries()].map(([k, v]) => ({
+        nombre: v.nombre,
+        p: { ...datoTorneo(t), companero: v.companero, campeon: ganadores.has(k), alcance: ganadores.has(k) ? 'campeon' as Alcance : v.alcance, victorias: v.victorias, puntos: puntosTorneo(v.victorias) },
+      }))
     })
 
     return {
@@ -117,8 +195,25 @@ export default function Estadisticas({ torneos: base, filtrado, publico = false,
       distintos,
       campeones: ranking(titulos.map((x) => ({ ...x, p: { ...x.p, companero: x.p.companero && nombrePropio(x.p.companero) } }))),
       participaciones: ranking(participaciones),
+      puntos: rankingPuntos(participaciones),
     }
   }, [torneos])
+
+  // filtros aplicados (los de la lista + la categoría y el buscador de las estadísticas), para la imagen
+  const busqueda = texto.trim()
+  const textoFiltros = [...filtros, ...(activa && !filtros.includes(activa) ? [activa] : []), ...(busqueda ? [`Jugador: “${busqueda}”`] : [])].join(' · ') || 'Todos los torneos'
+  const compartir = conCompartir
+    ? async (titulo: string, medida: Medida, filas: FilaRanking[], puesto: Map<string, number>) => {
+      // se carga recién al compartir (no suma peso a la página)
+      const { imagenRanking, MAX_FILAS_RANKING } = await import('../lib/imagenes')
+      const blob = await imagenRanking({
+        titulo, filtros: textoFiltros, columna: medida.columna, columnaExtra: medida.extra?.columna, total: filas.length,
+        filas: filas.slice(0, MAX_FILAS_RANKING).map((f) => ({ puesto: puesto.get(f.clave) ?? 0, nombre: f.nombre, valor: `${f.n} ${f.n === 1 ? medida.unidad[0] : medida.unidad[1]}`, extra: medida.extra?.texto(f) })),
+      })
+      const archivo = `NODO - ${titulo} - ${textoFiltros}`.replace(/[\\/:*?"<>|“”]/g, '').replace(/\s+/g, ' ').trim()
+      await compartirImagen(blob, `${archivo}.png`, titulo)
+    }
+    : undefined
 
   return (
     <details className="group mb-5 rounded-xl bg-white ring-1 ring-noche/10 [&_summary::-webkit-details-marker]:hidden">
@@ -153,16 +248,21 @@ export default function Estadisticas({ torneos: base, filtrado, publico = false,
           {texto && <button onClick={() => setTexto('')} aria-label="Limpiar búsqueda" className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-noche/40"><X className="h-4 w-4" /></button>}
         </label>
 
-        <div className="grid items-start gap-3 md:grid-cols-2">
-          <Ranking titulo="Ranking de campeones" icono={<Trophy className="h-4 w-4 text-cancha" aria-hidden />} unidad={['título', 'títulos']}
-            filas={st.campeones} texto={texto} enlace={enlace} vacio="Todavía no hay torneos finalizados." />
-          <Ranking titulo="Más participaciones" icono={<Users className="h-4 w-4 text-cancha" aria-hidden />} unidad={['torneo', 'torneos']}
-            filas={st.participaciones} texto={texto} enlace={enlace} vacio="Todavía no hay parejas cargadas." />
+        <div className={`grid items-start gap-3 md:grid-cols-2 ${conPuntos ? 'lg:grid-cols-3' : ''}`}>
+          <Ranking titulo="Ranking de campeones" icono={<Trophy className="h-4 w-4 text-cancha" aria-hidden />} medida={MEDIDAS.campeones}
+            filas={st.campeones} texto={texto} enlace={enlace} vacio="Todavía no hay torneos finalizados." onCompartir={compartir} />
+          <Ranking titulo="Más participaciones" icono={<Users className="h-4 w-4 text-cancha" aria-hidden />} medida={MEDIDAS.participaciones}
+            filas={st.participaciones} texto={texto} enlace={enlace} vacio="Todavía no hay parejas cargadas." onCompartir={compartir} />
+          {conPuntos && (
+            <Ranking titulo="Ranking pts" icono={<Star className="h-4 w-4 text-cancha" aria-hidden />} medida={MEDIDAS.puntos}
+              filas={st.puntos} texto={texto} enlace={enlace} vacio="Todavía no hay parejas cargadas." onCompartir={compartir} />
+          )}
         </div>
         <p className="text-[11px] text-noche/45">
           {publico
             ? 'Sobre los torneos publicados. Tocá un jugador para ver sus torneos. Los jugadores se identifican por nombre: si está escrito distinto en dos torneos, cuenta como dos. No incluye torneos cancelados (salvo en el total).'
             : 'Tocá un jugador para ver sus torneos. Los jugadores se identifican por nombre (sin importar mayúsculas ni acentos): si está escrito distinto en dos torneos, por ejemplo con un apodo, cuenta como dos. No incluye torneos cancelados (salvo en el total).'}
+          {conPuntos && <> Ranking pts (por jugador): {textoReglas()} (el W.O. cuenta como ganado; pasar libre, no). A igual puntaje, primero el que jugó menos torneos.</>}
         </p>
       </div>
     </details>
@@ -179,13 +279,15 @@ function Kpi({ titulo, valor, detalle }: { titulo: string; valor: number; detall
   )
 }
 
-/** Ranking completo con buscador (de afuera), paginado de a 10 y detalle de torneos al tocar un jugador */
-function Ranking({ titulo, icono, filas, unidad, vacio, texto, enlace }: {
-  titulo: string; icono: ReactNode; filas: FilaRanking[]; unidad: [string, string]; vacio: string; texto: string; enlace?: (id: string) => string
+/** Ranking completo con buscador (de afuera), paginado de a 10, detalle de torneos al tocar un jugador y botón para compartirlo */
+function Ranking({ titulo, icono, filas, medida, vacio, texto, enlace, onCompartir }: {
+  titulo: string; icono: ReactNode; filas: FilaRanking[]; medida: Medida; vacio: string; texto: string; enlace?: (id: string) => string
+  onCompartir?: (titulo: string, medida: Medida, filas: FilaRanking[], puesto: Map<string, number>) => Promise<void>
 }) {
   const [pagina, setPagina] = useState(0)
   const [abierto, setAbierto] = useState<string | null>(null)
-  const puesto = useMemo(() => puestos(filas), [filas])
+  const [generando, setGenerando] = useState(false)
+  const puesto = useMemo(() => puestos(filas, medida.igual), [filas, medida])
   // todas las palabras tienen que aparecer, en cualquier orden ("grego massot" encuentra a "Massot Grego")
   const palabras = normalizarTexto(texto).split(/\s+/).filter(Boolean)
   const visibles = palabras.length ? filas.filter((f) => palabras.every((p) => f.clave.includes(p))) : filas
@@ -197,6 +299,11 @@ function Ranking({ titulo, icono, filas, unidad, vacio, texto, enlace }: {
   useEffect(() => { setPagina(0); setAbierto(null) }, [texto, filas])
 
   const ir = (p: number) => { setPagina(p); setAbierto(null) }
+  const compartir = async () => {
+    if (!onCompartir) return
+    setGenerando(true)
+    try { await onCompartir(titulo, medida, visibles, puesto) } catch (e) { alert(e instanceof Error ? e.message : 'No se pudo generar la imagen.') } finally { setGenerando(false) }
+  }
 
   return (
     <div className="rounded-lg bg-vidrio p-3">
@@ -220,10 +327,11 @@ function Ranking({ titulo, icono, filas, unidad, vacio, texto, enlace }: {
                       {pos === 1 ? <Medal className="h-3 w-3" aria-label="1°" /> : pos}
                     </span>
                     <span className="min-w-0 flex-1 truncate">{f.nombre}</span>
-                    <span className="num text-xs font-semibold text-noche/70">{f.n} {f.n === 1 ? unidad[0] : unidad[1]}</span>
+                    {medida.extra && <span className="num shrink-0 text-[11px] text-noche/45">{medida.extra.texto(f)}</span>}
+                    <span className="num shrink-0 text-xs font-semibold text-noche/70">{f.n} {f.n === 1 ? medida.unidad[0] : medida.unidad[1]}</span>
                     <ChevronDown className={`h-4 w-4 shrink-0 text-noche/35 transition-transform ${abiertoAca ? 'rotate-180' : ''}`} aria-hidden />
                   </button>
-                  {abiertoAca && <Detalle torneos={f.torneos} enlace={enlace} />}
+                  {abiertoAca && <Detalle torneos={f.torneos} enlace={enlace} puntos={medida.puntos} />}
                 </li>
               )
             })}
@@ -243,12 +351,20 @@ function Ranking({ titulo, icono, filas, unidad, vacio, texto, enlace }: {
           )}
         </>
       )}
+      {onCompartir && visibles.length > 0 && (
+        <div className="mt-1 flex justify-end">
+          <button onClick={compartir} disabled={generando} title="Compartir como imagen (con los filtros aplicados)" aria-label={`Compartir ${titulo} como imagen`}
+            className="inline-flex items-center gap-1 rounded-md p-1.5 text-noche/55 hover:bg-white hover:text-cancha disabled:cursor-wait">
+            {generando ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Share2 className="h-4 w-4" aria-hidden />}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
-/** Torneos de un jugador: torneo, categoría, fecha y compañero */
-function Detalle({ torneos, enlace }: { torneos: Participacion[]; enlace?: (id: string) => string }) {
+/** Torneos de un jugador: torneo, categoría, fecha, compañero y (en el ranking de puntos) el desglose */
+function Detalle({ torneos, enlace, puntos = false }: { torneos: Participacion[]; enlace?: (id: string) => string; puntos?: boolean }) {
   return (
     <ul className="space-y-1.5 px-2 pb-2 pt-1">
       {torneos.map((t, i) => {
@@ -264,10 +380,27 @@ function Detalle({ torneos, enlace }: { torneos: Participacion[]; enlace?: (id: 
               {t.fechaInicio && <span className="ml-auto text-noche/55">{rangoFechas(t.fechaInicio, t.fechaFin)}</span>}
             </div>
             <p className="mt-0.5 text-noche/70">{t.categoria === 'Damas' ? 'Compañera' : t.categoria === 'Mixto' ? 'Compañero/a' : 'Compañero'}: <span className="font-medium text-noche">{t.companero ?? '—'}</span></p>
+            {puntos && <Puntos t={t} />}
           </li>
         )
       })}
     </ul>
+  )
+}
+
+/** Desglose de puntos de un torneo: Participación 5 · Zona 2×1 · Cuartos 1×4 … = total */
+function Puntos({ t }: { t: Participacion }) {
+  const lineas = desglose(t.victorias)
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1 border-t border-noche/10 pt-1">
+      {lineas.map((l) => (
+        <span key={l.concepto} className="num rounded bg-white px-1.5 py-0.5 text-noche/75 ring-1 ring-noche/10"
+          title={l.cantidad > 1 || l.concepto !== 'Participación' ? `${l.cantidad} ganado${l.cantidad === 1 ? '' : 's'} × ${l.unitario} pts` : undefined}>
+          {l.concepto}{l.concepto !== 'Participación' && <span className="text-noche/45"> {l.cantidad}×{l.unitario}</span>} <strong className="text-noche">{l.puntos}</strong>
+        </span>
+      ))}
+      <span className="num ml-auto font-bold text-cancha">{t.puntos} pts</span>
+    </div>
   )
 }
 

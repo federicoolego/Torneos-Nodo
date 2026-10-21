@@ -490,3 +490,102 @@ export async function imagenPlayoff(cat: Categoria): Promise<Blob> {
 
 export const nombreArchivo = (cat: Categoria, tipo: string) =>
   `${[cat.torneo, tipo].filter(Boolean).join(' - ').replace(/[\\/:*?"<>|]+/g, '').trim() || 'torneo'}.png`
+// ------------------------------------------------------------------ rankings de las estadísticas
+
+export interface FilaImagenRanking { puesto: number; nombre: string; valor: string; extra?: string }
+
+/** Cuántos jugadores entran como máximo en la imagen de un ranking */
+export const MAX_FILAS_RANKING = 25
+
+/**
+ * Imagen de un ranking de estadísticas (campeones, participaciones, puntos) con los filtros aplicados.
+ * `filtros`: "Caballeros · 2026 · Octubre" (o "Todos los torneos")
+ */
+export async function imagenRanking({ titulo, filtros, columna, columnaExtra, filas, total }: {
+  titulo: string; filtros: string; columna: string; columnaExtra?: string; filas: FilaImagenRanking[]; total: number
+}): Promise<Blob> {
+  await fuentes()
+  const img = await logo()
+  const lista = filas.slice(0, MAX_FILAS_RANKING)
+  const logoTam = 150
+  const altoCab = logoTam + 2 * 40
+  const altoFila = 64
+  const altoCols = 44
+  const nota = total > lista.length ? `Primeros ${lista.length} de ${total} jugadores` : ''
+  const altoTabla = altoCols + Math.max(1, lista.length) * altoFila
+  const alto = altoCab + 40 + altoTabla + (nota ? 52 : 16) + 96
+
+  const canvas = document.createElement('canvas')
+  canvas.width = ANCHO
+  canvas.height = alto
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = C.fondo
+  ctx.fillRect(0, 0, ANCHO, alto)
+
+  // encabezado: logo + título + filtros
+  ctx.fillStyle = C.noche
+  ctx.fillRect(0, 0, ANCHO, altoCab)
+  ctx.drawImage(img, MARGEN, (altoCab - logoTam) / 2, logoTam, logoTam)
+  const tx = MARGEN + logoTam + 40
+  const anchoTexto = ANCHO - tx - MARGEN
+  icono(ctx, 'trofeo', tx, altoCab / 2 - 66, 48, C.lima)
+  ctx.fillStyle = C.blanco
+  let t = 66
+  ctx.font = `700 ${t}px ${DISPLAY}`
+  while (t > 40 && ctx.measureText(titulo).width > anchoTexto - 64) { t--; ctx.font = `700 ${t}px ${DISPLAY}` }
+  ctx.fillText(recortar(ctx, titulo, anchoTexto - 64), tx + 64, altoCab / 2 - 18)
+  ctx.font = `600 34px ${DISPLAY}`
+  ctx.fillStyle = C.lima
+  const lf = lineas(ctx, filtros, anchoTexto).slice(0, 2)
+  lf.forEach((l, i) => ctx.fillText(l, tx, altoCab / 2 + 30 + i * 38))
+
+  // tabla
+  const x = MARGEN, ancho = ANCHO - 2 * MARGEN
+  let y = altoCab + 40
+  ctx.save()
+  ctx.beginPath(); ctx.roundRect(x, y, ancho, altoTabla, 16); ctx.clip()
+  ctx.fillStyle = C.blanco; ctx.fillRect(x, y, ancho, altoTabla)
+  ctx.fillStyle = C.verde; ctx.fillRect(x, y, ancho, altoCols)
+  ctx.fillStyle = C.blanco; ctx.font = `700 17px ${TEXTO}`
+  const cPos = 92
+  const conExtra = !!columnaExtra
+  const cExtra = conExtra ? 170 : 0
+  const cValor = 170
+  ctx.textAlign = 'center'; ctx.fillText('PUESTO', x + cPos / 2, y + 29)
+  ctx.textAlign = 'left'; ctx.fillText('JUGADOR', x + cPos + 12, y + 29)
+  ctx.textAlign = 'center'
+  if (conExtra) ctx.fillText(columnaExtra!.toUpperCase(), x + ancho - cValor - cExtra / 2, y + 29)
+  ctx.fillText(columna.toUpperCase(), x + ancho - cValor / 2, y + 29)
+  y += altoCols
+  if (!lista.length) {
+    ctx.fillStyle = C.gris; ctx.font = `500 26px ${TEXTO}`
+    ctx.fillText('Sin jugadores para estos filtros', ANCHO / 2, y + 42)
+  }
+  lista.forEach((f, k) => {
+    const mid = y + altoFila / 2
+    if (k % 2 === 1) { ctx.fillStyle = '#F7FAF9'; ctx.fillRect(x, y, ancho, altoFila) }
+    // puesto: el 1° destacado con la lima de la pelota
+    ctx.beginPath(); ctx.arc(x + cPos / 2, mid, 21, 0, Math.PI * 2)
+    ctx.fillStyle = f.puesto === 1 ? C.lima : C.verdeSuave; ctx.fill()
+    ctx.fillStyle = C.noche; ctx.font = `700 24px ${TEXTO}`; ctx.textAlign = 'center'
+    ctx.fillText(String(f.puesto), x + cPos / 2, mid + 8)
+    ctx.textAlign = 'left'; ctx.font = `${f.puesto === 1 ? 700 : 600} 27px ${TEXTO}`; ctx.fillStyle = C.texto
+    ctx.fillText(recortar(ctx, f.nombre, ancho - cPos - cExtra - cValor - 24), x + cPos + 12, mid + 9)
+    ctx.textAlign = 'center'
+    if (conExtra) { ctx.font = `500 24px ${TEXTO}`; ctx.fillStyle = C.gris; ctx.fillText(f.extra ?? '', x + ancho - cValor - cExtra / 2, mid + 8) }
+    ctx.font = `700 34px ${DISPLAY}`; ctx.fillStyle = C.verde
+    ctx.fillText(f.valor, x + ancho - cValor / 2, mid + 11)
+    ctx.textAlign = 'left'
+    ctx.fillStyle = C.linea; ctx.fillRect(x, y + altoFila - 1, ancho, 1)
+    y += altoFila
+  })
+  ctx.restore()
+  y = altoCab + 40 + altoTabla
+  if (nota) {
+    ctx.fillStyle = C.gris; ctx.font = `500 22px ${TEXTO}`; ctx.textAlign = 'center'
+    ctx.fillText(nota, ANCHO / 2, y + 36)
+    ctx.textAlign = 'left'
+  }
+  pie(ctx, alto - 36)
+  return aBlob(canvas)
+}

@@ -3,6 +3,7 @@
 // solo lo que cambió (por fila), así dos personas cargando resultados de partidos distintos no se pisan.
 import { supabase, T } from './supabase'
 import { alcances, esAlcance, estadoTorneo, evaluar, resolverTorneo, type Alcance } from './resultados'
+import type { Victorias } from './puntos'
 import {
   CATEGORIA_DEFECTO, FORMATOS_DEFECTO, INSTANCIAS, esCategoriaTorneo, esUuid, instanciaDeRonda, jugadoresDe, mayusculas, nombrePropio, normalizar, nuevoId,
   type Categoria, type CategoriaTorneo, type Disponibilidad, type EstadoTorneo, type Formato, type Horario, type Instancia, type Resultado, type Slot,
@@ -228,11 +229,11 @@ export interface ResumenTorneo {
   campeon: string | null
   /** jugadores inscriptos (para las estadísticas del panel) */
   jugadores: string[]
-  /** parejas [jugador1, jugador2, hasta dónde llegó] (para el compañero y la instancia en las estadísticas) */
+  /** parejas [jugador1, jugador2, hasta dónde llegó, partidos ganados por instancia] (compañero, instancia y ranking de puntos) */
   duplas: Dupla[]
 }
 
-export type Dupla = [string, string, (Alcance | null)?]
+export type Dupla = [string, string, (Alcance | null)?, Victorias?]
 
 /** Padrón de jugadores (para el buscador al inscribir parejas), con mayúscula inicial */
 export async function listarJugadores(): Promise<string[]> {
@@ -252,17 +253,31 @@ export async function listar(): Promise<ResumenTorneo[]> {
     .select(`id, nombre, categoria, fecha_inicio, fecha_fin, cant_zonas, cuadro, actualizado, publicado, estado, campeon, parejas:${T.parejas}(count)`)
     .order('actualizado', { ascending: false })
   if (error) throw new Error(error.message)
+  // partidos ganados por cada pareja, por instancia (para el ranking de puntos), de a 1000 filas
+  const victorias = new Map<string, Victorias>()
+  for (let desde = 0; ; desde += 1000) {
+    const r = await supabase.from(T.partidos).select('torneo_id, clave, instancia, ganador').not('ganador', 'is', null)
+      .order('torneo_id').order('clave').range(desde, desde + 999)
+    if (r.error) throw new Error(r.error.message)
+    for (const p of (r.data ?? []) as { instancia: Instancia | null; ganador: string | null }[]) {
+      if (!p.ganador || !p.instancia) continue
+      const v = victorias.get(p.ganador) ?? {}
+      v[p.instancia] = (v[p.instancia] ?? 0) + 1
+      victorias.set(p.ganador, v)
+    }
+    if ((r.data ?? []).length < 1000) break
+  }
   // jugadores de todos los torneos (para las estadísticas), de a 1000 filas
   const jugadores = new Map<string, string[]>()
   const duplas = new Map<string, Dupla[]>()
   for (let desde = 0; ; desde += 1000) {
-    const r = await supabase.from(T.parejas).select('torneo_id, orden, jugador1, jugador2, instancia_max').order('torneo_id').order('orden').range(desde, desde + 999)
+    const r = await supabase.from(T.parejas).select('id, torneo_id, orden, jugador1, jugador2, instancia_max').order('torneo_id').order('orden').range(desde, desde + 999)
     if (r.error) throw new Error(r.error.message)
-    for (const p of (r.data ?? []) as { torneo_id: string; jugador1: string; jugador2: string; instancia_max: string | null }[]) {
+    for (const p of (r.data ?? []) as { id: string; torneo_id: string; jugador1: string; jugador2: string; instancia_max: string | null }[]) {
       const l = jugadores.get(p.torneo_id) ?? []
       l.push(p.jugador1, p.jugador2)
       jugadores.set(p.torneo_id, l)
-      duplas.set(p.torneo_id, [...(duplas.get(p.torneo_id) ?? []), [p.jugador1 ?? '', p.jugador2 ?? '', esAlcance(p.instancia_max) ? p.instancia_max : null]])
+      duplas.set(p.torneo_id, [...(duplas.get(p.torneo_id) ?? []), [p.jugador1 ?? '', p.jugador2 ?? '', esAlcance(p.instancia_max) ? p.instancia_max : null, victorias.get(p.id) ?? {}]])
     }
     if ((r.data ?? []).length < 1000) break
   }
