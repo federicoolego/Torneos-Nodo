@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, Loader2, Medal, Search, Share2, Star, Trophy, Users, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { BarChart3, ChevronDown, ChevronLeft, ChevronRight, Info, Loader2, Medal, Search, Share2, Star, Trophy, Users, X } from 'lucide-react'
 import { CATEGORIAS, nombrePropio, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../lib/torneo'
 import { normalizarTexto } from '../lib/publico'
 import { nombreAlcance, type Alcance } from '../lib/resultados'
 import { BadgeCategoria, ESTILO_CATEGORIA } from './Categoria'
 import { Input } from './ui'
-import { desglose, puntosTorneo, textoReglas, type Victorias } from '../lib/puntos'
+import { PUNTOS_PARTICIPACION, PUNTOS_VICTORIA, desglose, puntosTorneo, textoReglas, type Victorias } from '../lib/puntos'
+import { INSTANCIAS } from '../lib/torneo'
 
 /** Lo mínimo que necesitan las estadísticas de cada torneo (sirve para el panel y para la página pública) */
 export interface DatoEstadistica {
@@ -254,7 +255,7 @@ export default function Estadisticas({ torneos: base, publico = false, enlace, f
           <Ranking titulo="Más participaciones" icono={<Users className="h-4 w-4 text-cancha" aria-hidden />} medida={MEDIDAS.participaciones}
             filas={st.participaciones} texto={texto} enlace={enlace} vacio="Todavía no hay parejas cargadas." onCompartir={compartir} />
           {conPuntos && (
-            <Ranking titulo="Ranking pts" icono={<Star className="h-4 w-4 text-cancha" aria-hidden />} medida={MEDIDAS.puntos}
+            <Ranking titulo="Ranking pts" icono={<Star className="h-4 w-4 text-cancha" aria-hidden />} medida={MEDIDAS.puntos} ayuda={<AyudaPuntos />}
               filas={st.puntos} texto={texto} enlace={enlace} vacio="Todavía no hay parejas cargadas." onCompartir={compartir} />
           )}
         </div>
@@ -280,8 +281,8 @@ function Kpi({ titulo, valor, detalle }: { titulo: string; valor: number; detall
 }
 
 /** Ranking completo con buscador (de afuera), paginado de a 10, detalle de torneos al tocar un jugador y botón para compartirlo */
-function Ranking({ titulo, icono, filas, medida, vacio, texto, enlace, onCompartir }: {
-  titulo: string; icono: ReactNode; filas: FilaRanking[]; medida: Medida; vacio: string; texto: string; enlace?: (id: string) => string
+function Ranking({ titulo, icono, filas, medida, vacio, texto, enlace, onCompartir, ayuda }: {
+  titulo: string; icono: ReactNode; ayuda?: ReactNode; filas: FilaRanking[]; medida: Medida; vacio: string; texto: string; enlace?: (id: string) => string
   onCompartir?: (titulo: string, medida: Medida, filas: FilaRanking[], puesto: Map<string, number>) => Promise<void>
 }) {
   const [pagina, setPagina] = useState(0)
@@ -309,6 +310,7 @@ function Ranking({ titulo, icono, filas, medida, vacio, texto, enlace, onCompart
     <div className="rounded-lg bg-vidrio p-3">
       <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-noche">
         {icono} {titulo}
+        {ayuda && <InfoAyuda titulo={titulo}>{ayuda}</InfoAyuda>}
         {!!filas.length && <span className="num ml-auto text-xs font-normal text-noche/55">{palabras.length ? `${visibles.length} de ${filas.length}` : filas.length} {filas.length === 1 ? 'jugador' : 'jugadores'}</span>}
       </p>
       {filas.length === 0 ? <p className="text-xs text-noche/55">{vacio}</p> : visibles.length === 0 ? (
@@ -360,6 +362,58 @@ function Ranking({ titulo, icono, filas, medida, vacio, texto, enlace, onCompart
         </div>
       )}
     </div>
+  )
+}
+
+/** Ícono (i) con una ayuda: se ve al pasar el mouse y se fija/cierra con un clic (en el celular, al tocar) */
+function InfoAyuda({ titulo, children }: { titulo: string; children: ReactNode }) {
+  const [fijo, setFijo] = useState(false)
+  const [hover, setHover] = useState(false)
+  const ref = useRef<HTMLSpanElement>(null)
+  // se cierra al tocar afuera o con Escape
+  useEffect(() => {
+    if (!fijo) return
+    const fuera = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) setFijo(false) }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setFijo(false) }
+    document.addEventListener('pointerdown', fuera)
+    document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('pointerdown', fuera); document.removeEventListener('keydown', esc) }
+  }, [fijo])
+  const visible = fijo || hover
+  return (
+    <span ref={ref} className="relative inline-flex" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+      <button type="button" onClick={() => setFijo((x) => !x)} aria-expanded={visible} aria-label={`Cómo se calcula el ${titulo}`}
+        className={`rounded-full p-0.5 transition-colors hover:text-cancha focus-visible:outline focus-visible:outline-2 focus-visible:outline-cancha ${visible ? 'text-cancha' : 'text-noche/40'}`}>
+        <Info className="h-4 w-4" aria-hidden />
+      </button>
+      {visible && (
+        <span role="tooltip" className="absolute left-1/2 top-full z-30 mt-1.5 w-64 -translate-x-1/2 rounded-lg bg-noche p-3 text-xs font-normal leading-relaxed text-white shadow-lg sm:left-0 sm:translate-x-0">
+          {children}
+        </span>
+      )}
+    </span>
+  )
+}
+
+/** Cómo se calculan los puntos del ranking (sale de lib/puntos.ts) */
+function AyudaPuntos() {
+  return (
+    <>
+      <span className="mb-1.5 block font-semibold text-pelota">Cómo se calculan los puntos</span>
+      <span className="block">Son individuales: cada jugador suma, en cada torneo que juega:</span>
+      <span className="mt-1.5 grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5">
+        <span>Por participar</span><strong className="num text-right">{PUNTOS_PARTICIPACION} pts</strong>
+        {INSTANCIAS.map((i) => (
+          <span key={i.id} className="contents">
+            <span>Partido ganado en {i.id === 'zonas' ? 'zona' : i.nombre.toLowerCase()}</span>
+            <strong className="num text-right">{PUNTOS_VICTORIA[i.id]} {PUNTOS_VICTORIA[i.id] === 1 ? 'pt' : 'pts'}</strong>
+          </span>
+        ))}
+      </span>
+      <span className="mt-1.5 block text-white/75">El W.O. cuenta como partido ganado; pasar libre, no. No suman los torneos cancelados.</span>
+      <span className="mt-1 block text-white/75">Orden: más puntos; a igual puntaje, el que jugó menos torneos; después, por nombre.</span>
+      <span className="mt-1 block text-white/75">Tocá un jugador para ver el detalle de cada torneo.</span>
+    </>
   )
 }
 
