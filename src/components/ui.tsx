@@ -1,5 +1,5 @@
-import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
-import { X, Loader2, AlertTriangle, CheckCircle2, Info } from 'lucide-react'
+import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import { X, Loader2, AlertTriangle, CheckCircle2, Info, ChevronDown } from 'lucide-react'
 
 type Variante = 'primario' | 'secundario' | 'peligro' | 'fantasma'
 
@@ -49,6 +49,106 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
 
 export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return <select {...props} className={`${baseInput} ${props.className ?? ''}`} />
+}
+
+export interface OpcionMulti<T extends string = string> {
+  valor: T
+  label: string
+  /** encabezado de grupo (como un optgroup): las opciones del mismo grupo van juntas */
+  grupo?: string
+  disabled?: boolean
+}
+
+/**
+ * Desplegable de selección múltiple (para filtros). Sin nada elegido = "todas" (muestra `placeholder`).
+ * Devuelve los valores en el orden de `opciones`.
+ */
+export function MultiSelect<T extends string>({
+  opciones,
+  valor,
+  onChange,
+  placeholder,
+  plural,
+  className = '',
+  'aria-label': ariaLabel,
+}: {
+  opciones: OpcionMulti<T>[]
+  valor: T[]
+  onChange: (v: T[]) => void
+  /** texto cuando no hay nada elegido ("Todas las categorías") */
+  placeholder: string
+  /** texto con 3 o más elegidos, por ejemplo (n) => `${n} estados` */
+  plural?: (n: number) => string
+  className?: string
+  'aria-label'?: string
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const caja = useRef<HTMLDivElement>(null)
+  const id = useId()
+
+  // se cierra al tocar afuera o con Escape
+  useEffect(() => {
+    if (!abierto) return
+    const fuera = (e: PointerEvent) => { if (caja.current && !caja.current.contains(e.target as Node)) setAbierto(false) }
+    const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape') setAbierto(false) }
+    document.addEventListener('pointerdown', fuera)
+    document.addEventListener('keydown', tecla)
+    return () => { document.removeEventListener('pointerdown', fuera); document.removeEventListener('keydown', tecla) }
+  }, [abierto])
+
+  const elegidos = new Set(valor)
+  const alternar = (v: T) => {
+    const n = new Set(elegidos)
+    if (n.has(v)) n.delete(v)
+    else n.add(v)
+    onChange(opciones.map((o) => o.valor).filter((x) => n.has(x)))
+  }
+  const labels = opciones.filter((o) => elegidos.has(o.valor)).map((o) => o.label)
+  const resumen = !labels.length ? placeholder : labels.length <= 2 ? labels.join(', ') : plural ? plural(labels.length) : `${labels.length} elegidos`
+
+  return (
+    <div ref={caja} className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => setAbierto((a) => !a)}
+        aria-haspopup="listbox"
+        aria-expanded={abierto}
+        aria-controls={id}
+        aria-label={ariaLabel ? `${ariaLabel}: ${resumen}` : resumen}
+        title={labels.length ? labels.join(', ') : undefined}
+        className={`${baseInput} flex items-center justify-between gap-2 text-left ${labels.length ? 'font-semibold text-cancha ring-cancha/40' : ''}`}
+      >
+        <span className="truncate">{resumen}</span>
+        {labels.length > 0 && <span className="num shrink-0 rounded-full bg-cancha-suave px-1.5 text-[11px] font-bold text-cancha">{labels.length}</span>}
+        <ChevronDown className={`h-4 w-4 shrink-0 text-noche/50 transition-transform ${abierto ? 'rotate-180' : ''}`} aria-hidden />
+      </button>
+      {abierto && (
+        <div className="absolute left-0 z-30 mt-1 w-full min-w-[12rem] overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-noche/15">
+          <ul id={id} role="listbox" aria-multiselectable="true" aria-label={ariaLabel} className="max-h-72 overflow-y-auto py-1">
+            {opciones.map((o, i) => (
+              <li key={o.valor} role="presentation">
+                {o.grupo && o.grupo !== opciones[i - 1]?.grupo && (
+                  <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-noche/50">{o.grupo}</p>
+                )}
+                <label role="option" aria-selected={elegidos.has(o.valor)} aria-disabled={o.disabled || undefined}
+                  className={`flex items-center gap-2 px-3 py-1.5 text-sm ${o.disabled ? 'cursor-not-allowed text-noche/35' : 'cursor-pointer text-noche hover:bg-vidrio'}`}>
+                  <input type="checkbox" checked={elegidos.has(o.valor)} disabled={o.disabled && !elegidos.has(o.valor)} onChange={() => alternar(o.valor)}
+                    className="h-4 w-4 accent-[#0F6B57]" />
+                  <span className="truncate">{o.label}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          {valor.length > 0 && (
+            <div className="flex justify-between border-t border-noche/10 px-3 py-1.5">
+              <button type="button" onClick={() => onChange([])} className="text-xs font-semibold text-cancha hover:underline">Limpiar</button>
+              <button type="button" onClick={() => setAbierto(false)} className="text-xs font-semibold text-noche/60 hover:text-noche">Listo</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {

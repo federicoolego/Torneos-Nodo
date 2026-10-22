@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ChevronRight, Search, Ticket, Trophy, Users } from 'lucide-react'
 import { MOSTRAR_CATEGORIAS_PUBLICAS, categoriasPublicas, listarPublicos, normalizarTexto, type ResumenPublico } from '../../lib/publico'
 import { CATEGORIAS, ESTADOS, MESES, formatoPesos, nombreEstado, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../../lib/torneo'
-import { Alerta, Badge, Input, Select, Spinner, Tabs, Vacio } from '../../components/ui'
+import { Alerta, Badge, Input, MultiSelect, Spinner, Tabs, Vacio } from '../../components/ui'
 import Calendario from './Calendario'
 import CategoriasPublicas from './Categorias'
 import PanelEstadisticas from '../../components/PanelEstadisticas'
@@ -63,11 +63,12 @@ const ANIO_ACTUAL = String(new Date().getFullYear())
 function Torneos() {
   const [lista, setLista] = useState<ResumenPublico[] | null>(null)
   const [error, setError] = useState('')
-  const [categoria, setCategoria] = useState<'' | CategoriaTorneo>('')
-  const [estado, setEstado] = useState<'' | EstadoTorneo>('')
+  // filtros de selección múltiple: vacío = todos
+  const [categoria, setCategoria] = useState<CategoriaTorneo[]>([])
+  const [estado, setEstado] = useState<EstadoTorneo[]>([])
   // por defecto, el año en curso
-  const [anio, setAnio] = useState(ANIO_ACTUAL)
-  const [mes, setMes] = useState('')
+  const [anio, setAnio] = useState<string[]>([ANIO_ACTUAL])
+  const [mes, setMes] = useState<string[]>([])
   const [texto, setTexto] = useState('')
 
   useEffect(() => {
@@ -79,10 +80,10 @@ function Torneos() {
   const visibles = useMemo(() => {
     const q = normalizarTexto(texto)
     return (lista ?? [])
-      .filter((t) => !categoria || t.categoria === categoria)
-      .filter((t) => !estado || t.estado === estado)
-      .filter((t) => !anio || t.fecha_inicio?.startsWith(anio))
-      .filter((t) => !mes || t.fecha_inicio?.slice(5, 7) === mes)
+      .filter((t) => !categoria.length || categoria.includes(t.categoria))
+      .filter((t) => !estado.length || estado.includes(t.estado))
+      .filter((t) => !anio.length || anio.includes(t.fecha_inicio?.slice(0, 4) ?? ''))
+      .filter((t) => !mes.length || mes.includes(t.fecha_inicio?.slice(5, 7) ?? ''))
       .filter((t) => !q || normalizarTexto(t.nombre).includes(q))
       .sort((a, b) => {
         if (ORDEN[a.estado] !== ORDEN[b.estado]) return ORDEN[a.estado] - ORDEN[b.estado]
@@ -91,7 +92,7 @@ function Torneos() {
         return a.estado === 'pendiente' ? fa.localeCompare(fb) : fb.localeCompare(fa)
       })
   }, [lista, categoria, estado, anio, mes, texto])
-  const hayFiltros = !!(texto || categoria || estado || anio || mes)
+  const hayFiltros = !!(texto || categoria.length || estado.length || anio.length || mes.length)
 
   return (
     <>
@@ -105,29 +106,21 @@ function Torneos() {
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-noche/40" aria-hidden />
           <Input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Buscar torneo…" className="pl-9" aria-label="Buscar torneo" />
         </label>
-        <Select value={categoria} onChange={(e) => setCategoria(e.target.value as '' | CategoriaTorneo)} aria-label="Categoría">
-          <option value="">Todas las categorías</option>
-          {CATEGORIAS.map((x) => <option key={x} value={x}>{x}</option>)}
-        </Select>
-        <Select value={estado} onChange={(e) => setEstado(e.target.value as '' | EstadoTorneo)} aria-label="Estado">
-          <option value="">Todos los estados</option>
-          {ESTADOS.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-        </Select>
-        <Select value={anio} onChange={(e) => setAnio(e.target.value)} aria-label="Año">
-          <option value="">Año</option>
-          {anios.map((a) => <option key={a} value={a}>{a}</option>)}
-        </Select>
-        <Select value={mes} onChange={(e) => setMes(e.target.value)} aria-label="Mes">
-          <option value="">Mes</option>
-          {MESES.map((m, i) => <option key={m} value={String(i + 1).padStart(2, '0')}>{m}</option>)}
-        </Select>
+        <MultiSelect<CategoriaTorneo> valor={categoria} onChange={setCategoria} aria-label="Categoría" placeholder="Todas las categorías"
+          opciones={CATEGORIAS.map((x) => ({ valor: x, label: x }))} plural={(n) => `${n} categorías`} />
+        <MultiSelect<EstadoTorneo> valor={estado} onChange={setEstado} aria-label="Estado" placeholder="Todos los estados"
+          opciones={ESTADOS.map((e) => ({ valor: e.id, label: e.nombre }))} plural={(n) => `${n} estados`} />
+        <MultiSelect valor={anio} onChange={setAnio} aria-label="Año" placeholder="Año"
+          opciones={anios.map((a) => ({ valor: a, label: a }))} plural={(n) => `${n} años`} />
+        <MultiSelect valor={mes} onChange={setMes} aria-label="Mes" placeholder="Mes"
+          opciones={MESES.map((m, i) => ({ valor: String(i + 1).padStart(2, '0'), label: m }))} plural={(n) => `${n} meses`} />
       </div>
 
       {error && <div className="mb-4"><Alerta tipo="error">{error}</Alerta></div>}
       {hayFiltros && !!lista?.length && <p className="-mt-2 mb-3 text-xs text-noche/55">{visibles.length} de {lista.length} torneos</p>}
       {lista === null ? <Spinner texto="Cargando torneos…" /> : visibles.length === 0 ? (
         <Vacio titulo={lista.length ? 'No hay torneos con esos filtros' : 'Todavía no hay torneos publicados'}>
-          {lista.length ? <>Probá cambiando el estado, el año o el mes. <button className="font-semibold text-cancha" onClick={() => { setTexto(''); setCategoria(''); setEstado(''); setAnio(''); setMes('') }}>Ver todos</button></> : 'Cuando el club publique un torneo, lo vas a ver acá.'}
+          {lista.length ? <>Probá cambiando el estado, el año o el mes. <button className="font-semibold text-cancha" onClick={() => { setTexto(''); setCategoria([]); setEstado([]); setAnio([]); setMes([]) }}>Ver todos</button></> : 'Cuando el club publique un torneo, lo vas a ver acá.'}
         </Vacio>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">

@@ -3,7 +3,7 @@ import { CloudUpload, Copy, Plus, Search, Trash2 } from 'lucide-react'
 import { completarAlcances, duplicar, eliminar, listar, migrarLocales, torneosLocales, type ResumenTorneo } from '../lib/almacen'
 import { CATEGORIAS, ESTADOS, MESES, nombreEstado, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../lib/torneo'
 import { normalizarTexto } from '../lib/publico'
-import { Alerta, Badge, Button, Input, Select, Spinner, Titulo, Vacio } from '../components/ui'
+import { Alerta, Badge, Button, Input, MultiSelect, Spinner, Titulo, Vacio } from '../components/ui'
 import Instructivo from '../components/Instructivo'
 import ImportarTorneos from '../components/ImportarTorneos'
 import { BadgeCategoria, bordeCategoria } from '../components/Categoria'
@@ -17,26 +17,27 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
   const [locales, setLocales] = useState(torneosLocales)
   // filtros (los mismos que la página pública, más "publicado")
   const [texto, setTexto] = useState('')
-  const [categoria, setCategoria] = useState<'' | CategoriaTorneo>('')
-  const [estado, setEstado] = useState<'' | EstadoTorneo>('')
+  // filtros de selección múltiple: vacío = todos
+  const [categoria, setCategoria] = useState<CategoriaTorneo[]>([])
+  const [estado, setEstado] = useState<EstadoTorneo[]>([])
   // por defecto, el año en curso
-  const [anio, setAnio] = useState(ANIO_ACTUAL)
-  const [mes, setMes] = useState('')
-  const [publicacion, setPublicacion] = useState<'' | 'si' | 'no'>('')
+  const [anio, setAnio] = useState<string[]>([ANIO_ACTUAL])
+  const [mes, setMes] = useState<string[]>([])
+  const [publicacion, setPublicacion] = useState<('si' | 'no')[]>([])
   const anios = useMemo(() => [...new Set([ANIO_ACTUAL, ...(lista ?? []).map((t) => t.fechaInicio.slice(0, 4)).filter(Boolean)])].sort().reverse(), [lista])
   // siempre del más nuevo al más viejo (por fecha de inicio; sin fecha, al final)
   const visibles = useMemo(() => {
     const q = normalizarTexto(texto)
     return (lista ?? [])
       .filter((t) => !q || normalizarTexto(t.torneo).includes(q))
-      .filter((t) => !categoria || t.categoria === categoria)
-      .filter((t) => !estado || t.estado === estado)
-      .filter((t) => !anio || t.fechaInicio.startsWith(anio))
-      .filter((t) => !mes || t.fechaInicio.slice(5, 7) === mes)
-      .filter((t) => !publicacion || t.publicado === (publicacion === 'si'))
+      .filter((t) => !categoria.length || categoria.includes(t.categoria))
+      .filter((t) => !estado.length || estado.includes(t.estado))
+      .filter((t) => !anio.length || anio.includes(t.fechaInicio.slice(0, 4)))
+      .filter((t) => !mes.length || mes.includes(t.fechaInicio.slice(5, 7)))
+      .filter((t) => !publicacion.length || publicacion.includes(t.publicado ? 'si' : 'no'))
       .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || '') || b.actualizado - a.actualizado)
   }, [lista, texto, categoria, estado, anio, mes, publicacion])
-  const hayFiltros = !!(texto || categoria || estado || anio || mes || publicacion)
+  const hayFiltros = !!(texto || categoria.length || estado.length || anio.length || mes.length || publicacion.length)
 
   const refrescar = useCallback(async () => {
     try {
@@ -91,27 +92,16 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-noche/40" aria-hidden />
             <Input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Buscar torneo…" className="pl-9" aria-label="Buscar torneo" />
           </label>
-          <Select value={categoria} onChange={(e) => setCategoria(e.target.value as '' | CategoriaTorneo)} aria-label="Categoría">
-            <option value="">Todas las categorías</option>
-            {CATEGORIAS.map((x) => <option key={x} value={x}>{x}</option>)}
-          </Select>
-          <Select value={estado} onChange={(e) => setEstado(e.target.value as '' | EstadoTorneo)} aria-label="Estado">
-            <option value="">Todos los estados</option>
-            {ESTADOS.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-          </Select>
-          <Select value={anio} onChange={(e) => setAnio(e.target.value)} aria-label="Año">
-            <option value="">Año</option>
-            {anios.map((x) => <option key={x} value={x}>{x}</option>)}
-          </Select>
-          <Select value={mes} onChange={(e) => setMes(e.target.value)} aria-label="Mes">
-            <option value="">Mes</option>
-            {MESES.map((m, i) => <option key={m} value={String(i + 1).padStart(2, '0')}>{m}</option>)}
-          </Select>
-          <Select value={publicacion} onChange={(e) => setPublicacion(e.target.value as '' | 'si' | 'no')} aria-label="Publicación">
-            <option value="">Publicados y no</option>
-            <option value="si">Publicados</option>
-            <option value="no">No publicados</option>
-          </Select>
+          <MultiSelect<CategoriaTorneo> valor={categoria} onChange={setCategoria} aria-label="Categoría" placeholder="Todas las categorías"
+            opciones={CATEGORIAS.map((x) => ({ valor: x, label: x }))} plural={(n) => `${n} categorías`} />
+          <MultiSelect<EstadoTorneo> valor={estado} onChange={setEstado} aria-label="Estado" placeholder="Todos los estados"
+            opciones={ESTADOS.map((e) => ({ valor: e.id, label: e.nombre }))} plural={(n) => `${n} estados`} />
+          <MultiSelect valor={anio} onChange={setAnio} aria-label="Año" placeholder="Año"
+            opciones={anios.map((x) => ({ valor: x, label: x }))} plural={(n) => `${n} años`} />
+          <MultiSelect valor={mes} onChange={setMes} aria-label="Mes" placeholder="Mes"
+            opciones={MESES.map((m, i) => ({ valor: String(i + 1).padStart(2, '0'), label: m }))} plural={(n) => `${n} meses`} />
+          <MultiSelect<'si' | 'no'> valor={publicacion} onChange={setPublicacion} aria-label="Publicación" placeholder="Publicados y no"
+            opciones={[{ valor: 'si', label: 'Publicados' }, { valor: 'no', label: 'No publicados' }]} />
         </div>
       )}
       {hayFiltros && !!lista?.length && <p className="-mt-2 mb-3 text-xs text-noche/55">{visibles.length} de {lista.length} torneos</p>}
@@ -121,7 +111,7 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
         </Vacio>
       ) : visibles.length === 0 ? (
         <Vacio titulo="No hay torneos con esos filtros">
-          <button className="font-semibold text-cancha" onClick={() => { setTexto(''); setCategoria(''); setEstado(''); setAnio(''); setMes(''); setPublicacion('') }}>Limpiar filtros</button>
+          <button className="font-semibold text-cancha" onClick={() => { setTexto(''); setCategoria([]); setEstado([]); setAnio([]); setMes([]); setPublicacion([]) }}>Limpiar filtros</button>
         </Vacio>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">

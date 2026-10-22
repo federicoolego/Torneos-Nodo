@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CATEGORIAS, ESTADOS, MESES, nombreEstado, type CategoriaTorneo, type EstadoTorneo } from '../lib/torneo'
 import { CATEGORIAS_JUGADOR, esCategoriaJugador, rama, type CategoriaJugador } from '../lib/categorias'
 import Estadisticas, { clave, type DatoEstadistica } from './Estadisticas'
-import { Alerta, Select, Spinner, Vacio } from './ui'
+import { Alerta, MultiSelect, Spinner, Vacio } from './ui'
 
 const ANIO_ACTUAL = String(new Date().getFullYear())
 
@@ -25,13 +25,14 @@ export default function PanelEstadisticas({ cargar, cargarCategorias, admin = fa
   const [error, setError] = useState('')
   // categoría de cada jugador (clave del nombre → categoría); null = no disponible
   const [categorias, setCategorias] = useState<Map<string, CategoriaJugador> | null>(null)
-  const [catJugador, setCatJugador] = useState<'' | CategoriaJugador>('')
-  const [categoria, setCategoria] = useState<'' | CategoriaTorneo>('')
-  const [estado, setEstado] = useState<'' | EstadoTorneo>('')
+  // filtros de selección múltiple: vacío = todos
+  const [catJugador, setCatJugador] = useState<CategoriaJugador[]>([])
+  const [categoria, setCategoria] = useState<CategoriaTorneo[]>([])
+  const [estado, setEstado] = useState<EstadoTorneo[]>([])
   // por defecto, el año en curso
-  const [anio, setAnio] = useState(ANIO_ACTUAL)
-  const [mes, setMes] = useState('')
-  const [publicacion, setPublicacion] = useState<'' | 'si' | 'no'>('')
+  const [anio, setAnio] = useState<string[]>([ANIO_ACTUAL])
+  const [mes, setMes] = useState<string[]>([])
+  const [publicacion, setPublicacion] = useState<('si' | 'no')[]>([])
 
   useEffect(() => {
     cargar().then(setLista).catch((e) => { setError(e instanceof Error ? e.message : 'No se pudieron cargar los torneos.'); setLista([]) })
@@ -42,9 +43,9 @@ export default function PanelEstadisticas({ cargar, cargarCategorias, admin = fa
       .catch(() => setCategorias(null))
   }, [cargarCategorias])
 
-  // jugadores de la categoría elegida (para los rankings)
+  // jugadores de las categorías elegidas (para los rankings)
   const soloJugadores = useMemo(
-    () => (catJugador && categorias ? new Set([...categorias].filter(([, c]) => c === catJugador).map(([k]) => k)) : null),
+    () => (catJugador.length && categorias ? new Set([...categorias].filter(([, c]) => catJugador.includes(c)).map(([k]) => k)) : null),
     [catJugador, categorias])
   const cuentaCategoria = useMemo(() => {
     const m = new Map<CategoriaJugador, number>()
@@ -55,20 +56,27 @@ export default function PanelEstadisticas({ cargar, cargarCategorias, admin = fa
   const anios = useMemo(() => [...new Set([ANIO_ACTUAL, ...((lista ?? []).map((t) => t.fechaInicio?.slice(0, 4)).filter(Boolean) as string[])])].sort().reverse(), [lista])
 
   const visibles = useMemo(() => (lista ?? [])
-    .filter((t) => !categoria || t.categoria === categoria)
-    .filter((t) => !estado || t.estado === estado)
-    .filter((t) => !anio || (t.fechaInicio ?? '').startsWith(anio))
-    .filter((t) => !mes || (t.fechaInicio ?? '').slice(5, 7) === mes)
-    .filter((t) => !publicacion || !!t.publicado === (publicacion === 'si')),
+    .filter((t) => !categoria.length || categoria.includes(t.categoria))
+    .filter((t) => !estado.length || estado.includes(t.estado))
+    .filter((t) => !anio.length || anio.includes((t.fechaInicio ?? '').slice(0, 4)))
+    .filter((t) => !mes.length || mes.includes((t.fechaInicio ?? '').slice(5, 7)))
+    .filter((t) => !publicacion.length || publicacion.includes(t.publicado ? 'si' : 'no')),
   [lista, categoria, estado, anio, mes, publicacion])
 
-  const hayFiltros = !!(catJugador || categoria || estado || anio || mes || publicacion)
+  const hayFiltros = !!(catJugador.length || categoria.length || estado.length || anio.length || mes.length || publicacion.length)
+  // "A, B y C"
+  const enumerar = (l: string[]) => (l.length < 2 ? l.join('') : `${l.slice(0, -1).join(', ')} y ${l[l.length - 1]}`)
   // filtros aplicados, para las imágenes de los rankings
   const filtros = [
-    catJugador && `Jugadores de ${catJugador}`, categoria && `Torneos de ${categoria}`, estado && nombreEstado(estado), anio, mes && MESES[Number(mes) - 1],
-    publicacion && (publicacion === 'si' ? 'Publicados' : 'No publicados'),
+    catJugador.length && `Jugadores de ${enumerar(catJugador)}`,
+    categoria.length && `Torneos de ${enumerar(categoria)}`,
+    estado.length && enumerar(estado.map(nombreEstado)),
+    anio.length && enumerar(anio),
+    mes.length && enumerar(mes.map((m) => MESES[Number(m) - 1])),
+    // con los dos elegidos es lo mismo que sin filtro
+    publicacion.length === 1 && (publicacion[0] === 'si' ? 'Publicados' : 'No publicados'),
   ].filter(Boolean) as string[]
-  const limpiar = () => { setCatJugador(''); setCategoria(''); setEstado(''); setAnio(''); setMes(''); setPublicacion('') }
+  const limpiar = () => { setCatJugador([]); setCategoria([]); setEstado([]); setAnio([]); setMes([]); setPublicacion([]) }
 
   return (
     <>
@@ -76,50 +84,35 @@ export default function PanelEstadisticas({ cargar, cargarCategorias, admin = fa
         <h1 className="font-display text-4xl font-bold leading-none text-noche">Estadísticas</h1>
         <p className="mt-2 text-sm text-noche/70">
           Rankings de campeones, participaciones y puntos{admin ? '' : ' de los torneos publicados'}.
-          {categorias && ' Con “Categorías” ves solo a los jugadores de una categoría (por ejemplo, el ranking de puntos de 7ma Damas).'}
+          {categorias && ' Con “Categorías” ves solo a los jugadores de una o más categorías (por ejemplo, el ranking de puntos de 7ma Damas).'}
         </p>
       </header>
 
       <div className={`mb-5 grid gap-2 rounded-xl bg-white p-3 ring-1 ring-noche/10 sm:grid-cols-2 ${admin ? 'lg:grid-cols-[1.3fr_1fr_1fr_0.7fr_0.9fr_1fr]' : 'lg:grid-cols-[1.3fr_1fr_1fr_0.7fr_0.9fr]'}`}>
         {categorias && (
-          <Select value={catJugador} onChange={(e) => setCatJugador(esCategoriaJugador(e.target.value) ? e.target.value : '')} aria-label="Categoría de los jugadores">
-            <option value="">Todas las categorías</option>
-            {(['Damas', 'Caballeros'] as const).map((r) => (
-              <optgroup key={r} label={r}>
-                {CATEGORIAS_JUGADOR.filter((c) => rama(c) === r).map((c) => <option key={c} value={c} disabled={!cuentaCategoria.get(c)}>{c}</option>)}
-              </optgroup>
-            ))}
-          </Select>
+          <MultiSelect<CategoriaJugador> valor={catJugador} onChange={setCatJugador} aria-label="Categoría de los jugadores" placeholder="Todas las categorías"
+            plural={(n) => `${n} categorías`}
+            opciones={(['Damas', 'Caballeros'] as const).flatMap((r) =>
+              CATEGORIAS_JUGADOR.filter((c) => rama(c) === r).map((c) => ({ valor: c, label: c, grupo: r, disabled: !cuentaCategoria.get(c) })))} />
         )}
-        <Select value={categoria} onChange={(e) => setCategoria(e.target.value as '' | CategoriaTorneo)} aria-label="Tipo de torneo">
-          <option value="">Damas, Caballeros y Mixto</option>
-          {CATEGORIAS.map((x) => <option key={x} value={x}>Torneos de {x}</option>)}
-        </Select>
-        <Select value={estado} onChange={(e) => setEstado(e.target.value as '' | EstadoTorneo)} aria-label="Estado">
-          <option value="">Todos los estados</option>
-          {ESTADOS.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-        </Select>
-        <Select value={anio} onChange={(e) => setAnio(e.target.value)} aria-label="Año">
-          <option value="">Año</option>
-          {anios.map((a) => <option key={a} value={a}>{a}</option>)}
-        </Select>
-        <Select value={mes} onChange={(e) => setMes(e.target.value)} aria-label="Mes">
-          <option value="">Mes</option>
-          {MESES.map((m, i) => <option key={m} value={String(i + 1).padStart(2, '0')}>{m}</option>)}
-        </Select>
+        <MultiSelect<CategoriaTorneo> valor={categoria} onChange={setCategoria} aria-label="Tipo de torneo" placeholder="Damas, Caballeros y Mixto"
+          opciones={CATEGORIAS.map((x) => ({ valor: x, label: `Torneos de ${x}` }))} plural={(n) => `${n} tipos de torneo`} />
+        <MultiSelect<EstadoTorneo> valor={estado} onChange={setEstado} aria-label="Estado" placeholder="Todos los estados"
+          opciones={ESTADOS.map((e) => ({ valor: e.id, label: e.nombre }))} plural={(n) => `${n} estados`} />
+        <MultiSelect valor={anio} onChange={setAnio} aria-label="Año" placeholder="Año"
+          opciones={anios.map((a) => ({ valor: a, label: a }))} plural={(n) => `${n} años`} />
+        <MultiSelect valor={mes} onChange={setMes} aria-label="Mes" placeholder="Mes"
+          opciones={MESES.map((m, i) => ({ valor: String(i + 1).padStart(2, '0'), label: m }))} plural={(n) => `${n} meses`} />
         {admin && (
-          <Select value={publicacion} onChange={(e) => setPublicacion(e.target.value as '' | 'si' | 'no')} aria-label="Publicación">
-            <option value="">Publicados y no</option>
-            <option value="si">Publicados</option>
-            <option value="no">No publicados</option>
-          </Select>
+          <MultiSelect<'si' | 'no'> valor={publicacion} onChange={setPublicacion} aria-label="Publicación" placeholder="Publicados y no"
+            opciones={[{ valor: 'si', label: 'Publicados' }, { valor: 'no', label: 'No publicados' }]} />
         )}
       </div>
 
       {error && <div className="mb-4"><Alerta tipo="error">{error}</Alerta></div>}
       {hayFiltros && !!lista?.length && (
         <p className="-mt-2 mb-3 text-xs text-noche/55">
-          {visibles.length} de {lista.length} torneos{soloJugadores ? ` · ${soloJugadores.size} jugadores de ${catJugador}` : ''}
+          {visibles.length} de {lista.length} torneos{soloJugadores ? ` · ${soloJugadores.size} jugadores de ${enumerar(catJugador)}` : ''}
         </p>
       )}
       {lista === null ? <Spinner texto="Cargando estadísticas…" /> : visibles.length === 0 ? (
