@@ -8,8 +8,9 @@ import CategoriasPublicas from './Categorias'
 import PanelEstadisticas from '../../components/PanelEstadisticas'
 import type { DatoEstadistica } from '../../components/Estadisticas'
 import { BadgeCategoria, bordeCategoria } from '../../components/Categoria'
+import { GruposEstado } from '../../components/GruposEstado'
 
-/** En curso primero, después los que vienen, los terminados y los cancelados */
+/** Dentro de cada grupo: en curso primero, después los que vienen (los grupos los arma GruposEstado) */
 const ORDEN: Record<EstadoTorneo, number> = { en_curso: 0, pendiente: 1, finalizado: 2, cancelado: 3 }
 
 export const tonoEstado = (e: EstadoTorneo) => (e === 'en_curso' ? 'verde' : e === 'finalizado' ? 'azul' : e === 'cancelado' ? 'rojo' : 'ambar') as 'verde' | 'azul' | 'rojo' | 'ambar'
@@ -123,9 +124,8 @@ function Torneos() {
           {lista.length ? <>Probá cambiando el estado, el año o el mes. <button className="font-semibold text-cancha" onClick={() => { setTexto(''); setCategoria([]); setEstado([]); setAnio([]); setMes([]) }}>Ver todos</button></> : 'Cuando el club publique un torneo, lo vas a ver acá.'}
         </Vacio>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {visibles.map((t) => (
-            <li key={t.id}>
+        <GruposEstado items={visibles} estado={(t) => t.estado} clave={(t) => t.id} render={(t) => (
+            <li>
               <a href={`#/torneo/${t.id}`} className={`flex h-full items-center gap-3 rounded-xl bg-white p-4 ring-1 ring-noche/10 transition hover:ring-cancha/40 ${bordeCategoria(t.categoria)}`}>
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap gap-1">
@@ -146,8 +146,7 @@ function Torneos() {
                 <ChevronRight className="h-5 w-5 shrink-0 text-noche/30" aria-hidden />
               </a>
             </li>
-          ))}
-        </ul>
+          )} />
       )}
     </>
   )

@@ -7,6 +7,7 @@ import { Alerta, Badge, Button, Input, MultiSelect, Spinner, Titulo, Vacio } fro
 import Instructivo from '../components/Instructivo'
 import ImportarTorneos from '../components/ImportarTorneos'
 import { BadgeCategoria, bordeCategoria } from '../components/Categoria'
+import { GruposEstado } from '../components/GruposEstado'
 
 const ANIO_ACTUAL = String(new Date().getFullYear())
 
@@ -114,9 +115,8 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
           <button className="font-semibold text-cancha" onClick={() => { setTexto(''); setCategoria([]); setEstado([]); setAnio([]); setMes([]); setPublicacion([]) }}>Limpiar filtros</button>
         </Vacio>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {visibles.map((c) => (
-            <li key={c.id} className={`flex items-center gap-3 rounded-xl bg-white p-4 ring-1 ${bordeCategoria(c.categoria)} ring-noche/10`}>
+        <GruposEstado items={visibles} estado={(c) => c.estado} clave={(c) => c.id} render={(c) => (
+            <li className={`flex items-center gap-3 rounded-xl bg-white p-4 ring-1 ${bordeCategoria(c.categoria)} ring-noche/10`}>
               <button onClick={() => onAbrir(c.id)} className="min-w-0 flex-1 text-left">
                 <p className="truncate font-display text-xl font-bold">{c.torneo || 'Torneo sin nombre'}</p>
                 <div className="mt-0.5 flex flex-wrap gap-1">
@@ -140,8 +140,7 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
                 <Trash2 className="h-4 w-4" />
               </button>
             </li>
-          ))}
-        </ul>
+          )} />
       )}
     </>
   )
