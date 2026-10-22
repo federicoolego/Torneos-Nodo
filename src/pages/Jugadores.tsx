@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Check, GitMerge, Pencil, Search, Trash2, UserPlus, X } from 'lucide-react'
-import { agregarJugador, eliminarJugador, listarPadronCompleto, renombrarJugador, unificarJugadores, type JugadorPadron } from '../lib/jugadores'
+import { GitMerge, Pencil, Save, Search, Trash2, UserPlus } from 'lucide-react'
+import { agregarJugador, asignarCategoria, eliminarJugador, listarPadronCompleto, renombrarJugador, unificarJugadores, type JugadorPadron } from '../lib/jugadores'
 import { CATEGORIAS_JUGADOR, esCategoriaJugador, rama, type CategoriaJugador } from '../lib/categorias'
 import { BadgeCategoriaJugador } from '../components/Categoria'
 import { claveJugador, mayusculas, nombrePropio } from '../lib/torneo'
@@ -15,10 +15,9 @@ export default function Jugadores() {
   const [texto, setTexto] = useState('')
   // filtro rápido: todos · sin torneos (candidatos a eliminar) · posibles duplicados (candidatos a unificar)
   const [filtro, setFiltro] = useState<'todos' | 'sinTorneos' | 'duplicados'>('todos')
-  const [nuevo, setNuevo] = useState('')
-  const [nuevaCategoria, setNuevaCategoria] = useState<CategoriaJugador | ''>('')
   const [conCategoria, setConCategoria] = useState(true)
-  const [editando, setEditando] = useState<{ id: string; nombre: string } | null>(null)
+  // popup de alta (jugador: null) o edición (jugador existente)
+  const [form, setForm] = useState<{ jugador: JugadorPadron | null } | null>(null)
   const [unificando, setUnificando] = useState<JugadorPadron | null>(null)
 
   const refrescar = useCallback(async () => {
@@ -26,11 +25,11 @@ export default function Jugadores() {
   }, [])
   useEffect(() => { void refrescar() }, [refrescar])
 
-  async function accion(f: () => Promise<string | void>) {
+  async function accion(f: () => Promise<string | void>): Promise<boolean> {
     setOcupado(true)
     setMsg(null)
-    try { const ok = await f(); await refrescar(); if (ok) setMsg({ tipo: 'ok', txt: ok }) }
-    catch (e) { setMsg({ tipo: 'error', txt: e instanceof Error ? e.message : 'Algo salió mal.' }) }
+    try { const ok = await f(); await refrescar(); if (ok) setMsg({ tipo: 'ok', txt: ok }); return true }
+    catch (e) { setMsg({ tipo: 'error', txt: e instanceof Error ? e.message : 'Algo salió mal.' }); return false }
     finally { setOcupado(false) }
   }
 
@@ -51,55 +50,47 @@ export default function Jugadores() {
       && (filtro !== 'duplicados' || duplicadosDe(j).length > 0))
   }, [lista, texto, filtro]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const existente = (nombre: string, salvo?: string) => (lista ?? []).find((j) => j.id !== salvo && j.nombre === mayusculas(nombre))
-
-  function agregar(e: FormEvent) {
-    e.preventDefault()
-    const n = nuevo.trim()
-    if (n.length < 3) return setMsg({ tipo: 'error', txt: 'Escribí nombre y apellido.' })
-    const ya = existente(n) ?? (lista ?? []).find((j) => claveJugador(j.nombre) === claveJugador(n))
-    if (ya) return setMsg({ tipo: 'error', txt: `Ya existe: ${nombrePropio(ya.nombre)}.` })
-    void accion(async () => {
-      await agregarJugador(n, nuevaCategoria || null)
-      setNuevo('')
-      setNuevaCategoria('')
-      return `Agregado: ${nombrePropio(n)}${nuevaCategoria ? ` (${nuevaCategoria})` : ''}.`
-    })
-  }
-
-  function guardarEdicion() {
-    if (!editando) return
-    const n = editando.nombre.trim()
-    if (n.length < 3) return setMsg({ tipo: 'error', txt: 'Escribí nombre y apellido.' })
-    const actual = lista?.find((j) => j.id === editando.id)
-    if (!actual || actual.nombre === mayusculas(n)) { setEditando(null); return }
-    const otro = existente(n, editando.id)
-    if (otro) {
-      // ya existe con ese nombre: es el mismo jugador cargado dos veces → se ofrece unificar
-      if (!confirm(`Ya existe "${nombrePropio(otro.nombre)}". ¿Unificarlos? Las parejas de "${nombrePropio(actual.nombre)}" pasan a "${nombrePropio(otro.nombre)}".`)) return
-      void accion(async () => { await unificarJugadores(actual.id, otro.id); setEditando(null); return `Unificado en ${nombrePropio(otro.nombre)}.` })
-      return
+  /** Alta o edición desde el popup. Devuelve un error para mostrar en el popup, o null si salió bien */
+  async function guardar(datos: { nombre: string; categoria: CategoriaJugador | null }): Promise<string | null> {
+    const actual = form?.jugador ?? null
+    const n = datos.nombre.trim().replace(/\s+/g, ' ')
+    if (!actual) {
+      const ok = await accion(async () => {
+        await agregarJugador(n, datos.categoria)
+        return `Agregado: ${nombrePropio(n)}${datos.categoria ? ` (${datos.categoria})` : ''}.`
+      })
+      if (ok) setForm(null)
+      return ok ? null : 'No se pudo agregar el jugador.'
     }
-    void accion(async () => { await renombrarJugador(editando.id, n); setEditando(null); return `Renombrado a ${nombrePropio(n)} (también en sus torneos).` })
+    const cambiaNombre = actual.nombre !== mayusculas(n)
+    const cambiaCategoria = conCategoria && actual.categoria !== datos.categoria
+    if (!cambiaNombre && !cambiaCategoria) { setForm(null); return null }
+    // ya existe exactamente con ese nombre: es el mismo jugador cargado dos veces → se ofrece unificar
+    const otro = cambiaNombre ? (lista ?? []).find((j) => j.id !== actual.id && j.nombre === mayusculas(n)) : undefined
+    if (otro) {
+      if (!confirm(`Ya existe "${nombrePropio(otro.nombre)}". ¿Unificarlos? Las parejas de "${nombrePropio(actual.nombre)}" pasan a "${nombrePropio(otro.nombre)}".`)) return null
+      const ok = await accion(async () => { await unificarJugadores(actual.id, otro.id); return `Unificado en ${nombrePropio(otro.nombre)}.` })
+      if (ok) setForm(null)
+      return null
+    }
+    const ok = await accion(async () => {
+      if (cambiaNombre) await renombrarJugador(actual.id, n)
+      if (cambiaCategoria) await asignarCategoria(actual.id, datos.categoria)
+      const partes = [
+        cambiaNombre && `renombrado a ${nombrePropio(n)} (también en sus torneos)`,
+        cambiaCategoria && `categoría: ${datos.categoria ?? 'sin categoría'}`,
+      ].filter(Boolean).join(' · ')
+      return `${nombrePropio(cambiaNombre ? n : actual.nombre)}: ${partes}.`
+    })
+    if (ok) setForm(null)
+    return ok ? null : 'No se pudieron guardar los cambios.'
   }
 
   return (
     <>
-      <Titulo bajada="Padrón de jugadores de NODO. Al renombrar, el cambio se aplica en todos sus torneos. Solo se puede eliminar a quien no jugó ningún torneo.">
+      <Titulo bajada="Padrón de jugadores de NODO. Con ✏️ editás nombre y categoría; al renombrar, el cambio se aplica en todos sus torneos. Solo se puede eliminar a quien no jugó ningún torneo.">
         Jugadores
       </Titulo>
-
-      <form onSubmit={agregar} className="mb-4 flex flex-wrap gap-2 rounded-xl bg-white p-3 ring-1 ring-noche/10">
-        <Input value={nuevo} onChange={(e) => setNuevo(e.target.value)} placeholder="Nombre y apellido del jugador nuevo" className="min-w-[14rem] flex-1" aria-label="Jugador nuevo" />
-        {conCategoria && (
-          <Select value={nuevaCategoria} onChange={(e) => setNuevaCategoria(esCategoriaJugador(e.target.value) ? e.target.value : '')} className="w-auto" aria-label="Categoría del jugador nuevo">
-            <option value="">Categoría (opcional)</option>
-            <optgroup label="Damas">{CATEGORIAS_JUGADOR.filter((c) => rama(c) === 'Damas').map((c) => <option key={c} value={c}>{c}</option>)}</optgroup>
-            <optgroup label="Caballeros">{CATEGORIAS_JUGADOR.filter((c) => rama(c) === 'Caballeros').map((c) => <option key={c} value={c}>{c}</option>)}</optgroup>
-          </Select>
-        )}
-        <Button type="submit" cargando={ocupado}><UserPlus className="h-4 w-4" aria-hidden /> Agregar</Button>
-      </form>
 
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <label className="relative min-w-[14rem] flex-1">
@@ -107,6 +98,9 @@ export default function Jugadores() {
           <Input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Buscar jugador…" className="pl-9" aria-label="Buscar jugador" />
         </label>
         {lista && <span className="text-xs text-noche/55">{visibles.length} de {lista.length} jugadores</span>}
+        <Button onClick={() => { setMsg(null); setForm({ jugador: null }) }} disabled={lista === null}>
+          <UserPlus className="h-4 w-4" aria-hidden /> Nuevo jugador
+        </Button>
       </div>
       <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Filtro de jugadores">
         {([
@@ -133,42 +127,32 @@ export default function Jugadores() {
         <ul className="divide-y divide-noche/5 overflow-hidden rounded-xl bg-white ring-1 ring-noche/10">
           {visibles.map((j) => {
             const dups = duplicadosDe(j)
-            const enEdicion = editando?.id === j.id
             return (
               <li key={j.id} className="flex flex-wrap items-center gap-2 px-3 py-2.5">
-                {enEdicion ? (
-                  <div className="flex min-w-0 flex-1 gap-2">
-                    <Input autoFocus value={editando.nombre} onChange={(e) => setEditando({ ...editando, nombre: e.target.value })}
-                      onKeyDown={(e) => { if (e.key === 'Enter') guardarEdicion(); if (e.key === 'Escape') setEditando(null) }}
-                      className="py-1.5" aria-label="Nombre" />
-                    <button onClick={guardarEdicion} disabled={ocupado} aria-label="Guardar" className="p-1.5 text-cancha"><Check className="h-4 w-4" /></button>
-                    <button onClick={() => setEditando(null)} aria-label="Cancelar" className="p-1.5 text-noche/50"><X className="h-4 w-4" /></button>
-                  </div>
-                ) : (
-                  <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-1.5 font-medium text-noche">{nombrePropio(j.nombre)}{conCategoria && <BadgeCategoriaJugador categoria={j.categoria} />}</p>
-                    <p className="text-xs text-noche/55">
-                      {j.torneos ? `${j.torneos} ${j.torneos === 1 ? 'torneo' : 'torneos'}` : 'Sin torneos'}
-                      {dups.length > 0 && <> · <span className="font-semibold text-amber-700">¿Duplicado de {dups.map((d) => nombrePropio(d.nombre)).join(', ')}?</span></>}
-                    </p>
-                  </div>
-                )}
-                {!enEdicion && (
-                  <div className="flex items-center">
-                    <button onClick={() => setEditando({ id: j.id, nombre: nombrePropio(j.nombre) })} disabled={ocupado} title="Editar nombre" aria-label={`Editar ${nombrePropio(j.nombre)}`}
-                      className="p-2 text-noche/50 hover:text-cancha"><Pencil className="h-4 w-4" /></button>
-                    <button onClick={() => setUnificando(j)} disabled={ocupado} title="Unificar con otro jugador (mismo jugador cargado dos veces)" aria-label={`Unificar ${nombrePropio(j.nombre)}`}
-                      className="p-2 text-noche/50 hover:text-cancha"><GitMerge className="h-4 w-4" /></button>
-                    <button disabled={ocupado || j.torneos > 0} title={j.torneos > 0 ? 'No se puede eliminar: jugó algún torneo' : 'Eliminar'} aria-label={`Eliminar ${nombrePropio(j.nombre)}`}
-                      onClick={() => confirm(`¿Eliminar a ${nombrePropio(j.nombre)}?`) && accion(async () => { await eliminarJugador(j.id); return `Eliminado: ${nombrePropio(j.nombre)}.` })}
-                      className="p-2 text-noche/50 hover:text-red disabled:opacity-25 disabled:hover:text-noche/50"><Trash2 className="h-4 w-4" /></button>
-                  </div>
-                )}
+                <div className="min-w-0 flex-1">
+                  <p className="flex flex-wrap items-center gap-1.5 font-medium text-noche">{nombrePropio(j.nombre)}{conCategoria && <BadgeCategoriaJugador categoria={j.categoria} />}</p>
+                  <p className="text-xs text-noche/55">
+                    {j.torneos ? `${j.torneos} ${j.torneos === 1 ? 'torneo' : 'torneos'}` : 'Sin torneos'}
+                    {dups.length > 0 && <> · <span className="font-semibold text-amber-700">¿Duplicado de {dups.map((d) => nombrePropio(d.nombre)).join(', ')}?</span></>}
+                  </p>
+                </div>
+                <div className="flex items-center">
+                  <button onClick={() => { setMsg(null); setForm({ jugador: j }) }} disabled={ocupado} title={conCategoria ? 'Editar nombre y categoría' : 'Editar nombre'} aria-label={`Editar ${nombrePropio(j.nombre)}`}
+                    className="p-2 text-noche/50 hover:text-cancha"><Pencil className="h-4 w-4" /></button>
+                  <button onClick={() => setUnificando(j)} disabled={ocupado} title="Unificar con otro jugador (mismo jugador cargado dos veces)" aria-label={`Unificar ${nombrePropio(j.nombre)}`}
+                    className="p-2 text-noche/50 hover:text-cancha"><GitMerge className="h-4 w-4" /></button>
+                  <button disabled={ocupado || j.torneos > 0} title={j.torneos > 0 ? 'No se puede eliminar: jugó algún torneo' : 'Eliminar'} aria-label={`Eliminar ${nombrePropio(j.nombre)}`}
+                    onClick={() => confirm(`¿Eliminar a ${nombrePropio(j.nombre)}?`) && accion(async () => { await eliminarJugador(j.id); return `Eliminado: ${nombrePropio(j.nombre)}.` })}
+                    className="p-2 text-noche/50 hover:text-red disabled:opacity-25 disabled:hover:text-noche/50"><Trash2 className="h-4 w-4" /></button>
+                </div>
               </li>
             )
           })}
         </ul>
       )}
+
+      <FormJugador abierto={!!form} jugador={form?.jugador ?? null} padron={lista ?? []} conCategoria={conCategoria} ocupado={ocupado}
+        onCerrar={() => setForm(null)} onGuardar={guardar} />
 
       <Unificar origen={unificando} padron={lista ?? []} onCerrar={() => setUnificando(null)}
         onConfirmar={(destino) => {
@@ -203,6 +187,84 @@ function Unificar({ origen, padron, onCerrar, onConfirmar }: {
           <Button disabled={!destino} onClick={() => destino && onConfirmar(destino)}><GitMerge className="h-4 w-4" aria-hidden /> Unificar</Button>
         </div>
       </div>
+    </Modal>
+  )
+}
+
+/** Popup de alta / edición: Apellido y nombre (obligatorio, se valida que no exista) y categoría */
+function FormJugador({ abierto, jugador, padron, conCategoria, ocupado, onCerrar, onGuardar }: {
+  abierto: boolean; jugador: JugadorPadron | null; padron: JugadorPadron[]; conCategoria: boolean; ocupado: boolean
+  onCerrar: () => void; onGuardar: (d: { nombre: string; categoria: CategoriaJugador | null }) => Promise<string | null>
+}) {
+  const [nombre, setNombre] = useState('')
+  const [categoria, setCategoria] = useState<CategoriaJugador | ''>('')
+  const [tocado, setTocado] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    if (!abierto) return
+    setNombre(jugador ? nombrePropio(jugador.nombre) : '')
+    setCategoria(jugador?.categoria ?? '')
+    setTocado(false)
+    setError(null)
+  }, [abierto, jugador])
+
+  const limpio = nombre.trim().replace(/\s+/g, ' ')
+  const palabras = limpio ? limpio.split(' ').length : 0
+  // mismo nombre ignorando tildes y mayúsculas ("PEREZ JUAN" = "Pérez Juan")
+  const yaExiste = limpio ? padron.find((j) => j.id !== jugador?.id && claveJugador(j.nombre) === claveJugador(limpio)) : undefined
+  const exacto = !!yaExiste && yaExiste.nombre === mayusculas(limpio)
+  const errNombre = !limpio ? 'El apellido y nombre es obligatorio.'
+    : palabras < 2 || limpio.length < 3 ? 'Ingresá apellido y nombre (ej.: Perez Juan).'
+    : yaExiste && (!jugador || !exacto) ? `Ya existe: ${nombrePropio(yaExiste.nombre)}${yaExiste.categoria ? ` (${yaExiste.categoria})` : ''}.`
+    : null
+  // al editar, si el nombre coincide exacto con otro se ofrece unificar (no se bloquea)
+  const bloqueaNombre = !!errNombre && !(jugador && exacto)
+  const errCategoria = conCategoria && !jugador && !categoria ? 'Elegí la categoría.' : null
+
+  async function enviar(e: FormEvent) {
+    e.preventDefault()
+    setTocado(true)
+    if (bloqueaNombre || errCategoria) return
+    setError(await onGuardar({ nombre: limpio, categoria: categoria || null }))
+  }
+
+  if (!abierto) return null
+  return (
+    <Modal abierto titulo={jugador ? 'Editar jugador' : 'Nuevo jugador'} onCerrar={onCerrar}>
+      <form onSubmit={enviar} className="space-y-4 text-sm" noValidate>
+        <label className="block">
+          <span className="mb-1 block font-semibold text-noche">Apellido y nombre <span className="text-red">*</span></span>
+          <Input autoFocus value={nombre} onChange={(e) => setNombre(e.target.value)} onBlur={() => setTocado(true)}
+            placeholder="Ej.: Perez Juan" aria-invalid={tocado && bloqueaNombre} aria-describedby="ayuda-nombre" />
+          <span id="ayuda-nombre" className={`mt-1 block text-xs ${tocado && errNombre ? (bloqueaNombre ? 'text-red' : 'text-amber-700') : 'text-noche/55'}`}>
+            {tocado && errNombre
+              ? (jugador && exacto ? `Ya existe "${nombrePropio(yaExiste!.nombre)}": al guardar se ofrece unificarlos.` : errNombre)
+              : limpio && !yaExiste && palabras >= 2 ? <>Se guarda como <strong>{nombrePropio(limpio)}</strong>.</> : 'Primero el apellido, después el nombre.'}
+          </span>
+        </label>
+
+        {conCategoria && (
+          <label className="block">
+            <span className="mb-1 block font-semibold text-noche">Categoría {!jugador && <span className="text-red">*</span>}</span>
+            <Select value={categoria} onChange={(e) => setCategoria(esCategoriaJugador(e.target.value) ? e.target.value : '')} aria-invalid={tocado && !!errCategoria}>
+              <option value="">{jugador ? 'Sin categoría' : 'Elegí una categoría'}</option>
+              <optgroup label="Damas">{CATEGORIAS_JUGADOR.filter((c) => rama(c) === 'Damas').map((c) => <option key={c} value={c}>{c}</option>)}</optgroup>
+              <optgroup label="Caballeros">{CATEGORIAS_JUGADOR.filter((c) => rama(c) === 'Caballeros').map((c) => <option key={c} value={c}>{c}</option>)}</optgroup>
+            </Select>
+            {tocado && errCategoria && <span className="mt-1 block text-xs text-red">{errCategoria}</span>}
+          </label>
+        )}
+
+        {jugador && jugador.torneos > 0 && <p className="text-xs text-noche/55">Jugó {jugador.torneos} {jugador.torneos === 1 ? 'torneo' : 'torneos'}: el cambio de nombre se aplica también en sus parejas.</p>}
+        {error && <Alerta tipo="error">{error}</Alerta>}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <Button type="button" variante="secundario" onClick={onCerrar}>Cancelar</Button>
+          <Button type="submit" cargando={ocupado} disabled={tocado && (bloqueaNombre || !!errCategoria)}>
+            {jugador ? <><Save className="h-4 w-4" aria-hidden /> Guardar</> : <><UserPlus className="h-4 w-4" aria-hidden /> Agregar</>}
+          </Button>
+        </div>
+      </form>
     </Modal>
   )
 }

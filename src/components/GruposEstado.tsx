@@ -4,11 +4,14 @@ import type { EstadoTorneo } from '../lib/torneo'
 
 type ClaveGrupo = 'activos' | 'finalizados' | 'cancelados'
 
-/** Grupos en el orden en que se muestran: Pendientes y En curso juntos, después Finalizados y por último Cancelados */
+/**
+ * Grupos en el orden en que se muestran: Pendientes y En curso juntos, después Finalizados y por último Cancelados.
+ * Cada encabezado lleva el color del tag de su estado (Badge de ui.tsx): En curso verde · Finalizado verde NODO · Cancelado rojo.
+ */
 const GRUPOS: { clave: ClaveGrupo; titulo: string; estados: EstadoTorneo[]; clase: string }[] = [
-  { clave: 'activos', titulo: 'Pendientes y en curso', estados: ['en_curso', 'pendiente'], clase: 'bg-cancha-suave text-noche ring-cancha/20' },
-  { clave: 'finalizados', titulo: 'Finalizados', estados: ['finalizado'], clase: 'bg-white text-noche ring-noche/10' },
-  { clave: 'cancelados', titulo: 'Cancelados', estados: ['cancelado'], clase: 'bg-noche/5 text-noche/70 ring-noche/10' },
+  { clave: 'activos', titulo: 'Pendientes y en curso', estados: ['en_curso', 'pendiente'], clase: 'bg-emerald-50 text-emerald-800 ring-emerald-200' },
+  { clave: 'finalizados', titulo: 'Finalizados', estados: ['finalizado'], clase: 'bg-cancha-suave text-cancha ring-cancha/25' },
+  { clave: 'cancelados', titulo: 'Cancelados', estados: ['cancelado'], clase: 'bg-red/10 text-red ring-red/20' },
 ]
 
 /**
