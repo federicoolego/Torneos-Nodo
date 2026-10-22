@@ -22,8 +22,8 @@ export function GruposEstado<T>({ items, estado, clave, render }: {
   /** cada item, como <li> */
   render: (t: T) => ReactNode
 }) {
-  // por defecto, todos expandidos
-  const [colapsados, setColapsados] = useState<Set<ClaveGrupo>>(new Set())
+  // por defecto, solo Pendientes y en curso expandido: lo primero que se ve son los torneos que se están jugando o vienen
+  const [colapsados, setColapsados] = useState<Set<ClaveGrupo>>(() => new Set<ClaveGrupo>(['finalizados', 'cancelados']))
   const grupos = GRUPOS.map((g) => ({ ...g, items: items.filter((t) => g.estados.includes(estado(t))) })).filter((g) => g.items.length)
   const todosColapsados = grupos.length > 0 && grupos.every((g) => colapsados.has(g.clave))
   const alternar = (k: ClaveGrupo) => setColapsados((s) => {
@@ -34,7 +34,7 @@ export function GruposEstado<T>({ items, estado, clave, render }: {
 
   return (
     <div className="space-y-4">
-      {grupos.length > 1 && (
+      {grupos.length > 0 && (
         <div className="flex justify-end">
           <button onClick={() => setColapsados(todosColapsados ? new Set() : new Set(grupos.map((g) => g.clave)))}
             aria-label={todosColapsados ? 'Expandir todos los grupos' : 'Colapsar todos los grupos'}

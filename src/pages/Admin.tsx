@@ -68,7 +68,7 @@ export default function Admin() {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <button onClick={async () => { await vaciar(); abrir(null); window.location.hash = '#/admin' }} className="flex items-center gap-3 text-left">
             <img src={logoUrl()} alt="NODO Club de Pádel & Co." className="h-10 w-10 rounded-lg" />
-            <span className="font-display text-xl font-bold leading-none">Generador de Torneos</span>
+            <span className="font-display text-lg font-bold leading-tight sm:text-xl">NODO Club de Pádel &amp; Co</span>
           </button>
           <div className="flex items-center gap-3">
             {/* volver a la página pública de torneos */}
