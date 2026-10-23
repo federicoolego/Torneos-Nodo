@@ -70,8 +70,8 @@ export default function Admin() {
       <header className="sticky top-0 z-30 bg-noche text-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <button onClick={async () => { await vaciar(); abrir(null); window.location.hash = '#/admin' }} className="flex items-center gap-3 text-left">
-            <img src={logoUrl()} alt="NODO Club de Pádel & Co." className="h-10 w-10 rounded-lg" />
-            <span className="font-display text-lg font-bold leading-tight sm:text-xl">NODO Club de Pádel &amp; Co</span>
+            <img src={logoUrl()} alt="NODO Club de Pádel & Co. - Administrador" className="h-10 w-10 rounded-lg" />
+            <span className="font-display text-lg font-bold leading-tight sm:text-xl">NODO Club de Pádel &amp; Co - Administrador</span>
           </button>
           <div className="flex items-center gap-3">
             {/* instructivo: abre en la pestaña que se está mirando */}
@@ -79,7 +79,7 @@ export default function Admin() {
             {/* volver a la página pública de torneos */}
             <button onClick={async () => { await vaciar(); window.location.hash = '#/' }}
               className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/80 ring-1 ring-white/25 hover:bg-white/10 hover:text-white">
-              <Globe className="h-4 w-4" aria-hidden /> Ver página pública
+              <Globe className="h-4 w-4" aria-hidden /> NODO
             </button>
             <button onClick={async () => { await vaciar(); await salir(); setLogueado(false) }} aria-label="Cerrar sesión" title="Cerrar sesión" className="text-white/70 hover:text-white">
               <LogOut className="h-5 w-5" />
