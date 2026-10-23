@@ -4,7 +4,7 @@
  * Categorías de jugador en la página pública: pestaña "Categorías" y filtro "Categorías" de Estadísticas.
  * false = ocultas (el admin las sigue viendo y editando) · true = visibles para todos.
  */
-export const MOSTRAR_CATEGORIAS_PUBLICAS = false
+export const MOSTRAR_CATEGORIAS_PUBLICAS = true
 import { supabase } from './supabase'
 import { desdeFilas, type FilaInstancia, type FilaPareja, type FilaPartido, type FilaTorneo } from './almacen'
 import type { Categoria, CategoriaTorneo, EstadoTorneo } from './torneo'
