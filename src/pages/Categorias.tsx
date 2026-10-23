@@ -67,8 +67,16 @@ export default function Categorias() {
 
   const { colapsada, alternar, expandirTodas, colapsarTodas } = useColapso()
   const [generando, compartir] = useCompartirCategorias()
+  // al entrar (y al limpiar la búsqueda) todo colapsado, salvo "Sin asignar" si hay jugadores pendientes de categoría;
   // al buscar se expanden todas, para ver las coincidencias
-  useEffect(() => { if (texto.trim()) expandirTodas() }, [texto, expandirTodas])
+  const cargada = lista !== null
+  const buscando = !!texto.trim()
+  useEffect(() => {
+    if (!cargada) return
+    if (buscando) { expandirTodas(); return }
+    const pendientes = (lista ?? []).some((j) => !j.categoria)
+    colapsarTodas(pendientes ? [...CATEGORIAS_JUGADOR] : [SIN, ...CATEGORIAS_JUGADOR])
+  }, [cargada, buscando, expandirTodas, colapsarTodas]) // eslint-disable-line react-hooks/exhaustive-deps
   const enPantalla: Grupo[] = [SIN, ...CATEGORIAS_JUGADOR].filter((g) => !palabras.length || (porGrupo.get(g)?.length ?? 0) > 0)
   const todasColapsadas = enPantalla.length > 0 && enPantalla.every((g) => colapsada(g))
   // "Compartir todas": solo las categorías (los jugadores sin asignar se comparten desde su card)

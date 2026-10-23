@@ -88,6 +88,7 @@ export const AYUDA_ADMIN: SeccionAyuda[] = [
       <>Con ✏️ corregís nombre y categoría: al renombrar, el cambio se aplica en todos sus torneos.</>,
       <>Filtro <strong>Posibles duplicados</strong>: mismo nombre ignorando tildes y mayúsculas. Usá “Unificar” para dejarlo en uno solo (pasa sus torneos al que queda).</>,
       <>Filtro <strong>Sin torneos</strong>: candidatos a eliminar. Solo se puede eliminar a quien no jugó ningún torneo.</>,
+      <>Filtro <strong>Sin categoría</strong>: los que todavía no tienen categoría asignada (sin ella no se puede validar la pareja al inscribirla).</>,
     ],
     tips: [
       <>En la base los nombres quedan en MAYÚSCULAS; en la app se muestran con mayúscula inicial.</>,
@@ -102,8 +103,8 @@ export const AYUDA_ADMIN: SeccionAyuda[] = [
     pasos: [
       <>Buscá al jugador por nombre o apellido, o recorré las tarjetas por categoría.</>,
       <>Elegí su categoría: se guarda al instante.</>,
-      <>Empezá por la tarjeta <strong>Sin categoría</strong> para completar a los que faltan.</>,
-      <>Compartí una categoría o todas juntas como imagen; plegá o desplegá las tarjetas para moverte más rápido.</>,
+      <>Las tarjetas arrancan plegadas; si hay jugadores sin categoría, la tarjeta <strong>Sin asignar</strong> aparece abierta para completar a los que faltan.</>,
+      <>Compartí una categoría o todas juntas como imagen; tocá el encabezado de una tarjeta para desplegarla (al buscar se despliegan todas).</>,
     ],
     tips: [
       <>Para cambios masivos (ascensos y recategorizaciones del corte), usá la pestaña <strong>Ascensos</strong>: aplica todo junto y genera las imágenes.</>,

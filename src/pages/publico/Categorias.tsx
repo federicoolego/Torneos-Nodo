@@ -41,8 +41,13 @@ export default function CategoriasPublicas() {
 
   const { colapsada, alternar, expandirTodas, colapsarTodas } = useColapso()
   const [generando, compartir] = useCompartirCategorias()
-  // al buscar se expanden todas, para ver las coincidencias
-  useEffect(() => { if (texto.trim()) expandirTodas() }, [texto, expandirTodas])
+  // al entrar (y al limpiar la búsqueda) todas colapsadas; al buscar se expanden todas, para ver las coincidencias
+  const cargada = lista !== null
+  const buscando = !!texto.trim()
+  useEffect(() => {
+    if (!cargada) return
+    if (buscando) expandirTodas(); else colapsarTodas([...CATEGORIAS_JUGADOR])
+  }, [cargada, buscando, expandirTodas, colapsarTodas])
   const enPantalla = CATEGORIAS_JUGADOR.filter((c) => porCategoria.get(c)!.length)
   const todasColapsadas = enPantalla.length > 0 && enPantalla.every((c) => colapsada(c))
   const grupo = (c: CategoriaJugador) => ({ titulo: c, rama: rama(c), nombres: completas.get(c)! })

@@ -13,8 +13,8 @@ export default function Jugadores() {
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'error'; txt: string } | null>(null)
   const [ocupado, setOcupado] = useState(false)
   const [texto, setTexto] = useState('')
-  // filtro rápido: todos · sin torneos (candidatos a eliminar) · posibles duplicados (candidatos a unificar)
-  const [filtro, setFiltro] = useState<'todos' | 'sinTorneos' | 'duplicados'>('todos')
+  // filtro rápido: todos · sin torneos (candidatos a eliminar) · sin categoría (pendientes de asignar) · posibles duplicados (candidatos a unificar)
+  const [filtro, setFiltro] = useState<'todos' | 'sinTorneos' | 'sinCategoria' | 'duplicados'>('todos')
   const [conCategoria, setConCategoria] = useState(true)
   // popup de alta (jugador: null) o edición (jugador existente)
   const [form, setForm] = useState<{ jugador: JugadorPadron | null } | null>(null)
@@ -42,11 +42,13 @@ export default function Jugadores() {
   const duplicadosDe = (j: JugadorPadron) => (grupos.get(claveJugador(j.nombre)) ?? []).filter((x) => x.id !== j.id)
   const cantDuplicados = useMemo(() => [...grupos.values()].filter((g) => g.length > 1).reduce((s, g) => s + g.length, 0), [grupos])
   const cantSinTorneos = useMemo(() => (lista ?? []).filter((j) => !j.torneos).length, [lista])
+  const cantSinCategoria = useMemo(() => (lista ?? []).filter((j) => !j.categoria).length, [lista])
 
   const visibles = useMemo(() => {
     const q = claveJugador(texto)
     return (lista ?? []).filter((j) => (!q || claveJugador(j.nombre).includes(q))
       && (filtro !== 'sinTorneos' || !j.torneos)
+      && (filtro !== 'sinCategoria' || !j.categoria)
       && (filtro !== 'duplicados' || duplicadosDe(j).length > 0))
   }, [lista, texto, filtro]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -106,6 +108,7 @@ export default function Jugadores() {
         {([
           { id: 'todos', label: 'Todos', n: lista?.length ?? 0, ayuda: undefined },
           { id: 'sinTorneos', label: 'Sin torneos', n: cantSinTorneos, ayuda: 'Candidatos a eliminar: no jugaron ningún torneo' },
+          ...(conCategoria ? [{ id: 'sinCategoria', label: 'Sin categoría', n: cantSinCategoria, ayuda: 'Pendientes de asignar categoría (se valida al inscribir parejas)' }] as const : []),
           { id: 'duplicados', label: 'Posibles duplicados', n: cantDuplicados, ayuda: 'Candidatos a unificar: mismo nombre sin importar tildes' },
         ] as const).map((o) => (
           <button key={o.id} onClick={() => setFiltro(o.id)} aria-pressed={filtro === o.id} title={o.ayuda}
@@ -115,12 +118,13 @@ export default function Jugadores() {
         ))}
       </div>
       {filtro === 'sinTorneos' && !!cantSinTorneos && <p className="-mt-1 mb-3 text-xs text-noche/55">No jugaron ningún torneo: se pueden eliminar (por ejemplo, si quedaron cargados por error o como duplicado).</p>}
+      {filtro === 'sinCategoria' && !!cantSinCategoria && <p className="-mt-1 mb-3 text-xs text-noche/55">Todavía no tienen categoría: asignásela con <Pencil className="inline h-3.5 w-3.5" aria-hidden /> o desde la pestaña Categorías.</p>}
       {filtro === 'duplicados' && !!cantDuplicados && <p className="-mt-1 mb-3 text-xs text-noche/55">Mismo nombre si se ignoran tildes y mayúsculas. Usá <GitMerge className="inline h-3.5 w-3.5" aria-hidden /> para unificarlos en uno.</p>}
 
       {msg && <div className="mb-3"><Alerta tipo={msg.tipo}>{msg.txt}</Alerta></div>}
 
       {lista === null ? <Spinner texto="Cargando jugadores…" /> : visibles.length === 0 ? (
-        <Vacio titulo={!lista.length ? 'Todavía no hay jugadores' : filtro === 'sinTorneos' && !cantSinTorneos ? 'Todos los jugadores jugaron algún torneo' : filtro === 'duplicados' && !cantDuplicados ? 'No hay posibles duplicados' : 'No hay jugadores con esa búsqueda'}>
+        <Vacio titulo={!lista.length ? 'Todavía no hay jugadores' : filtro === 'sinTorneos' && !cantSinTorneos ? 'Todos los jugadores jugaron algún torneo' : filtro === 'sinCategoria' && !cantSinCategoria ? 'Todos los jugadores tienen categoría' : filtro === 'duplicados' && !cantDuplicados ? 'No hay posibles duplicados' : 'No hay jugadores con esa búsqueda'}>
           {lista.length ? null : 'Se agregan acá o al inscribir parejas en un torneo.'}
         </Vacio>
       ) : (

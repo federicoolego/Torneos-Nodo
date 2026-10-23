@@ -71,7 +71,7 @@ export const AYUDA_PUBLICA: SeccionAyuda[] = [
     titulo: 'Categorías',
     que: <>Los jugadores de NODO agrupados por su categoría actual.</>,
     para: <>Saber en qué categoría está cada jugador para armar parejas que puedan anotarse en cada torneo.</>,
-    pasos: [<>Buscá un nombre o recorré las tarjetas por categoría.</>],
+    pasos: [<>Buscá un nombre o tocá una categoría para desplegarla (arrancan plegadas; al buscar se despliegan solas).</>],
   }] : []),
   {
     id: 'ascensos',
