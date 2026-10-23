@@ -148,11 +148,14 @@ export default function Categorias() {
         <div className="space-y-5">
           {card(SIN)}
           {(['Damas', 'Caballeros'] as const).map((r) => {
-            const cards = CATEGORIAS_JUGADOR.filter((c) => rama(c) === r).map(card).filter(Boolean)
+            const cats = CATEGORIAS_JUGADOR.filter((c) => rama(c) === r)
+            const cards = cats.map(card).filter(Boolean)
             if (!cards.length) return null
+            // total de la rama: cambia al buscar (solo cuenta las coincidencias)
+            const total = cats.reduce((n, c) => n + (porGrupo.get(c)?.length ?? 0), 0)
             return (
               <div key={r}>
-                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-noche/55">{r}</h2>
+                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-noche/55">{r} <span className="num ml-1 rounded-full bg-noche/10 px-1.5 py-0.5 text-[11px] text-noche/70">{total}</span></h2>
                 <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">{cards}</div>
               </div>
             )
