@@ -16,6 +16,8 @@ import Ascensos from './Ascensos'
 import PanelEstadisticas from '../components/PanelEstadisticas'
 import { listar } from '../lib/almacen'
 import { listarBase } from '../lib/jugadores'
+import BotonAyuda from '../components/Ayuda'
+import { AYUDA_ADMIN } from '../components/ayuda/admin'
 
 /** Torneos del panel con los datos que usan las estadísticas */
 const cargarEstadisticas = async () => (await listar()).map((t) => ({ ...t, nombre: t.torneo }))
@@ -72,6 +74,8 @@ export default function Admin() {
             <span className="font-display text-lg font-bold leading-tight sm:text-xl">NODO Club de Pádel &amp; Co</span>
           </button>
           <div className="flex items-center gap-3">
+            {/* instructivo: abre en la pestaña que se está mirando */}
+            <BotonAyuda secciones={AYUDA_ADMIN} actual={() => pestana} titulo="Ayuda · Panel de administración" />
             {/* volver a la página pública de torneos */}
             <button onClick={async () => { await vaciar(); window.location.hash = '#/' }}
               className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/80 ring-1 ring-white/25 hover:bg-white/10 hover:text-white">

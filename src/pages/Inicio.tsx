@@ -4,7 +4,6 @@ import { completarAlcances, duplicar, eliminar, listar, migrarLocales, torneosLo
 import { CATEGORIAS, ESTADOS, MESES, nombreEstado, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../lib/torneo'
 import { normalizarTexto } from '../lib/publico'
 import { Alerta, Badge, Button, Input, MultiSelect, Spinner, Titulo, Vacio } from '../components/ui'
-import Instructivo from '../components/Instructivo'
 import ImportarTorneos from '../components/ImportarTorneos'
 import { BadgeCategoria, bordeCategoria } from '../components/Categoria'
 import { GruposEstado } from '../components/GruposEstado'
@@ -79,7 +78,6 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
       }>
         Torneos
       </Titulo>
-      <Instructivo />
       {locales > 0 && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-cancha-suave p-4 ring-1 ring-cancha/20">
           <p className="text-sm text-noche/80">En este navegador quedaron <strong>{locales} torneo(s)</strong> de la versión anterior (sin base de datos).</p>

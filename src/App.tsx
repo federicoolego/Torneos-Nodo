@@ -5,6 +5,8 @@ import { Alerta, Spinner } from './components/ui'
 import ListaPublica from './pages/publico/Lista'
 import TorneoPublico from './pages/publico/Torneo'
 import AvisoVersion from './components/AvisoVersion'
+import BotonAyuda from './components/Ayuda'
+import { AYUDA_PUBLICA, pestanaPublica } from './components/ayuda/publico'
 import { BUILD, FECHA_BUILD, VERSION, recargarSiFaltanArchivos } from './lib/version'
 
 // si quedó abierta una versión vieja y le faltan archivos (por ejemplo, el panel de admin), recarga sola
@@ -60,9 +62,12 @@ export default function App() {
             <img src={logoUrl()} alt="" className="h-10 w-10 shrink-0 rounded-lg" />
             <span className="font-display text-lg font-bold leading-tight sm:text-xl">NODO Club de Pádel &amp; Co</span>
           </a>
+          <div className="flex shrink-0 items-center gap-2">
+          <BotonAyuda secciones={AYUDA_PUBLICA} actual={pestanaPublica} titulo="Ayuda · Cómo usar la página" />
           <a href="#/admin" className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/80 ring-1 ring-white/25 hover:bg-white/10 hover:text-white">
             <Lock className="h-4 w-4" aria-hidden /> Admin
           </a>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">
