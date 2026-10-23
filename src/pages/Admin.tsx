@@ -7,7 +7,7 @@ import { nuevaCategoria, type Categoria } from '../lib/torneo'
 import Login from './Login'
 import Inicio from './Inicio'
 import Editor from './Editor'
-import { Firma, logoUrl, useRuta } from '../App'
+import { PieFijo, logoUrl, useRuta } from '../App'
 import Jugadores from './Jugadores'
 import CronogramaVarios from '../components/CronogramaVarios'
 import Fechas from './Fechas'
@@ -102,7 +102,7 @@ export default function Admin() {
         {pestana === 'jugadores' ? <Jugadores /> : pestana === 'categorias' ? <Categorias /> : pestana === 'ascensos' ? <Ascensos /> : pestana === 'estadisticas' ? <PanelEstadisticas cargar={cargarEstadisticas} cargarCategorias={cargarCategorias} admin />
           : pestana === 'fechas' ? <Fechas /> : pestana === 'calendario' ? <CronogramaVarios /> : abierta ? <Editor key={abierta} id={abierta} inicial={nuevo ?? undefined} onVolver={() => abrir(null)} /> : <Inicio onAbrir={abrir} onNuevo={crear} />}
       </main>
-      <Firma />
+      <PieFijo />
     </div>
   )
 }

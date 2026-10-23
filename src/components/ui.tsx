@@ -1,6 +1,9 @@
 import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { X, Loader2, AlertTriangle, CheckCircle2, Info, ChevronDown } from 'lucide-react'
 
+/** Alto del pie fijo (sin el área segura del teléfono): lo usan los elementos flotantes para no taparlo */
+export const ALTO_PIE = '1.75rem'
+
 type Variante = 'primario' | 'secundario' | 'peligro' | 'fantasma'
 
 const VARIANTES: Record<Variante, string> = {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { RefreshCw, X } from 'lucide-react'
+import { ALTO_PIE } from './ui'
 import { BUILD, CADA_MS, recargar, versionPublicada, type InfoVersion } from '../lib/version'
 
 /** Cartel abajo de la pantalla cuando se publicó una versión más nueva que la que se está usando */
@@ -24,7 +25,7 @@ export default function AvisoVersion({ admin = false }: { admin?: boolean }) {
   // "Más tarde" lo oculta hasta que salga otra versión
   if (!nueva || cerrado === nueva.build) return null
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 px-4" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }} role="status" aria-live="polite">
+    <div className="fixed inset-x-0 bottom-0 z-50 px-4" style={{ paddingBottom: `calc(max(1rem, env(safe-area-inset-bottom)) + ${ALTO_PIE})` }} role="status" aria-live="polite">
       <div className="mx-auto flex max-w-xl items-center gap-3 rounded-2xl bg-noche px-4 py-3 text-white shadow-xl">
         <RefreshCw className="h-5 w-5 shrink-0 text-pelota" aria-hidden />
         <p className="min-w-0 flex-1 text-sm">

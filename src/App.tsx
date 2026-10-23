@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Lock } from 'lucide-react'
 import { configurado } from './lib/supabase'
-import { Alerta, Spinner } from './components/ui'
+import { ALTO_PIE, Alerta, Spinner } from './components/ui'
 import ListaPublica from './pages/publico/Lista'
 import TorneoPublico from './pages/publico/Torneo'
 import AvisoVersion from './components/AvisoVersion'
@@ -24,6 +24,19 @@ export function Firma() {
       <p><span aria-hidden>🎾</span> Desarrollado por Federico Olego <span aria-hidden>🎾</span></p>
       <p className="num mt-0.5 text-[10px] text-noche/35" title={`Build ${BUILD} · ${fecha}`}>v{VERSION}</p>
     </div>
+  )
+}
+
+/** Pie fijo abajo, mismos colores que el header: firma centrada y versión a la derecha */
+export function PieFijo() {
+  const fecha = new Date(FECHA_BUILD).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+  return (
+    <footer className="fixed inset-x-0 bottom-0 z-30 bg-noche text-white" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="relative mx-auto flex max-w-5xl items-center justify-center px-4" style={{ height: ALTO_PIE }}>
+        <p className="truncate pr-12 text-xs text-white/75 sm:pr-0"><span aria-hidden>🎾</span> Desarrollado por Federico Olego <span aria-hidden>🎾</span></p>
+        <span className="num absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-white/45" title={`Build ${BUILD} · ${fecha}`}>v{VERSION}</span>
+      </div>
+    </footer>
   )
 }
 
@@ -55,7 +68,7 @@ export default function App() {
   }
   const m = ruta.match(/^#\/torneo\/([0-9a-f-]{36})/i)
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-10">
       <header className="sticky top-0 z-30 bg-noche text-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <a href="#/" className="flex min-w-0 items-center gap-3">
@@ -73,7 +86,7 @@ export default function App() {
       <main className="mx-auto max-w-5xl px-4 py-6">
         {m ? <TorneoPublico key={m[1]} id={m[1]} /> : <ListaPublica />}
       </main>
-      <footer className="pb-4"><Firma /></footer>
+      <PieFijo />
       <AvisoVersion />
     </div>
   )

@@ -5,7 +5,7 @@ import {
   MAX_PAREJAS, MIN_PAREJAS, datosCompletos, erroresCuadro, precargarHorarios, nombreEstado, zonasArmadas, firmaZonas, horarioCompleto, partidosDeZona, rangoFechas, rondasPlayoff, type Categoria,
 } from '../lib/torneo'
 import { estadoTorneo, resolverTorneo } from '../lib/resultados'
-import { Alerta, Badge, Button, Modal, Spinner } from '../components/ui'
+import { ALTO_PIE, Alerta, Badge, Button, Modal, Spinner } from '../components/ui'
 import Compartir from '../components/Compartir'
 import { PasoDatos, PasoParejas } from '../components/pasos/Datos'
 import PasoZonas from '../components/pasos/Zonas'
@@ -176,7 +176,7 @@ export default function Editor({ id, inicial, onVolver }: { id: string; inicial?
         title={estado.listo[2] ? 'Generar y compartir imágenes' : 'Armá las zonas para generar las imágenes'}
         aria-label="Generar y compartir imágenes"
         className="fixed bottom-6 right-6 z-40 grid h-16 w-16 place-items-center rounded-full bg-[#1FA855] text-white shadow-xl ring-4 ring-white transition hover:scale-105 disabled:bg-noche/30 disabled:hover:scale-100"
-        style={{ bottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
+        style={{ bottom: `calc(max(1.5rem, env(safe-area-inset-bottom)) + ${ALTO_PIE})` }}
       >
         <Share2 className="h-7 w-7" />
       </button>
