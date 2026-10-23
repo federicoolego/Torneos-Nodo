@@ -89,3 +89,10 @@ export function aptitudPareja(
   }
   return { estado: motivos.length ? 'no' : 'ok', motivos }
 }
+
+/** Tipo de cambio de categoría: baja el número (7ma → 6ta) = ascenso; sube (6ta → 7ma) = recategorización */
+export type TipoMovimiento = 'ascenso' | 'recategorizacion'
+export const tipoMovimiento = (antes: CategoriaJugador, nueva: CategoriaJugador): TipoMovimiento =>
+  (nivel(nueva) < nivel(antes) ? 'ascenso' : 'recategorizacion')
+/** Categorías a las que puede pasar un jugador: las de su misma rama, menos la actual */
+export const destinosPosibles = (actual: CategoriaJugador) => CATEGORIAS_JUGADOR.filter((c) => rama(c) === rama(actual) && c !== actual)

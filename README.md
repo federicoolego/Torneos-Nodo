@@ -28,6 +28,9 @@ compu que no permite compartir archivos, las descarga para adjuntarlas a mano.
 - La página pública lee solo con las funciones `torneos_nodo_publicos()` y `torneos_nodo_publico(id)` (ver `supabase/torneos_nodo_publico.sql`): solo torneos publicados y sin datos internos.
 - La página pública también muestra **Estadísticas** (las mismas del panel, sin el dato de publicación), calculadas solo sobre los torneos publicados.
   Requiere correr `supabase/torneos_nodo_publico_estadisticas.sql` (agrega los jugadores al listado público).
+- **Ascensos** (admin, `#/admin/ascensos`): tandas de cambios de categoría (cada 2 o 3 meses). En borrador se cargan los jugadores y su categoría nueva
+  sin tocar el padrón; **Aplicar tanda** actualiza a todos juntos (y se puede **Revertir**). Si baja el número (7ma → 6ta) es un *ascenso* y genera
+  una imagen de felicitaciones por categoría; si sube (6ta → 7ma) es una *recategorización* y genera una imagen informativa.
 - Cada categoría tiene su color (borde de la tarjeta y etiqueta): Damas rosa, Caballeros azul, Mixto violeta. Se cambian en `tailwind.config.js` (`damas`, `caballeros`, `mixto`).
 
 ## Base de datos y acceso
@@ -36,6 +39,7 @@ compu que no permite compartir archivos, las descarga para adjuntarlas a mano.
 2. **Authentication → Users → Add user**: `nodo@generador.nodo.com.ar`, con contraseña y *Auto Confirm User*.
    En la app se entra con usuario `NODO` y esa contraseña.
 3. Solo los emails de `torneos_nodo_usuarios` pueden leer y escribir (RLS), aunque haya otros usuarios en el proyecto.
+4. Para la pestaña **Ascensos** del admin corré `supabase/torneos_nodo_recategorizaciones.sql` (requiere el SQL de categorías de jugadores).
 
 ## Publicar
 

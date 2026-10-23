@@ -23,4 +23,6 @@ export const T = {
   partidos: 'torneos_nodo_partidos',
   jugadores: 'torneos_nodo_jugadores',
   jornadas: 'torneos_nodo_jornadas',
+  recategorizaciones: 'torneos_nodo_recategorizaciones',
+  recatMovimientos: 'torneos_nodo_recategorizaciones_movimientos',
 } as const

@@ -70,7 +70,10 @@ function rect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h:
 
 // ------------------------------------------------------------------ íconos (trazos de lucide, 24×24)
 type Nodo = ['path', string] | ['rect', number, number, number, number, number] | ['circle', number, number, number]
-const ICONOS: Record<'trofeo' | 'premio' | 'calendario' | 'ticket' | 'usuarios', Nodo[]> = {
+const ICONOS: Record<'trofeo' | 'premio' | 'calendario' | 'ticket' | 'usuarios' | 'subir' | 'flecha' | 'info', Nodo[]> = {
+  subir: [['path', 'm5 12 7-7 7 7'], ['path', 'M12 19V5']],
+  flecha: [['path', 'M5 12h14'], ['path', 'm12 5 7 7-7 7']],
+  info: [['circle', 12, 12, 10], ['path', 'M12 16v-4'], ['path', 'M12 8h.01']],
   usuarios: [
     ['path', 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'], ['circle', 9, 7, 4],
     ['path', 'M22 21v-2a4 4 0 0 0-3-3.87'], ['path', 'M16 3.13a4 4 0 0 1 0 7.75'],
@@ -707,6 +710,253 @@ export async function imagenesCategoria({ titulo, rama, nombres }: {
       ctx.textAlign = 'left'
     }
     pie(ctx, alto - 36)
+    out.push(await aBlob(canvas))
+  }
+  return out
+}
+
+// ------------------------------------------------------------------ ascensos y recategorizaciones
+export interface DatosMovimientos {
+  /** categoría nueva: "6ta Caballeros" */
+  categoria: string
+  rama: 'Damas' | 'Caballeros'
+  /** nombres como se muestran, con la categoría anterior */
+  jugadores: { nombre: string; antes: string }[]
+  /** nombre de la tanda: "Recategorización Octubre 2026" */
+  tanda: string
+  /** DD/MM/AAAA */
+  vigencia: string
+}
+
+const ASCENSOS_POR_IMAGEN = 12
+const RECAT_POR_IMAGEN = 22
+/** "7ma Caballeros" → "7ma" */
+const numCat = (c: string) => c.split(' ')[0]
+
+/** Generador pseudoaleatorio con semilla: el confeti sale siempre igual para la misma categoría */
+function azar(semilla: number) {
+  let s = semilla % 2147483647 || 1
+  return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646 }
+}
+const semillaDe = (t: string) => [...t].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) % 2147483647, 7)
+
+function confeti(ctx: CanvasRenderingContext2D, alto: number, colores: string[], semilla: number, libre: { x: number; y0: number; y1: number }) {
+  const r = azar(semilla)
+  for (let i = 0; i < 70; i++) {
+    const x = r() * ANCHO, y = r() * alto
+    // no tapa el título
+    if (x < libre.x && y > libre.y0 && y < libre.y1) { r(); r(); continue }
+    ctx.save()
+    ctx.translate(x, y)
+    ctx.rotate(r() * Math.PI)
+    ctx.globalAlpha = 0.55 + r() * 0.45
+    ctx.fillStyle = colores[i % colores.length]
+    if (i % 3 === 0) { ctx.beginPath(); ctx.arc(0, 0, 4 + r() * 4, 0, Math.PI * 2); ctx.fill() } else ctx.fillRect(-9, -3.5, 14 + r() * 8, 7)
+    ctx.restore()
+  }
+}
+
+function pelotita(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = C.lima; ctx.fill()
+  ctx.strokeStyle = C.blanco; ctx.lineWidth = 2.4
+  ctx.beginPath(); ctx.arc(x - r * 1.05, y, r * 0.8, -0.9, 0.9); ctx.stroke()
+  ctx.beginPath(); ctx.arc(x + r * 1.05, y, r * 0.8, Math.PI - 0.9, Math.PI + 0.9); ctx.stroke()
+}
+
+function partir<T>(lista: T[], n: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < lista.length; i += n) out.push(lista.slice(i, i + n))
+  return out.length ? out : [[]]
+}
+
+/** Imagen festiva de los que ascienden a una categoría (una o más, según la cantidad) */
+export async function imagenesAscenso({ categoria, rama, jugadores, tanda, vigencia }: DatosMovimientos): Promise<Blob[]> {
+  await fuentes()
+  const img = await logo()
+  const color = COLOR_RAMA[rama]
+  const partes = partir(jugadores, ASCENSOS_POR_IMAGEN)
+  const out: Blob[] = []
+  for (let pi = 0; pi < partes.length; pi++) {
+    const parte = partes[pi]
+    const altoCab = 430, filaH = 96, gap = 14
+    const altoLista = Math.max(1, parte.length) * (filaH + gap) - gap
+    const nota = partes.length > 1 ? `Imagen ${pi + 1} de ${partes.length}` : ''
+    const alto = altoCab + 12 + 56 + altoLista + (nota ? 40 : 0) + 150 + 110
+    const canvas = document.createElement('canvas')
+    canvas.width = ANCHO
+    canvas.height = alto
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = C.fondo
+    ctx.fillRect(0, 0, ANCHO, alto)
+
+    // cabecera: categoría nueva gigante de fondo + confeti + título
+    ctx.fillStyle = C.noche
+    ctx.fillRect(0, 0, ANCHO, altoCab)
+    ctx.save()
+    ctx.beginPath(); ctx.rect(0, 0, ANCHO, altoCab); ctx.clip()
+    ctx.font = `700 520px ${DISPLAY}`
+    ctx.fillStyle = 'rgba(200,220,60,0.07)'
+    ctx.textAlign = 'right'
+    ctx.fillText(numCat(categoria), ANCHO + 30, altoCab + 40)
+    ctx.restore()
+    confeti(ctx, altoCab, [C.lima, color, C.blanco], semillaDe(categoria) + pi, { x: 760, y0: 180, y1: 390 })
+    ctx.drawImage(img, MARGEN, 44, 120, 120)
+    ctx.font = `700 24px ${TEXTO}`
+    const et = 'ASCENSO'
+    const ew = ctx.measureText(et).width + 92
+    rect(ctx, ANCHO - MARGEN - ew, 62, ew, 50, 25, C.lima)
+    icono(ctx, 'subir', ANCHO - MARGEN - ew + 18, 74, 26, C.noche)
+    ctx.fillStyle = C.noche
+    ctx.fillText(et, ANCHO - MARGEN - ew + 54, 96)
+    ctx.fillStyle = C.lima
+    ctx.font = `700 120px ${DISPLAY}`
+    ctx.fillText('¡Felicitaciones!', MARGEN, 300)
+    ctx.fillStyle = C.blanco
+    ctx.font = `600 46px ${DISPLAY}`
+    ctx.fillText(recortar(ctx, `${jugadores.length === 1 ? 'Asciende' : 'Ascienden'} a ${categoria}`, ANCHO - 2 * MARGEN), MARGEN, 366)
+    ctx.fillStyle = color
+    ctx.fillRect(0, altoCab, ANCHO, 12)
+
+    // una tarjeta por jugador, con el chip "7ma → 6ta"
+    let y = altoCab + 12 + 56
+    for (const j of parte) {
+      rect(ctx, MARGEN, y, ANCHO - 2 * MARGEN, filaH, 18, C.blanco)
+      ctx.save()
+      ctx.beginPath(); ctx.roundRect(MARGEN, y, ANCHO - 2 * MARGEN, filaH, 18); ctx.clip()
+      ctx.fillStyle = color; ctx.fillRect(MARGEN, y, 10, filaH)
+      ctx.restore()
+      icono(ctx, 'trofeo', MARGEN + 36, y + filaH / 2 - 20, 40, C.verde)
+      ctx.font = `700 28px ${DISPLAY}`
+      const a = numCat(j.antes), b = numCat(categoria)
+      const wa = ctx.measureText(a).width, wb = ctx.measureText(b).width, cw = wa + wb + 98
+      const cx = ANCHO - MARGEN - 28 - cw, cy = y + filaH / 2 - 27
+      rect(ctx, cx, cy, cw, 54, 27, C.verdeSuave)
+      ctx.fillStyle = C.gris
+      ctx.fillText(a, cx + 22, cy + 37)
+      icono(ctx, 'flecha', cx + 30 + wa, cy + 15, 24, C.verde)
+      rect(ctx, cx + 62 + wa, cy + 6, wb + 28, 42, 21, C.verde)
+      ctx.fillStyle = C.blanco
+      ctx.fillText(b, cx + 76 + wa, cy + 37)
+      ctx.fillStyle = C.texto
+      ctx.font = `700 40px ${DISPLAY}`
+      ctx.fillText(recortar(ctx, j.nombre, cx - (MARGEN + 100) - 20), MARGEN + 100, y + filaH / 2 + 14)
+      y += filaH + gap
+    }
+    if (nota) {
+      ctx.fillStyle = C.gris; ctx.font = `500 22px ${TEXTO}`; ctx.textAlign = 'center'
+      ctx.fillText(nota, ANCHO / 2, y + 16)
+      ctx.textAlign = 'left'
+      y += 40
+    }
+
+    // cierre
+    y += 58
+    ctx.textAlign = 'center'
+    ctx.fillStyle = C.texto
+    ctx.font = `700 38px ${DISPLAY}`
+    const cierre = `¡A romperla en ${categoria}!`
+    ctx.fillText(cierre, ANCHO / 2 - 22, y)
+    pelotita(ctx, ANCHO / 2 - 22 + ctx.measureText(cierre).width / 2 + 30, y - 13, 17)
+    ctx.fillStyle = C.gris
+    ctx.font = `500 24px ${TEXTO}`
+    ctx.fillText(recortar(ctx, `${tanda} · Vigente desde el ${vigencia}`, ANCHO - 2 * MARGEN), ANCHO / 2, y + 44)
+    ctx.textAlign = 'left'
+    pie(ctx, alto - 40)
+    out.push(await aBlob(canvas))
+  }
+  return out
+}
+
+/** Imagen informativa de los que pasan a una categoría de número mayor (recategorización) */
+export async function imagenesRecategorizacion({ categoria, rama, jugadores, tanda, vigencia }: DatosMovimientos): Promise<Blob[]> {
+  await fuentes()
+  const img = await logo()
+  const color = COLOR_RAMA[rama]
+  const partes = partir(jugadores, RECAT_POR_IMAGEN)
+  const out: Blob[] = []
+  for (let pi = 0; pi < partes.length; pi++) {
+    const parte = partes[pi]
+    const altoCab = 270, filaH = 72, colsH = 52
+    const altoTabla = colsH + Math.max(1, parte.length) * filaH
+    const nota = partes.length > 1 ? `Imagen ${pi + 1} de ${partes.length}` : ''
+    const alto = altoCab + 10 + 48 + altoTabla + (nota ? 44 : 0) + 40 + 150 + 100
+    const canvas = document.createElement('canvas')
+    canvas.width = ANCHO
+    canvas.height = alto
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = C.fondo
+    ctx.fillRect(0, 0, ANCHO, alto)
+
+    // cabecera sobria: logo, título y etiqueta "Informativo"
+    ctx.fillStyle = C.noche
+    ctx.fillRect(0, 0, ANCHO, altoCab)
+    ctx.drawImage(img, MARGEN, (altoCab - 150) / 2, 150, 150)
+    const tx = MARGEN + 150 + 40
+    ctx.font = `700 22px ${TEXTO}`
+    const et = 'INFORMATIVO'
+    const ew = ctx.measureText(et).width + 80
+    rect(ctx, ANCHO - MARGEN - ew, 40, ew, 46, 23, C.noche, 'rgba(255,255,255,0.55)')
+    icono(ctx, 'info', ANCHO - MARGEN - ew + 16, 51, 24, C.blanco)
+    ctx.fillStyle = C.blanco
+    ctx.fillText(et, ANCHO - MARGEN - ew + 50, 71)
+    ctx.font = `700 72px ${DISPLAY}`
+    ctx.fillText('Recategorización', tx, 135)
+    ctx.fillStyle = C.lima
+    ctx.font = `600 40px ${DISPLAY}`
+    ctx.fillText(recortar(ctx, `${jugadores.length === 1 ? 'Pasa' : 'Pasan'} a ${categoria}`, ANCHO - tx - MARGEN), tx, 191)
+    ctx.fillStyle = color
+    ctx.fillRect(0, altoCab, ANCHO, 10)
+
+    // tabla: jugador · anterior → nueva
+    const x = MARGEN, w = ANCHO - 2 * MARGEN, y0 = altoCab + 10 + 48
+    const cAntes = x + w - 330, cAhora = x + w - 150
+    ctx.save()
+    ctx.beginPath(); ctx.roundRect(x, y0, w, altoTabla, 16); ctx.clip()
+    ctx.fillStyle = C.blanco; ctx.fillRect(x, y0, w, altoTabla)
+    ctx.fillStyle = color; ctx.fillRect(x, y0, w, colsH)
+    ctx.fillStyle = C.blanco; ctx.font = `700 18px ${TEXTO}`
+    ctx.fillText('JUGADOR', x + 28, y0 + 33)
+    ctx.textAlign = 'center'
+    ctx.fillText('CATEGORÍA ANTERIOR', cAntes + 40, y0 + 33)
+    ctx.fillText('NUEVA', cAhora + 60, y0 + 33)
+    ctx.textAlign = 'left'
+    parte.forEach((j, i) => {
+      const fy = y0 + colsH + i * filaH
+      if (i % 2) { ctx.fillStyle = '#F7FAF9'; ctx.fillRect(x, fy, w, filaH) }
+      ctx.fillStyle = C.linea; ctx.fillRect(x, fy + filaH - 1, w, 1)
+      const mid = fy + filaH / 2
+      ctx.fillStyle = C.texto; ctx.font = `600 28px ${TEXTO}`
+      ctx.fillText(recortar(ctx, j.nombre, cAntes - x - 60), x + 28, mid + 10)
+      ctx.textAlign = 'center'; ctx.font = `600 26px ${TEXTO}`; ctx.fillStyle = C.gris
+      ctx.fillText(numCat(j.antes), cAntes + 40, mid + 9)
+      ctx.textAlign = 'left'
+      icono(ctx, 'flecha', cAntes + 118, mid - 11, 22, C.gris)
+      rect(ctx, cAhora + 18, mid - 21, 84, 42, 21, C.blanco, color)
+      ctx.fillStyle = color; ctx.font = `700 26px ${DISPLAY}`; ctx.textAlign = 'center'
+      ctx.fillText(numCat(categoria), cAhora + 60, mid + 9)
+      ctx.textAlign = 'left'
+    })
+    ctx.restore()
+    let y = y0 + altoTabla
+    if (nota) {
+      ctx.fillStyle = C.gris; ctx.font = `500 22px ${TEXTO}`; ctx.textAlign = 'center'
+      ctx.fillText(nota, ANCHO / 2, y + 34)
+      ctx.textAlign = 'left'
+      y += 44
+    }
+
+    // recuadro con la vigencia
+    y += 70
+    rect(ctx, MARGEN, y - 40, w, 160, 16, C.verdeSuave)
+    ctx.textAlign = 'center'
+    ctx.fillStyle = C.texto; ctx.font = `600 25px ${TEXTO}`
+    ctx.fillText(`Los cambios rigen desde el ${vigencia} para las inscripciones a torneos.`, ANCHO / 2, y + 6)
+    ctx.fillStyle = C.gris; ctx.font = `500 23px ${TEXTO}`
+    ctx.fillText('Por consultas, hablá con la administración del club.', ANCHO / 2, y + 44)
+    ctx.font = `600 21px ${TEXTO}`; ctx.fillStyle = C.verde
+    ctx.fillText(recortar(ctx, tanda.toUpperCase(), w - 40), ANCHO / 2, y + 88)
+    ctx.textAlign = 'left'
+    pie(ctx, alto - 40)
     out.push(await aBlob(canvas))
   }
   return out

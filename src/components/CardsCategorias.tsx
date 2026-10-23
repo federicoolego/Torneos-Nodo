@@ -20,7 +20,7 @@ async function generar(grupos: GrupoImagen[]): Promise<File[]> {
 }
 
 /** Comparte los archivos (menú nativo: WhatsApp…) o, si el navegador no deja, los descarga */
-async function compartirArchivos(files: File[], titulo: string) {
+export async function compartirArchivos(files: File[], titulo: string) {
   if (typeof navigator.canShare === 'function' && navigator.canShare({ files })) {
     try {
       await navigator.share({ files, title: titulo })

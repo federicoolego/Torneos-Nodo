@@ -12,6 +12,7 @@ import Jugadores from './Jugadores'
 import CronogramaVarios from '../components/CronogramaVarios'
 import Fechas from './Fechas'
 import Categorias from './Categorias'
+import Ascensos from './Ascensos'
 import PanelEstadisticas from '../components/PanelEstadisticas'
 import { listar } from '../lib/almacen'
 import { listarBase } from '../lib/jugadores'
@@ -25,19 +26,19 @@ const cargarCategorias = async () => {
   return r.jugadores
 }
 
-type Pestana = 'torneos' | 'fechas' | 'calendario' | 'estadisticas' | 'jugadores' | 'categorias'
+type Pestana = 'torneos' | 'fechas' | 'calendario' | 'estadisticas' | 'jugadores' | 'categorias' | 'ascensos'
 const RUTAS: Record<Pestana, string> = {
-  torneos: '#/admin', fechas: '#/admin/fechas', calendario: '#/admin/calendario', estadisticas: '#/admin/estadisticas', jugadores: '#/admin/jugadores', categorias: '#/admin/categorias',
+  torneos: '#/admin', fechas: '#/admin/fechas', calendario: '#/admin/calendario', estadisticas: '#/admin/estadisticas', jugadores: '#/admin/jugadores', categorias: '#/admin/categorias', ascensos: '#/admin/ascensos',
 }
 
 /** Panel de organizadores (#/admin): login + armado de torneos */
 export default function Admin() {
   const [logueado, setLogueado] = useState<boolean | null>(null)
   const ruta = useRuta()
-  // pestañas del admin: Torneos (#/admin) · Armar fecha · Calendario · Estadísticas · Jugadores · Categorías (#/admin/<pestaña>)
+  // pestañas del admin: Torneos (#/admin) · Armar fecha · Calendario · Estadísticas · Jugadores · Categorías · Ascensos (#/admin/<pestaña>)
   const pestana: Pestana = ruta.startsWith('#/admin/jugadores') ? 'jugadores' : ruta.startsWith('#/admin/fechas') ? 'fechas'
     : ruta.startsWith('#/admin/calendario') || ruta.startsWith('#/admin/cronograma') ? 'calendario'
-    : ruta.startsWith('#/admin/estadisticas') ? 'estadisticas' : ruta.startsWith('#/admin/categorias') ? 'categorias' : 'torneos'
+    : ruta.startsWith('#/admin/estadisticas') ? 'estadisticas' : ruta.startsWith('#/admin/categorias') ? 'categorias' : ruta.startsWith('#/admin/ascensos') ? 'ascensos' : 'torneos'
   const [abierta, setAbierta] = useState<string | null>(null)
   // torneo nuevo todavía sin guardar: se crea en la base recién con los datos obligatorios completos
   const [nuevo, setNuevo] = useState<Categoria | null>(null)
@@ -87,14 +88,14 @@ export default function Admin() {
           <Tabs<Pestana>
             opciones={[
               { id: 'torneos', label: 'Torneos' }, { id: 'fechas', label: 'Armar fecha' }, { id: 'calendario', label: 'Calendario' },
-              { id: 'estadisticas', label: 'Estadísticas' }, { id: 'jugadores', label: 'Jugadores' }, { id: 'categorias', label: 'Categorías' },
+              { id: 'estadisticas', label: 'Estadísticas' }, { id: 'jugadores', label: 'Jugadores' }, { id: 'categorias', label: 'Categorías' }, { id: 'ascensos', label: 'Ascensos' },
             ]}
             valor={pestana}
             // sube lo pendiente antes de cambiar; "Torneos" también cierra el torneo abierto y vuelve a la lista
             onChange={async (p) => { await vaciar(); abrir(null); window.location.hash = RUTAS[p] }}
           />
         </div>
-        {pestana === 'jugadores' ? <Jugadores /> : pestana === 'categorias' ? <Categorias /> : pestana === 'estadisticas' ? <PanelEstadisticas cargar={cargarEstadisticas} cargarCategorias={cargarCategorias} admin />
+        {pestana === 'jugadores' ? <Jugadores /> : pestana === 'categorias' ? <Categorias /> : pestana === 'ascensos' ? <Ascensos /> : pestana === 'estadisticas' ? <PanelEstadisticas cargar={cargarEstadisticas} cargarCategorias={cargarCategorias} admin />
           : pestana === 'fechas' ? <Fechas /> : pestana === 'calendario' ? <CronogramaVarios /> : abierta ? <Editor key={abierta} id={abierta} inicial={nuevo ?? undefined} onVolver={() => abrir(null)} /> : <Inicio onAbrir={abrir} onNuevo={crear} />}
       </main>
       <Firma />
