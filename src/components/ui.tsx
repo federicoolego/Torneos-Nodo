@@ -258,9 +258,19 @@ export function Tabs<T extends string>({
   valor: T
   onChange: (v: T) => void
 }) {
+  // en el celular las pestañas se desplazan: la elegida (o la que abre el link, ej. #/ascensos) queda a la vista
+  const lista = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = lista.current?.querySelector<HTMLElement>('[aria-selected="true"]')
+    const cont = lista.current
+    if (!el || !cont) return
+    if (el.offsetLeft < cont.scrollLeft || el.offsetLeft + el.offsetWidth > cont.scrollLeft + cont.clientWidth) {
+      cont.scrollTo({ left: el.offsetLeft - (cont.clientWidth - el.offsetWidth) / 2, behavior: 'smooth' })
+    }
+  }, [valor])
   return (
     // la línea de abajo va como sombra interna (no borde + margen negativo): así no aparece scroll vertical en las pestañas
-    <div role="tablist" className="flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_rgba(4,45,41,0.1)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div ref={lista} role="tablist" className="relative flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_rgba(4,45,41,0.1)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {opciones.map((o) => (
         <button
           key={o.id}

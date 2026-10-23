@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, Loader2, Pencil, Plus, RotateCcw, Share2, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, EyeOff, Globe, Loader2, Pencil, Plus, RotateCcw, Share2, Trash2 } from 'lucide-react'
 import {
   FALTA_SQL_RECAT, agregarMovimiento, aplicarTanda, cambiarMovimiento, crearTanda, editarTanda, eliminarTanda, fechaCorta, hoyISO,
-  leerTanda, listarTandas, nombreSugerido, quitarMovimiento, revertirTanda, type Movimiento, type Tanda,
+  leerTanda, listarTandas, nombreSugerido, publicarTanda, quitarMovimiento, revertirTanda, FALTA_SQL_PUBLICAR, type Movimiento, type Tanda,
 } from '../lib/recategorizaciones'
 import { listarBase } from '../lib/jugadores'
 import { CATEGORIAS_JUGADOR, destinosPosibles, rama, tipoMovimiento, type CategoriaJugador, type TipoMovimiento } from '../lib/categorias'
@@ -53,7 +53,10 @@ function Lista({ onAbrir }: { onAbrir: (id: string) => void }) {
                 className={`flex w-full flex-col gap-2 rounded-xl border-l-[6px] bg-white p-4 text-left ring-1 ring-noche/10 hover:ring-cancha/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cancha ${t.estado === 'aplicada' ? 'border-l-cancha' : 'border-l-amber-400'}`}>
                 <span className="flex items-start justify-between gap-2">
                   <span className="font-display text-xl font-bold leading-tight text-noche">{t.nombre}</span>
-                  <EstadoBadge estado={t.estado} />
+                  <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                    {t.publicada && <Badge tono="azul">Publicada</Badge>}
+                    <EstadoBadge estado={t.estado} />
+                  </span>
                 </span>
                 <span className="text-xs text-noche/60">Vigente desde el {fechaCorta(t.vigencia)}</span>
                 <span className="flex flex-wrap gap-2 text-sm">
@@ -206,6 +209,7 @@ function Detalle({ id, onVolver }: { id: string; onVolver: () => void }) {
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="font-display text-4xl font-bold leading-none text-noche">{tanda.nombre}</h1>
             <EstadoBadge estado={tanda.estado} />
+            {tanda.publicada && <Badge tono="azul">Publicada</Badge>}
           </div>
           <p className="mt-2 text-sm text-noche/70">
             Vigente desde el {fechaCorta(tanda.vigencia)} · {nAsc} {nAsc === 1 ? 'ascenso' : 'ascensos'} · {nRec} {nRec === 1 ? 'recategorización' : 'recategorizaciones'}
@@ -219,6 +223,22 @@ function Detalle({ id, onVolver }: { id: string; onVolver: () => void }) {
               {generando !== 'todas' && <Share2 className="h-4 w-4" aria-hidden />} Compartir todas
             </Button>
           )}
+          {!borrador && (
+            tanda.publicada ? (
+              <Button variante="secundario" cargando={ocupado === 'publicar'}
+                onClick={() => void accion('publicar', async () => { await publicarTanda(id, false); return 'La tanda ya no se ve en la página pública.' })}>
+                {ocupado !== 'publicar' && <EyeOff className="h-4 w-4" aria-hidden />} Despublicar
+              </Button>
+            ) : (
+              <Button cargando={ocupado === 'publicar'} disabled={tanda.publicada === null} title={tanda.publicada === null ? FALTA_SQL_PUBLICAR : undefined}
+                onClick={() => {
+                  if (!confirm('Los jugadores y visitantes van a ver esta tanda en la pestaña Ascensos de la página pública. ¿Publicar?')) return
+                  void accion('publicar', async () => { await publicarTanda(id, true); return 'Tanda publicada: ya se ve en la pestaña Ascensos de la página pública.' })
+                }}>
+                {ocupado !== 'publicar' && <Globe className="h-4 w-4" aria-hidden />} Publicar
+              </Button>
+            )
+          )}
           {borrador ? (
             <Button disabled={!movs.length || conflictos.length > 0} cargando={ocupado === 'aplicar'}
               title={conflictos.length ? 'Corregí los jugadores marcados antes de aplicar' : undefined}
@@ -231,7 +251,7 @@ function Detalle({ id, onVolver }: { id: string; onVolver: () => void }) {
           ) : (
             <Button variante="secundario" cargando={ocupado === 'revertir'}
               onClick={() => {
-                if (!confirm('Los jugadores vuelven a su categoría anterior y la tanda queda en borrador. ¿Revertir?')) return
+                if (!confirm(`Los jugadores vuelven a su categoría anterior y la tanda queda en borrador${tanda.publicada ? ' (y deja de verse en la página pública)' : ''}. ¿Revertir?`)) return
                 void accion('revertir', async () => { const n = await revertirTanda(id); return `Tanda revertida: ${n} ${n === 1 ? 'jugador volvió' : 'jugadores volvieron'} a su categoría anterior.` })
               }}>
               {ocupado !== 'revertir' && <RotateCcw className="h-4 w-4" aria-hidden />} Revertir
@@ -249,7 +269,15 @@ function Detalle({ id, onVolver }: { id: string; onVolver: () => void }) {
         </div>
       </header>
 
-      {!borrador && <div className="mb-4"><Alerta tipo="info">La tanda está aplicada: las categorías ya se actualizaron en el padrón. Para modificarla, revertila.</Alerta></div>}
+      {!borrador && (
+        <div className="mb-4">
+          <Alerta tipo="info">
+            La tanda está aplicada: las categorías ya se actualizaron en el padrón. Para modificarla, revertila.{' '}
+            {tanda.publicada ? 'Está publicada en la pestaña Ascensos de la página pública.'
+              : tanda.publicada === null ? FALTA_SQL_PUBLICAR : 'Con Publicar, los jugadores la ven en la pestaña Ascensos de la página pública.'}
+          </Alerta>
+        </div>
+      )}
       {msg && <div className="mb-4"><Alerta tipo={msg.tipo}>{msg.txt}</Alerta></div>}
       {conflictos.length > 0 && (
         <div className="mb-4">

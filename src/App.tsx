@@ -27,7 +27,7 @@ export function Firma() {
   )
 }
 
-/** Ruta actual: '#/' (torneos publicados) · '#/calendario' · '#/estadisticas' · '#/torneo/<id>' · '#/admin' */
+/** Ruta actual: '#/' (torneos publicados) · '#/calendario' · '#/estadisticas' · '#/categorias' · '#/ascensos' · '#/torneo/<id>' · '#/admin' */
 export function useRuta() {
   const [ruta, setRuta] = useState(window.location.hash)
   useEffect(() => {

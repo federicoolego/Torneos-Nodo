@@ -5,6 +5,7 @@ import { CATEGORIAS, ESTADOS, MESES, formatoPesos, nombreEstado, rangoFechas, ty
 import { Alerta, Badge, Input, MultiSelect, Spinner, Tabs, Vacio } from '../../components/ui'
 import Calendario from './Calendario'
 import CategoriasPublicas from './Categorias'
+import AscensosPublicos from './Ascensos'
 import PanelEstadisticas from '../../components/PanelEstadisticas'
 import type { DatoEstadistica } from '../../components/Estadisticas'
 import { BadgeCategoria, bordeCategoria } from '../../components/Categoria'
@@ -15,12 +16,12 @@ const ORDEN: Record<EstadoTorneo, number> = { en_curso: 0, pendiente: 1, finaliz
 
 export const tonoEstado = (e: EstadoTorneo) => (e === 'en_curso' ? 'verde' : e === 'finalizado' ? 'azul' : e === 'cancelado' ? 'rojo' : 'ambar') as 'verde' | 'azul' | 'rojo' | 'ambar'
 
-type PestanaInicio = 'torneos' | 'calendario' | 'estadisticas' | 'categorias'
-const LINKS: Record<PestanaInicio, string> = { torneos: '#/', calendario: '#/calendario', estadisticas: '#/estadisticas', categorias: '#/categorias' }
-/** pestaña de la página inicial según el link (#/ · #/calendario · #/estadisticas · #/categorias) */
+type PestanaInicio = 'torneos' | 'calendario' | 'estadisticas' | 'categorias' | 'ascensos'
+const LINKS: Record<PestanaInicio, string> = { torneos: '#/', calendario: '#/calendario', estadisticas: '#/estadisticas', categorias: '#/categorias', ascensos: '#/ascensos' }
+/** pestaña de la página inicial según el link (#/ · #/calendario · #/estadisticas · #/categorias · #/ascensos) */
 const pestanaDelLink = (): PestanaInicio => {
   const h = window.location.hash
-  return h.startsWith('#/calendario') ? 'calendario' : h.startsWith('#/estadisticas') ? 'estadisticas' : h.startsWith('#/categorias') && MOSTRAR_CATEGORIAS_PUBLICAS ? 'categorias' : 'torneos'
+  return h.startsWith('#/calendario') ? 'calendario' : h.startsWith('#/estadisticas') ? 'estadisticas' : h.startsWith('#/categorias') && MOSTRAR_CATEGORIAS_PUBLICAS ? 'categorias' : h.startsWith('#/ascensos') ? 'ascensos' : 'torneos'
 }
 
 /** Torneos publicados con los datos que usan las estadísticas */
@@ -30,7 +31,7 @@ const cargarEstadisticas = async (): Promise<DatoEstadistica[]> =>
 const sinCategorias = () => Promise.reject(new Error('Categorías ocultas'))
 const enlaceTorneo = (id: string) => `#/torneo/${id}`
 
-/** Página inicial para jugadores: pestañas Torneos (por defecto), Calendario y Estadísticas */
+/** Página inicial para jugadores: pestañas Torneos (por defecto), Calendario, Estadísticas, Categorías y Ascensos */
 export default function ListaPublica() {
   const [pestana, setPestana] = useState<PestanaInicio>(pestanaDelLink)
   useEffect(() => {
@@ -46,14 +47,14 @@ export default function ListaPublica() {
   return (
     <>
       <div className="mb-5">
-        <Tabs<PestanaInicio> opciones={[{ id: 'torneos', label: 'Torneos' }, { id: 'calendario', label: 'Calendario' }, { id: 'estadisticas', label: 'Estadísticas' }, ...(MOSTRAR_CATEGORIAS_PUBLICAS ? [{ id: 'categorias' as const, label: 'Categorías' }] : [])]} valor={pestana} onChange={cambiar} />
+        <Tabs<PestanaInicio> opciones={[{ id: 'torneos', label: 'Torneos' }, { id: 'calendario', label: 'Calendario' }, { id: 'estadisticas', label: 'Estadísticas' }, ...(MOSTRAR_CATEGORIAS_PUBLICAS ? [{ id: 'categorias' as const, label: 'Categorías' }] : []), { id: 'ascensos', label: 'Ascensos' }]} valor={pestana} onChange={cambiar} />
       </div>
       {pestana === 'calendario' ? (
         <>
           <header className="mb-3"><h1 className="font-display text-4xl font-bold leading-none text-noche">Calendario</h1></header>
           <Calendario />
         </>
-      ) : pestana === 'categorias' ? <CategoriasPublicas /> : pestana === 'estadisticas' ? <PanelEstadisticas cargar={cargarEstadisticas} cargarCategorias={MOSTRAR_CATEGORIAS_PUBLICAS ? categoriasPublicas : sinCategorias} enlace={enlaceTorneo} /> : <Torneos />}
+      ) : pestana === 'categorias' ? <CategoriasPublicas /> : pestana === 'ascensos' ? <AscensosPublicos /> : pestana === 'estadisticas' ? <PanelEstadisticas cargar={cargarEstadisticas} cargarCategorias={MOSTRAR_CATEGORIAS_PUBLICAS ? categoriasPublicas : sinCategorias} enlace={enlaceTorneo} /> : <Torneos />}
     </>
   )
 }

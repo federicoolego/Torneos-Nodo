@@ -5,6 +5,12 @@
  * false = ocultas (el admin las sigue viendo y editando) · true = visibles para todos.
  */
 export const MOSTRAR_CATEGORIAS_PUBLICAS = true
+
+/**
+ * Pestaña pública "Ascensos": las recategorizaciones (6ta → 7ma) de las tandas publicadas también se muestran.
+ * false = solo los ascensos (las recategorizaciones siguen en el admin y en sus imágenes).
+ */
+export const MOSTRAR_RECATEGORIZACIONES_PUBLICAS = true
 import { supabase } from './supabase'
 import { desdeFilas, type FilaInstancia, type FilaPareja, type FilaPartido, type FilaTorneo } from './almacen'
 import type { Categoria, CategoriaTorneo, EstadoTorneo } from './torneo'
@@ -45,6 +51,21 @@ export async function cargarCalendario(desde: string, hasta: string): Promise<Ca
   if (error) throw new Error(error.message)
   type D = { torneo: FilaTorneo & { actualizado: string }; parejas: FilaPareja[]; instancias: FilaInstancia[]; partidos: FilaPartido[] }
   return ((data ?? []) as D[]).map((d) => desdeFilas(d.torneo, d.parejas, d.instancias, d.partidos))
+}
+
+/** Un cambio de categoría publicado */
+export interface MovimientoPublico { nombre: string; anterior: string; nueva: string; tipo: 'ascenso' | 'recategorizacion' }
+/** Tanda de ascensos publicada por el admin, con sus movimientos */
+export interface TandaPublica { id: string; nombre: string; vigencia: string; aplicada: string | null; movimientos: MovimientoPublico[] }
+
+/**
+ * Tandas de ascensos y recategorizaciones publicadas, de la más nueva a la más vieja (pestaña Ascensos).
+ * Requiere supabase/torneos_nodo_publico_ascensos.sql
+ */
+export async function ascensosPublicos(): Promise<TandaPublica[]> {
+  const { data, error } = await supabase.rpc('torneos_nodo_publico_ascensos')
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as TandaPublica[]).map((t) => ({ ...t, movimientos: t.movimientos ?? [] }))
 }
 
 /** Para buscar sin importar mayúsculas ni acentos */

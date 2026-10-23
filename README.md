@@ -31,6 +31,9 @@ compu que no permite compartir archivos, las descarga para adjuntarlas a mano.
 - **Ascensos** (admin, `#/admin/ascensos`): tandas de cambios de categoría (cada 2 o 3 meses). En borrador se cargan los jugadores y su categoría nueva
   sin tocar el padrón; **Aplicar tanda** actualiza a todos juntos (y se puede **Revertir**). Si baja el número (7ma → 6ta) es un *ascenso* y genera
   una imagen de felicitaciones por categoría; si sube (6ta → 7ma) es una *recategorización* y genera una imagen informativa.
+  Una tanda aplicada se puede **Publicar**: se ve en la pestaña pública **Ascensos** (`#/ascensos`), con el historial de cortes
+  y el de cada jugador al buscarlo. Si se revierte, se despublica sola. Para ocultar las recategorizaciones en la página pública:
+  `MOSTRAR_RECATEGORIZACIONES_PUBLICAS = false` en `src/lib/publico.ts`.
 - Cada categoría tiene su color (borde de la tarjeta y etiqueta): Damas rosa, Caballeros azul, Mixto violeta. Se cambian en `tailwind.config.js` (`damas`, `caballeros`, `mixto`).
 
 ## Base de datos y acceso
@@ -40,6 +43,7 @@ compu que no permite compartir archivos, las descarga para adjuntarlas a mano.
    En la app se entra con usuario `NODO` y esa contraseña.
 3. Solo los emails de `torneos_nodo_usuarios` pueden leer y escribir (RLS), aunque haya otros usuarios en el proyecto.
 4. Para la pestaña **Ascensos** del admin corré `supabase/torneos_nodo_recategorizaciones.sql` (requiere el SQL de categorías de jugadores).
+   Para publicar tandas en la página pública, después corré `supabase/torneos_nodo_publico_ascensos.sql`.
 
 ## Publicar
 

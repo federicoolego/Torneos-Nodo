@@ -1,6 +1,6 @@
 import type { SeccionAyuda } from '../Ayuda'
 import { textoReglas } from '../../lib/puntos'
-import { MOSTRAR_CATEGORIAS_PUBLICAS } from '../../lib/publico'
+import { MOSTRAR_CATEGORIAS_PUBLICAS, MOSTRAR_RECATEGORIZACIONES_PUBLICAS } from '../../lib/publico'
 
 /** Instructivo de la página pública (jugadores y visitantes): una sección por pestaña */
 export const AYUDA_PUBLICA: SeccionAyuda[] = [
@@ -73,11 +73,26 @@ export const AYUDA_PUBLICA: SeccionAyuda[] = [
     para: <>Saber en qué categoría está cada jugador para armar parejas que puedan anotarse en cada torneo.</>,
     pasos: [<>Buscá un nombre o recorré las tarjetas por categoría.</>],
   }] : []),
+  {
+    id: 'ascensos',
+    titulo: 'Ascensos',
+    que: <>Los ascensos{MOSTRAR_RECATEGORIZACIONES_PUBLICAS ? ' y recategorizaciones' : ''} de categoría que publicó NODO en cada corte (cada 2 o 3 meses), del más nuevo al más viejo.</>,
+    para: <>Enterarte de quiénes subieron de categoría y tener el historial de cada jugador.</>,
+    pasos: [
+      <>El último corte se muestra abierto; tocá cualquier otro para desplegarlo.</>,
+      <>En cada corte, los jugadores se agrupan por su categoría nueva, con la anterior al lado (por ejemplo, 7ma → 6ta).</>,
+      <>Escribí tu nombre o apellido: aparece tu <strong>historial</strong> con todos tus cambios de categoría.</>,
+      <>Filtrá por <strong>Damas</strong> o <strong>Caballeros</strong> y compartí la imagen de cada categoría con su botón.</>,
+    ],
+    tips: [
+      <>La categoría vigente de cada jugador está en la pestaña <strong>Categorías</strong>.</>,
+    ],
+  },
 ]
 
 /** pestaña que se está mirando en la página pública, según el link */
 export const pestanaPublica = () => {
   const h = window.location.hash
   return h.startsWith('#/torneo/') ? 'torneo' : h.startsWith('#/calendario') ? 'calendario'
-    : h.startsWith('#/estadisticas') ? 'estadisticas' : h.startsWith('#/categorias') ? 'categorias' : 'torneos'
+    : h.startsWith('#/estadisticas') ? 'estadisticas' : h.startsWith('#/categorias') ? 'categorias' : h.startsWith('#/ascensos') ? 'ascensos' : 'torneos'
 }

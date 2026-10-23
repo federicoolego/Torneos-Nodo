@@ -120,9 +120,10 @@ export const AYUDA_ADMIN: SeccionAyuda[] = [
       <>Mientras la tanda está en <strong>borrador</strong> no cambia nada en el padrón: podés sumar, quitar y corregir.</>,
       <><strong>Aplicar tanda:</strong> actualiza la categoría de todos los jugadores de la tanda de una vez.</>,
       <>Compartí las imágenes: de felicitaciones para los ascensos e informativa para las recategorizaciones, una por categoría.</>,
+      <><strong>Publicar</strong> (solo tandas aplicadas): la tanda pasa a verse en la pestaña <strong>Ascensos</strong> de la página pública, como historial para los jugadores. <strong>Despublicar</strong> la oculta.</>,
     ],
     tips: [
-      <><strong>Revertir</strong> devuelve a los jugadores a su categoría anterior y deja la tanda en borrador.</>,
+      <><strong>Revertir</strong> devuelve a los jugadores a su categoría anterior y deja la tanda en borrador (si estaba publicada, deja de verse en la página pública).</>,
     ],
   },
 ]

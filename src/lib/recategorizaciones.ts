@@ -13,6 +13,8 @@ export interface Tanda {
   estado: EstadoTanda
   aplicada: string | null
   creado: string
+  /** visible en la página pública (solo tandas aplicadas). null: falta correr torneos_nodo_publico_ascensos.sql */
+  publicada: boolean | null
   ascensos: number
   recategorizaciones: number
 }
@@ -30,6 +32,9 @@ export interface Movimiento {
   /** el jugador sigue en el padrón */
   enPadron: boolean
 }
+
+/** Aviso cuando falta correr supabase/torneos_nodo_publico_ascensos.sql (publicar en la página pública) */
+export const FALTA_SQL_PUBLICAR = 'Para publicar en la página pública, corré supabase/torneos_nodo_publico_ascensos.sql en la base.'
 
 /** Aviso cuando falta correr supabase/torneos_nodo_recategorizaciones.sql */
 export const FALTA_SQL_RECAT = 'Faltan las tablas de ascensos: corré supabase/torneos_nodo_recategorizaciones.sql en la base.'
@@ -58,11 +63,29 @@ export function hoyISO(): string {
 /** 2026-11-01 → 01/11/2026 */
 export const fechaCorta = (iso: string) => { const [a, m, d] = iso.slice(0, 10).split('-'); return a && m && d ? `${d}/${m}/${a}` : iso }
 
+const COLUMNAS = 'id, nombre, vigencia, estado, aplicada, creado'
+/** columna inexistente (no se corrió el SQL de publicación) */
+const sinColumna = (e: { code?: string; message: string } | null) => !!e && (e.code === '42703' || /column .*publicada.* does not exist/i.test(e.message))
+
+/** Lee tandas con la columna "publicada"; si todavía no existe, sin ella (publicada: null) */
+async function leerTandas(filtro?: string) {
+  const consulta = (cols: string) => {
+    const q = supabase.from(T.recategorizaciones).select(cols)
+    return filtro ? q.eq('id', filtro) : q.order('vigencia', { ascending: false }).order('creado', { ascending: false })
+  }
+  let r = await consulta(`${COLUMNAS}, publicada`)
+  if (sinColumna(r.error)) {
+    r = await consulta(COLUMNAS)
+    chequear(r)
+    return ((r.data ?? []) as unknown as Omit<Tanda, 'ascensos' | 'recategorizaciones' | 'publicada'>[]).map((t) => ({ ...t, publicada: null }))
+  }
+  chequear(r)
+  return (r.data ?? []) as unknown as Omit<Tanda, 'ascensos' | 'recategorizaciones'>[]
+}
+
 /** Tandas de la más nueva a la más vieja, con la cantidad de ascensos y recategorizaciones */
 export async function listarTandas(): Promise<Tanda[]> {
-  const r = await supabase.from(T.recategorizaciones).select('id, nombre, vigencia, estado, aplicada, creado').order('vigencia', { ascending: false }).order('creado', { ascending: false })
-  chequear(r)
-  const tandas = (r.data ?? []) as Omit<Tanda, 'ascensos' | 'recategorizaciones'>[]
+  const tandas = await leerTandas()
   const cuentas = new Map<string, { a: number; r: number }>()
   for (let desde = 0; ; desde += 1000) {
     const m = await supabase.from(T.recatMovimientos).select('recategorizacion_id, tipo').order('id').range(desde, desde + 999)
@@ -93,8 +116,8 @@ export async function eliminarTanda(id: string) {
 }
 
 export async function leerTanda(id: string): Promise<{ tanda: Omit<Tanda, 'ascensos' | 'recategorizaciones'>; movimientos: Movimiento[] }> {
-  const t = await supabase.from(T.recategorizaciones).select('id, nombre, vigencia, estado, aplicada, creado').eq('id', id).single()
-  chequear(t)
+  const [tanda] = await leerTandas(id)
+  if (!tanda) throw new Error('No existe la tanda.')
   const m = await supabase.from(T.recatMovimientos)
     .select(`id, jugador_id, nombre, categoria_anterior, categoria_nueva, jugador:${T.jugadores}(nombre, categoria)`)
     .eq('recategorizacion_id', id)
@@ -110,7 +133,7 @@ export async function leerTanda(id: string): Promise<{ tanda: Omit<Tanda, 'ascen
       }
     })
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
-  return { tanda: t.data as Omit<Tanda, 'ascensos' | 'recategorizaciones'>, movimientos }
+  return { tanda, movimientos }
 }
 
 export async function agregarMovimiento(tandaId: string, j: { id: string; nombre: string; categoria: CategoriaJugador }, nueva: CategoriaJugador) {
@@ -142,4 +165,12 @@ export async function revertirTanda(id: string): Promise<number> {
   const { data, error } = await supabase.rpc('torneos_nodo_recategorizacion_revertir', { p_id: id })
   chequear({ error })
   return Number(data ?? 0)
+}
+
+/** Muestra u oculta la tanda (aplicada) en la pestaña Ascensos de la página pública */
+export async function publicarTanda(id: string, publicar: boolean) {
+  const r = await supabase.from(T.recategorizaciones).update({ publicada: publicar }).eq('id', id)
+  if (sinColumna(r.error)) throw new Error(FALTA_SQL_PUBLICAR)
+  if (r.error?.message.includes('torneos_nodo_recat_publicada_chk')) throw new Error('Solo se pueden publicar tandas aplicadas.')
+  chequear(r)
 }
