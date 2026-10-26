@@ -10,6 +10,7 @@ import PanelEstadisticas from '../../components/PanelEstadisticas'
 import type { DatoEstadistica } from '../../components/Estadisticas'
 import { BadgeCategoria, bordeCategoria } from '../../components/Categoria'
 import { GruposEstado } from '../../components/GruposEstado'
+import TorneosCalendario, { SelectorVista, type VistaTorneos } from './TorneosCalendario'
 
 export const tonoEstado = (e: EstadoTorneo) => (e === 'en_curso' ? 'verde' : e === 'finalizado' ? 'azul' : e === 'cancelado' ? 'rojo' : 'ambar') as 'verde' | 'azul' | 'rojo' | 'ambar'
 
@@ -58,10 +59,19 @@ export default function ListaPublica() {
 
 const ANIO_ACTUAL = String(new Date().getFullYear())
 
-/** Torneos publicados con filtros */
+/** vista elegida en la pestaña Torneos (Mes por defecto); se recuerda en el navegador */
+const CLAVE_VISTA = 'torneos_nodo_vista'
+const vistaGuardada = (): VistaTorneos => { try { return localStorage.getItem(CLAVE_VISTA) === 'lista' ? 'lista' : 'mes' } catch { return 'mes' } }
+
+/** Torneos publicados: calendario del mes (por defecto) o lista con filtros */
 function Torneos() {
   const [lista, setLista] = useState<ResumenPublico[] | null>(null)
   const [error, setError] = useState('')
+  const [vista, setVistaEstado] = useState<VistaTorneos>(vistaGuardada)
+  const setVista = (v: VistaTorneos) => {
+    setVistaEstado(v)
+    try { localStorage.setItem(CLAVE_VISTA, v) } catch { /* sin almacenamiento: solo por esta visita */ }
+  }
   // filtros de selección múltiple: vacío = todos
   const [categoria, setCategoria] = useState<CategoriaTorneo[]>([])
   const [estado, setEstado] = useState<EstadoTorneo[]>([])
@@ -96,6 +106,9 @@ function Torneos() {
         <p className="mt-2 text-sm text-noche/70">Los próximos torneos de NODO con su inscripción, y las zonas, partidos, resultados y playoff, actualizados a medida que se juegan.</p>
       </header>
 
+      {error && <div className="mb-4"><Alerta tipo="error">{error}</Alerta></div>}
+      {lista === null ? <Spinner texto="Cargando torneos…" /> : vista === 'mes' ? <TorneosCalendario lista={lista} onVista={setVista} /> : <>
+      <div className="mb-2 flex justify-end"><SelectorVista vista="lista" onVista={setVista} /></div>
       <div className="mb-5 grid gap-2 rounded-xl bg-white p-3 ring-1 ring-noche/10 sm:grid-cols-[1.4fr_1fr_1fr_0.8fr_1fr]">
         <label className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-noche/40" aria-hidden />
@@ -111,9 +124,8 @@ function Torneos() {
           opciones={MESES.map((m, i) => ({ valor: String(i + 1).padStart(2, '0'), label: m }))} plural={(n) => `${n} meses`} />
       </div>
 
-      {error && <div className="mb-4"><Alerta tipo="error">{error}</Alerta></div>}
       {hayFiltros && !!lista?.length && <p className="-mt-2 mb-3 text-xs text-noche/55">{visibles.length} de {lista.length} torneos</p>}
-      {lista === null ? <Spinner texto="Cargando torneos…" /> : visibles.length === 0 ? (
+      {visibles.length === 0 ? (
         <Vacio titulo={lista.length ? 'No hay torneos con esos filtros' : 'Todavía no hay torneos publicados'}>
           {lista.length ? <>Probá cambiando el estado, el año o el mes. <button className="font-semibold text-cancha" onClick={() => { setTexto(''); setCategoria([]); setEstado([]); setAnio([]); setMes([]) }}>Ver todos</button></> : 'Cuando el club publique un torneo, lo vas a ver acá.'}
         </Vacio>
@@ -146,6 +158,7 @@ function Torneos() {
             </li>
           )} />
       )}
+      </>}
     </>
   )
 }

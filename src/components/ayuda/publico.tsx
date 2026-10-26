@@ -7,16 +7,19 @@ export const AYUDA_PUBLICA: SeccionAyuda[] = [
   {
     id: 'torneos',
     titulo: 'Torneos',
-    que: <>La lista de los torneos que publicó NODO: los que se están jugando, los que vienen y los que ya terminaron.</>,
+    que: <>Los torneos que publicó NODO, en calendario o en lista: los que se están jugando, los que vienen y los que ya terminaron.</>,
     para: <>Encontrar tu torneo y entrar a ver zonas, horarios, resultados y playoff, actualizados a medida que se juegan.</>,
     pasos: [
-      <>Buscá el torneo por nombre o filtrá por categoría (Damas, Caballeros, Mixto), estado, año y mes. Por defecto se muestra el año en curso.</>,
-      <>Los torneos se agrupan por estado: primero los que están <strong>En curso</strong>, después los <strong>Pendientes</strong> y al final los <strong>Finalizados</strong>.</>,
+      <>Por defecto los ves en un <strong>calendario del mes</strong>: cada torneo es una barra del color de su categoría que va de su primer a su último día. Con las flechas pasás de mes y con <strong>Hoy</strong> volvés al actual.</>,
+      <>Barra de color pleno: pendiente; con aro verde lima: en curso; en tono claro con 🏆: finalizado.</>,
+      <>Abajo del calendario están los torneos del mes, por fin de semana. Tocá un día para ver solo los torneos que se juegan ese día.</>,
+      <>Buscá el torneo por nombre, filtrá por categoría (Damas, Caballeros, Mixto) u ocultá los finalizados.</>,
+      <>Con <strong>Lista</strong> (al lado de Mes) volvés a la lista agrupada por estado, con filtros por estado, año y mes. La vista que elijas queda guardada para la próxima vez.</>,
       <>Cada tarjeta muestra fechas, cantidad de parejas, inscripción, premio y, si terminó, la pareja campeona.</>,
       <>Tocá un torneo para abrirlo.</>,
     ],
     tips: [
-      <>Si no encontrás un torneo, revisá los filtros (por ejemplo, el año) o tocá “Ver todos”.</>,
+      <>Si un mes no tiene torneos, tocá “Ir al próximo torneo”. Si no encontrás uno, revisá los filtros o buscalo en la vista Lista.</>,
     ],
   },
   {
