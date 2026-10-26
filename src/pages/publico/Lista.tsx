@@ -59,11 +59,13 @@ export default function ListaPublica() {
 
 const ANIO_ACTUAL = String(new Date().getFullYear())
 
-/** vista elegida en la pestaña Torneos (Mes por defecto); se recuerda en el navegador */
+/** vista elegida en la pestaña Torneos: Semana, Mes (por defecto) o Lista; se recuerda en el navegador */
 const CLAVE_VISTA = 'torneos_nodo_vista'
-const vistaGuardada = (): VistaTorneos => { try { return localStorage.getItem(CLAVE_VISTA) === 'lista' ? 'lista' : 'mes' } catch { return 'mes' } }
+const vistaGuardada = (): VistaTorneos => {
+  try { const v = localStorage.getItem(CLAVE_VISTA); return v === 'lista' || v === 'semana' ? v : 'mes' } catch { return 'mes' }
+}
 
-/** Torneos publicados: calendario del mes (por defecto) o lista con filtros */
+/** Torneos publicados: calendario por mes (por defecto) o por semana, o lista con filtros */
 function Torneos() {
   const [lista, setLista] = useState<ResumenPublico[] | null>(null)
   const [error, setError] = useState('')
@@ -107,7 +109,7 @@ function Torneos() {
       </header>
 
       {error && <div className="mb-4"><Alerta tipo="error">{error}</Alerta></div>}
-      {lista === null ? <Spinner texto="Cargando torneos…" /> : vista === 'mes' ? <TorneosCalendario lista={lista} onVista={setVista} /> : <>
+      {lista === null ? <Spinner texto="Cargando torneos…" /> : vista !== 'lista' ? <TorneosCalendario lista={lista} vista={vista} onVista={setVista} /> : <>
       <div className="mb-2 flex justify-end"><SelectorVista vista="lista" onVista={setVista} /></div>
       <div className="mb-5 grid gap-2 rounded-xl bg-white p-3 ring-1 ring-noche/10 sm:grid-cols-[1.4fr_1fr_1fr_0.8fr_1fr]">
         <label className="relative">

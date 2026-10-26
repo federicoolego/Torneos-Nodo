@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, ChevronsRight, List, MessageCircle, Search, Ticket, Trophy, Users, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { CalendarDays, CalendarRange, ChevronLeft, ChevronRight, ChevronsRight, List, MessageCircle, Search, Ticket, Trophy, Users, X } from 'lucide-react'
 import { normalizarTexto, type ResumenPublico } from '../../lib/publico'
 import { CATEGORIAS, formatoPesos, hoyLocal, nombreEstado, rangoFechas, type CategoriaTorneo } from '../../lib/torneo'
 import { Badge, Input, Vacio } from '../../components/ui'
 import { BadgeCategoria, ESTILO_CATEGORIA, bordeCategoria } from '../../components/Categoria'
 
-export type VistaTorneos = 'mes' | 'lista'
+export type VistaTorneos = 'semana' | 'mes' | 'lista'
 
 const tonoEstado = (e: ResumenPublico['estado']) => (e === 'en_curso' ? 'celeste' : e === 'finalizado' ? 'azul' : e === 'cancelado' ? 'rojo' : 'ambar') as 'celeste' | 'azul' | 'rojo' | 'ambar'
 const DIAS_LARGOS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
@@ -76,14 +76,25 @@ function tramosSemana(lun: string, torneos: ResumenPublico[]): Tramo[] {
 }
 
 /**
- * Torneos publicados en modo calendario: mes con un tramo por torneo (de su primer a su último día),
- * y abajo la agenda del mes por fin de semana o, si se toca un día, los torneos de ese día.
+ * Torneos publicados en modo calendario, con un tramo por torneo (de su primer a su último día).
+ * Mes: abajo la agenda del mes por fin de semana o, si se toca un día, los torneos de ese día.
+ * Semana (como el calendario de partidos): los 7 días con la cantidad de torneos y abajo los torneos del día elegido (arranca en hoy).
  */
-export default function TorneosCalendario({ lista, onVista }: { lista: ResumenPublico[]; onVista: (v: VistaTorneos) => void }) {
+export default function TorneosCalendario({ lista, vista, onVista }: { lista: ResumenPublico[]; vista: 'semana' | 'mes'; onVista: (v: VistaTorneos) => void }) {
   const hoy = hoyLocal()
   const angosto = useAngosto()
+  const semanal = vista === 'semana'
   const [mes, setMes] = useState(hoy.slice(0, 7))
-  const [dia, setDia] = useState<string | null>(null)
+  const [dia, setDia] = useState<string | null>(semanal ? hoy : null)
+  // al cambiar de vista se sigue mirando la misma fecha: a Semana, el día elegido (o hoy si es este mes, o el 1° del mes);
+  // a Mes, el mes de ese día (con el día todavía elegido)
+  const montado = useRef(false)
+  useEffect(() => {
+    if (!montado.current) { montado.current = true; return }
+    if (semanal) setDia((d) => d ?? (mes === hoy.slice(0, 7) ? hoy : `${mes}-01`))
+    else if (dia) setMes(dia.slice(0, 7))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [semanal])
   // filtros
   const [categoria, setCategoria] = useState<'' | CategoriaTorneo>('')
   const [texto, setTexto] = useState('')
@@ -122,9 +133,15 @@ export default function TorneosCalendario({ lista, onVista }: { lista: ResumenPu
   }, [delMes, primero])
 
   const irMes = (m: string) => { setMes(m); setDia(null) }
+  /** elige un día (vista Semana) y deja el mes en ese día */
+  const irDia = (f: string) => { setDia(f); setMes(f.slice(0, 7)) }
+  const diaSemana = dia ?? hoy
+  const lunSemana = lunes(diaSemana)
+  const proximoDia = dia ? filtrados.filter((t) => inicio(t) > dia).sort(ordenar)[0] : undefined
   const irA = (t: ResumenPublico) => irMes(inicio(t).slice(0, 7))
   const MAX = angosto ? 4 : 3
-  const nombreMes = MESES[aFecha(primero).getMonth()]
+  const nombreMes = MESES[aFecha(semanal ? diaSemana : primero).getMonth()]
+  const anioVisto = (semanal ? diaSemana : primero).slice(0, 4)
   const cuantos = (dia ? delDia : delMes).length
 
   return (
@@ -153,14 +170,17 @@ export default function TorneosCalendario({ lista, onVista }: { lista: ResumenPu
       {/* ------------------------------------------------ mes */}
       <div className="rounded-xl bg-white p-3 ring-1 ring-noche/10">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <button onClick={() => irMes(sumar(primero, -1).slice(0, 7))} aria-label="Mes anterior" className="rounded-lg p-1.5 text-noche/60 hover:bg-vidrio hover:text-noche"><ChevronLeft className="h-5 w-5" /></button>
-          <p className="font-display text-lg font-bold capitalize text-noche">{nombreMes} {mes.slice(0, 4)}</p>
+          <button onClick={() => (semanal ? irDia(sumar(diaSemana, -7)) : irMes(sumar(primero, -1).slice(0, 7)))} aria-label={semanal ? 'Semana anterior' : 'Mes anterior'} className="rounded-lg p-1.5 text-noche/60 hover:bg-vidrio hover:text-noche"><ChevronLeft className="h-5 w-5" /></button>
+          <p className="font-display text-lg font-bold capitalize text-noche">{nombreMes} {anioVisto}</p>
           <div className="flex items-center gap-1">
-            {(mes !== hoy.slice(0, 7) || dia) && <button onClick={() => irMes(hoy.slice(0, 7))} className="rounded-lg px-2 py-1 text-xs font-semibold text-cancha hover:bg-cancha-suave">Hoy</button>}
-            <SelectorVista vista="mes" onVista={onVista} angosto={angosto} />
-            <button onClick={() => irMes(sumar(primero, 32).slice(0, 7))} aria-label="Mes siguiente" className="rounded-lg p-1.5 text-noche/60 hover:bg-vidrio hover:text-noche"><ChevronRight className="h-5 w-5" /></button>
+            {(semanal ? dia !== hoy : mes !== hoy.slice(0, 7) || dia) && <button onClick={() => (semanal ? irDia(hoy) : irMes(hoy.slice(0, 7)))} className="rounded-lg px-2 py-1 text-xs font-semibold text-cancha hover:bg-cancha-suave">Hoy</button>}
+            <SelectorVista vista={vista} onVista={onVista} angosto={angosto} />
+            <button onClick={() => (semanal ? irDia(sumar(diaSemana, 7)) : irMes(sumar(primero, 32).slice(0, 7)))} aria-label={semanal ? 'Semana siguiente' : 'Mes siguiente'} className="rounded-lg p-1.5 text-noche/60 hover:bg-vidrio hover:text-noche"><ChevronRight className="h-5 w-5" /></button>
           </div>
         </div>
+        {semanal ? (
+          <Semana lun={lunSemana} dia={diaSemana} hoy={hoy} torneos={filtrados} angosto={angosto} onDia={irDia} />
+        ) : <>
         <div className="grid grid-cols-7 text-center">
           {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((d) => <span key={d} className="pb-1 text-[10px] font-semibold uppercase text-noche/50">{d}</span>)}
         </div>
@@ -204,6 +224,7 @@ export default function TorneosCalendario({ lista, onVista }: { lista: ResumenPu
             )
           })}
         </div>
+        </>}
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-noche/60">
           {CATEGORIAS.map((c) => <span key={c} className="inline-flex items-center gap-1"><span className={`h-2.5 w-2.5 rounded-sm ${BARRA[c].muestra}`} aria-hidden />{c}</span>)}
           <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-noche/15" aria-hidden />Claro = finalizado</span>
@@ -216,12 +237,16 @@ export default function TorneosCalendario({ lista, onVista }: { lista: ResumenPu
         <h2 className="border-l-[6px] border-pelota pl-2 font-display text-2xl font-bold leading-tight text-noche">
           {dia ? <>{dia === hoy ? 'Hoy · ' : ''}{tituloDia(dia)}</> : <>Torneos de {nombreMes}</>}
           <span className="ml-2 text-sm font-normal text-noche/50">{cuantos} torneo{cuantos === 1 ? '' : 's'}</span>
-          {dia && <button onClick={() => setDia(null)} className="ml-3 align-middle font-sans text-sm font-semibold text-cancha">Ver todo el mes</button>}
+          {dia && !semanal && <button onClick={() => setDia(null)} className="ml-3 align-middle font-sans text-sm font-semibold text-cancha">Ver todo el mes</button>}
         </h2>
 
         {!cuantos ? (
           <Vacio titulo={dia ? (hayFiltros ? 'No hay torneos con esos filtros este día' : 'No hay torneos este día') : hayFiltros ? 'No hay torneos con esos filtros este mes' : 'No hay torneos este mes'}>
-            {dia ? (
+            {semanal ? (proximoDia && (
+              <button onClick={() => irDia(inicio(proximoDia))} className="inline-flex items-center gap-1 font-semibold text-cancha">
+                Ir al próximo día con torneos ({rangoFechas(inicio(proximoDia), '')}) <ChevronsRight className="h-4 w-4" aria-hidden />
+              </button>
+            )) : dia ? (
               <button onClick={() => setDia(null)} className="font-semibold text-cancha">Ver los torneos del mes</button>
             ) : proximo ? (
               <button onClick={() => irA(proximo)} className="inline-flex items-center gap-1 font-semibold text-cancha">
@@ -260,7 +285,7 @@ export default function TorneosCalendario({ lista, onVista }: { lista: ResumenPu
   )
 }
 
-/** Mes | Lista (en el celular, solo íconos) */
+/** Semana | Mes | Lista (en el celular, solo íconos) */
 export function SelectorVista({ vista, onVista, angosto = false }: { vista: VistaTorneos; onVista: (v: VistaTorneos) => void; angosto?: boolean }) {
   const op = (v: VistaTorneos, Icono: typeof List, label: string) => (
     <button onClick={() => onVista(v)} aria-pressed={vista === v} aria-label={`Ver en ${label.toLowerCase()}`} title={label}
@@ -270,9 +295,48 @@ export function SelectorVista({ vista, onVista, angosto = false }: { vista: Vist
   )
   return (
     <span className="inline-flex overflow-hidden rounded-lg text-xs font-semibold ring-1 ring-noche/15">
+      {op('semana', CalendarRange, 'Semana')}
       {op('mes', CalendarDays, 'Mes')}
       {op('lista', List, 'Lista')}
     </span>
+  )
+}
+
+/** Vista Semana: los 7 días (con la cantidad de torneos de cada uno) y debajo los tramos de la semana, más altos y con el nombre completo */
+function Semana({ lun, dia, hoy, torneos, angosto, onDia }: { lun: string; dia: string; hoy: string; torneos: ResumenPublico[]; angosto: boolean; onDia: (f: string) => void }) {
+  const dias = Array.from({ length: 7 }, (_, i) => sumar(lun, i))
+  const tramos = tramosSemana(lun, torneos)
+  return (
+    <>
+      <div className="grid grid-cols-7 gap-1">
+        {dias.map((f) => {
+          const d = aFecha(f)
+          const n = torneos.filter((t) => cruza(t, f, f)).length
+          const elegido = f === dia
+          return (
+            <button key={f} onClick={() => onDia(f)} aria-pressed={elegido} aria-label={`${tituloDia(f)}: ${n} torneo${n === 1 ? '' : 's'}`}
+              className={`flex flex-col items-center rounded-lg py-1.5 ring-1 transition ${elegido ? 'bg-noche text-white ring-noche' : f === hoy ? 'bg-pelota/25 text-noche ring-pelota' : 'bg-white text-noche ring-noche/10 hover:bg-vidrio'} ${!n && !elegido ? 'opacity-55' : ''}`}>
+              <span className="text-[10px] font-semibold uppercase">{DIAS_LARGOS[d.getDay()].slice(0, 3)}</span>
+              <span className="num font-display text-xl font-bold leading-none">{d.getDate()}</span>
+              <span className={`num mt-0.5 h-4 text-[10px] font-bold ${elegido ? 'text-pelota' : 'text-cancha'}`}>{n || ''}</span>
+            </button>
+          )
+        })}
+      </div>
+      {tramos.length > 0 && (
+        <div className="mt-2 grid grid-cols-7 gap-y-1">
+          {tramos.map((s) => (
+            <a key={s.t.id} href={`#/torneo/${s.t.id}`} title={`${s.t.nombre} · ${rangoFechas(inicio(s.t), s.t.fecha_fin ?? '')} · ${nombreEstado(s.t.estado)}`}
+              style={{ gridColumn: `${s.ini + 1} / ${s.fin + 2}`, gridRow: s.carril + 1 }}
+              className={`mx-0.5 flex min-w-0 items-center gap-1 font-semibold leading-none ${angosto ? 'h-5 px-1.5 text-[11px]' : 'h-7 px-2.5 text-sm'} ${claseBarra(s.t)} ${s.corteIzq ? '' : 'rounded-l-md'} ${s.corteDer ? '' : 'rounded-r-md'} ${s.t.estado === 'en_curso' ? 'ring-2 ring-pelota ring-offset-1' : ''}`}>
+              {s.t.estado === 'en_curso' && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-pelota" aria-hidden />}
+              {s.t.estado === 'finalizado' && s.t.campeon && <Trophy className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+              <span className="truncate">{angosto ? s.t.nombre.replace(/^Fecha\s*\d+\s*[·\-–]\s*/i, '') : s.t.nombre}</span>
+            </a>
+          ))}
+        </div>
+      )}
+    </>
   )
 }
 

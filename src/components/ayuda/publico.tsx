@@ -11,10 +11,11 @@ export const AYUDA_PUBLICA: SeccionAyuda[] = [
     para: <>Encontrar tu torneo y entrar a ver zonas, horarios, resultados y playoff, actualizados a medida que se juegan.</>,
     pasos: [
       <>Por defecto los ves en un <strong>calendario del mes</strong>: cada torneo es una barra del color de su categoría que va de su primer a su último día. Con las flechas pasás de mes y con <strong>Hoy</strong> volvés al actual.</>,
+      <>Con <strong>Semana</strong> ves los 7 días con la cantidad de torneos de cada uno, como en el Calendario de partidos: arranca en hoy, te movés con las flechas por semana y abajo aparecen los torneos del día que toques.</>,
       <>Barra de color pleno: pendiente; con aro verde lima: en curso; en tono claro con 🏆: finalizado.</>,
       <>Abajo del calendario están los torneos del mes, por fin de semana. Tocá un día para ver solo los torneos que se juegan ese día.</>,
       <>Buscá el torneo por nombre, filtrá por categoría (Damas, Caballeros, Mixto) u ocultá los finalizados.</>,
-      <>Con <strong>Lista</strong> (al lado de Mes) volvés a la lista agrupada por estado (primero <strong>En Curso</strong>, después <strong>Pendientes</strong>, <strong>Finalizados</strong> y <strong>Cancelados</strong>), con filtros por estado, año y mes. La vista que elijas queda guardada para la próxima vez.</>,
+      <>Con <strong>Lista</strong> (al lado de Semana y Mes) volvés a la lista agrupada por estado (primero <strong>En Curso</strong>, después <strong>Pendientes</strong>, <strong>Finalizados</strong> y <strong>Cancelados</strong>), con filtros por estado, año y mes. La vista que elijas queda guardada para la próxima vez.</>,
       <>Cada tarjeta muestra fechas, cantidad de parejas, inscripción, premio y, si terminó, la pareja campeona.</>,
       <>Tocá un torneo para abrirlo.</>,
     ],
