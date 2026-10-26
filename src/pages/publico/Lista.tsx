@@ -59,10 +59,10 @@ export default function ListaPublica() {
 
 const ANIO_ACTUAL = String(new Date().getFullYear())
 
-/** vista elegida en la pestaña Torneos: Semana, Mes (por defecto) o Lista; se recuerda en el navegador */
+/** vista elegida en la pestaña Torneos: Semana (por defecto), Mes o Lista; se recuerda en el navegador */
 const CLAVE_VISTA = 'torneos_nodo_vista'
 const vistaGuardada = (): VistaTorneos => {
-  try { const v = localStorage.getItem(CLAVE_VISTA); return v === 'lista' || v === 'semana' ? v : 'mes' } catch { return 'mes' }
+  try { const v = localStorage.getItem(CLAVE_VISTA); return v === 'lista' || v === 'mes' ? v : 'semana' } catch { return 'semana' }
 }
 
 /** Torneos publicados: calendario por mes (por defecto) o por semana, o lista con filtros */

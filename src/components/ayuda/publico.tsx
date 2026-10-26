@@ -10,8 +10,8 @@ export const AYUDA_PUBLICA: SeccionAyuda[] = [
     que: <>Los torneos que publicó NODO, en calendario o en lista: los que se están jugando, los que vienen y los que ya terminaron.</>,
     para: <>Encontrar tu torneo y entrar a ver zonas, horarios, resultados y playoff, actualizados a medida que se juegan.</>,
     pasos: [
-      <>Por defecto los ves en un <strong>calendario del mes</strong>: cada torneo es una barra del color de su categoría que va de su primer a su último día. Con las flechas pasás de mes y con <strong>Hoy</strong> volvés al actual.</>,
-      <>Con <strong>Semana</strong> ves los 7 días con la cantidad de torneos de cada uno, como en la pestaña Partidos: arranca en hoy, te movés con las flechas por semana y abajo aparecen los torneos del día que toques.</>,
+            <>Por defecto los ves en la vista <strong>Semana</strong>, como en la pestaña Partidos: los 7 días con la cantidad de torneos de cada uno y cada torneo como una barra del color de su categoría, de su primer a su último día. Arranca en hoy, te movés con las flechas por semana, volvés con <strong>Hoy</strong> y abajo aparecen los torneos del día que toques.</>,
+      <>Con <strong>Mes</strong> ves el calendario del mes completo, con la agenda del mes abajo (tocá un día para ver solo sus torneos).</>,
       <>Barra de color pleno: pendiente; con aro verde lima: en curso; en tono claro con 🏆: finalizado.</>,
       <>Abajo del calendario están los torneos del mes, por fin de semana. Tocá un día para ver solo los torneos que se juegan ese día.</>,
       <>Buscá el torneo por nombre, filtrá por categoría (Damas, Caballeros, Mixto) u ocultá los finalizados.</>,
