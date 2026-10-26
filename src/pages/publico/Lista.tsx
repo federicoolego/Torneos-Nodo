@@ -12,7 +12,7 @@ import { BadgeCategoria, bordeCategoria } from '../../components/Categoria'
 import { GruposEstado } from '../../components/GruposEstado'
 import TorneosCalendario, { SelectorVista, type VistaTorneos } from './TorneosCalendario'
 
-export const tonoEstado = (e: EstadoTorneo) => (e === 'en_curso' ? 'verde' : e === 'finalizado' ? 'azul' : e === 'cancelado' ? 'rojo' : 'ambar') as 'verde' | 'azul' | 'rojo' | 'ambar'
+export const tonoEstado = (e: EstadoTorneo) => (e === 'en_curso' ? 'celeste' : e === 'finalizado' ? 'azul' : e === 'cancelado' ? 'rojo' : 'ambar') as 'celeste' | 'azul' | 'rojo' | 'ambar'
 
 type PestanaInicio = 'torneos' | 'calendario' | 'estadisticas' | 'categorias' | 'ascensos'
 const LINKS: Record<PestanaInicio, string> = { torneos: '#/', calendario: '#/calendario', estadisticas: '#/estadisticas', categorias: '#/categorias', ascensos: '#/ascensos' }

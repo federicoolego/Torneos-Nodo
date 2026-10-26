@@ -162,11 +162,13 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
   return <section className={`rounded-xl bg-white p-5 ring-1 ring-noche/10 ${className}`}>{children}</section>
 }
 
-type Tono = 'neutro' | 'azul' | 'verde' | 'rojo' | 'pelota' | 'ambar'
+type Tono = 'neutro' | 'azul' | 'verde' | 'celeste' | 'rojo' | 'pelota' | 'ambar'
 const TONOS: Record<Tono, string> = {
   neutro: 'bg-vidrio text-noche/70',
   azul: 'bg-cancha-suave text-cancha',
   verde: 'bg-emerald-50 text-emerald-800',
+  /** torneo en curso */
+  celeste: 'bg-sky-100 text-sky-800',
   rojo: 'bg-red/10 text-red',
   pelota: 'bg-pelota text-noche',
   ambar: 'bg-amber-50 text-amber-800',

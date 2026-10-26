@@ -2,14 +2,15 @@ import { Fragment, useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import type { EstadoTorneo } from '../lib/torneo'
 
-type ClaveGrupo = 'activos' | 'finalizados' | 'cancelados'
+type ClaveGrupo = 'en_curso' | 'pendientes' | 'finalizados' | 'cancelados'
 
 /**
- * Grupos en el orden en que se muestran: Pendientes y En curso juntos, después Finalizados y por último Cancelados.
- * Cada encabezado lleva el color del tag de su estado (Badge de ui.tsx): Pendiente ámbar · Finalizado verde NODO · Cancelado rojo.
+ * Grupos en el orden en que se muestran: En curso, Pendientes, Finalizados y por último Cancelados.
+ * Cada encabezado lleva el color del tag de su estado (Badge de ui.tsx): En curso celeste · Pendiente ámbar · Finalizado verde NODO · Cancelado rojo.
  */
 const GRUPOS: { clave: ClaveGrupo; titulo: string; estados: EstadoTorneo[]; clase: string }[] = [
-  { clave: 'activos', titulo: 'Pendientes - En Curso', estados: ['en_curso', 'pendiente'], clase: 'bg-amber-50 text-amber-800 ring-amber-200' },
+  { clave: 'en_curso', titulo: 'En Curso', estados: ['en_curso'], clase: 'bg-sky-100 text-sky-800 ring-sky-200' },
+  { clave: 'pendientes', titulo: 'Pendientes', estados: ['pendiente'], clase: 'bg-amber-50 text-amber-800 ring-amber-200' },
   { clave: 'finalizados', titulo: 'Finalizados', estados: ['finalizado'], clase: 'bg-cancha-suave text-cancha ring-cancha/25' },
   { clave: 'cancelados', titulo: 'Cancelados', estados: ['cancelado'], clase: 'bg-red/10 text-red ring-red/20' },
 ]
@@ -25,7 +26,7 @@ export function GruposEstado<T>({ items, estado, clave, render }: {
   /** cada item, como <li> */
   render: (t: T) => ReactNode
 }) {
-  // por defecto, solo Pendientes - En Curso expandido: lo primero que se ve son los torneos que se están jugando o vienen
+  // por defecto, En Curso y Pendientes expandidos (los grupos vacíos no se muestran): lo primero que se ve son los torneos que se están jugando y los que vienen
   const [colapsados, setColapsados] = useState<Set<ClaveGrupo>>(() => new Set<ClaveGrupo>(['finalizados', 'cancelados']))
   const grupos = GRUPOS.map((g) => ({ ...g, items: items.filter((t) => g.estados.includes(estado(t))) })).filter((g) => g.items.length)
   const todosColapsados = grupos.length > 0 && grupos.every((g) => colapsados.has(g.clave))

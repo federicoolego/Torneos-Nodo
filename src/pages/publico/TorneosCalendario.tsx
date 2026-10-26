@@ -7,7 +7,7 @@ import { BadgeCategoria, ESTILO_CATEGORIA, bordeCategoria } from '../../componen
 
 export type VistaTorneos = 'mes' | 'lista'
 
-const tonoEstado = (e: ResumenPublico['estado']) => (e === 'en_curso' ? 'verde' : e === 'finalizado' ? 'azul' : e === 'cancelado' ? 'rojo' : 'ambar') as 'verde' | 'azul' | 'rojo' | 'ambar'
+const tonoEstado = (e: ResumenPublico['estado']) => (e === 'en_curso' ? 'celeste' : e === 'finalizado' ? 'azul' : e === 'cancelado' ? 'rojo' : 'ambar') as 'celeste' | 'azul' | 'rojo' | 'ambar'
 const DIAS_LARGOS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 

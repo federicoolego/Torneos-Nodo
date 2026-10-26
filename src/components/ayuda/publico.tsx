@@ -14,7 +14,7 @@ export const AYUDA_PUBLICA: SeccionAyuda[] = [
       <>Barra de color pleno: pendiente; con aro verde lima: en curso; en tono claro con 🏆: finalizado.</>,
       <>Abajo del calendario están los torneos del mes, por fin de semana. Tocá un día para ver solo los torneos que se juegan ese día.</>,
       <>Buscá el torneo por nombre, filtrá por categoría (Damas, Caballeros, Mixto) u ocultá los finalizados.</>,
-      <>Con <strong>Lista</strong> (al lado de Mes) volvés a la lista agrupada por estado, con filtros por estado, año y mes. La vista que elijas queda guardada para la próxima vez.</>,
+      <>Con <strong>Lista</strong> (al lado de Mes) volvés a la lista agrupada por estado (primero <strong>En Curso</strong>, después <strong>Pendientes</strong>, <strong>Finalizados</strong> y <strong>Cancelados</strong>), con filtros por estado, año y mes. La vista que elijas queda guardada para la próxima vez.</>,
       <>Cada tarjeta muestra fechas, cantidad de parejas, inscripción, premio y, si terminó, la pareja campeona.</>,
       <>Tocá un torneo para abrirlo.</>,
     ],

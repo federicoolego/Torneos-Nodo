@@ -235,7 +235,7 @@ function Publicacion({ cat, cambiar }: { cat: Categoria; cambiar: (f: (c: Catego
   const copiar = async () => {
     try { await navigator.clipboard.writeText(link); setCopiado(true); setTimeout(() => setCopiado(false), 2000) } catch { prompt('Copiá el link:', link) }
   }
-  const tono = estado === 'en_curso' ? 'verde' : estado === 'finalizado' ? 'azul' : estado === 'cancelado' ? 'rojo' : 'ambar'
+  const tono = estado === 'en_curso' ? 'celeste' : estado === 'finalizado' ? 'azul' : estado === 'cancelado' ? 'rojo' : 'ambar'
   const chico = 'px-3 py-1.5 text-xs'
   const completo = () => cambiar((c) => ({ ...c, publicado: true, soloInfo: false }))
   return (

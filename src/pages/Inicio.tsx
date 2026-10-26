@@ -119,7 +119,7 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
                 <p className="truncate font-display text-xl font-bold">{c.torneo || 'Torneo sin nombre'}</p>
                 <div className="mt-0.5 flex flex-wrap gap-1">
                   <BadgeCategoria categoria={c.categoria} />
-                  <Badge tono={c.estado === 'en_curso' ? 'verde' : c.estado === 'finalizado' ? 'azul' : c.estado === 'cancelado' ? 'rojo' : 'ambar'}>{nombreEstado(c.estado)}</Badge>
+                  <Badge tono={c.estado === 'en_curso' ? 'celeste' : c.estado === 'finalizado' ? 'azul' : c.estado === 'cancelado' ? 'rojo' : 'ambar'}>{nombreEstado(c.estado)}</Badge>
                   {c.publicado && <Badge tono="pelota">{c.soloInfo ? 'Publicado · solo info' : 'Publicado'}</Badge>}
                 </div>
                 <p className="truncate text-sm text-noche/65">{c.fechaInicio ? rangoFechas(c.fechaInicio, c.fechaFin) : 'Sin fechas'}</p>
