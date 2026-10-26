@@ -11,7 +11,7 @@ export const AYUDA_PUBLICA: SeccionAyuda[] = [
     para: <>Encontrar tu torneo y entrar a ver zonas, horarios, resultados y playoff, actualizados a medida que se juegan.</>,
     pasos: [
       <>Por defecto los ves en un <strong>calendario del mes</strong>: cada torneo es una barra del color de su categoría que va de su primer a su último día. Con las flechas pasás de mes y con <strong>Hoy</strong> volvés al actual.</>,
-      <>Con <strong>Semana</strong> ves los 7 días con la cantidad de torneos de cada uno, como en el Calendario de partidos: arranca en hoy, te movés con las flechas por semana y abajo aparecen los torneos del día que toques.</>,
+      <>Con <strong>Semana</strong> ves los 7 días con la cantidad de torneos de cada uno, como en la pestaña Partidos: arranca en hoy, te movés con las flechas por semana y abajo aparecen los torneos del día que toques.</>,
       <>Barra de color pleno: pendiente; con aro verde lima: en curso; en tono claro con 🏆: finalizado.</>,
       <>Abajo del calendario están los torneos del mes, por fin de semana. Tocá un día para ver solo los torneos que se juegan ese día.</>,
       <>Buscá el torneo por nombre, filtrá por categoría (Damas, Caballeros, Mixto) u ocultá los finalizados.</>,
@@ -42,7 +42,7 @@ export const AYUDA_PUBLICA: SeccionAyuda[] = [
   },
   {
     id: 'calendario',
-    titulo: 'Calendario',
+    titulo: 'Partidos',
     que: <>Todos los partidos de los torneos de NODO, juntos, por día y horario: los que vienen, los que se están jugando y los resultados.</>,
     para: <>Ver qué se juega cada día en el club y encontrar rápido cuándo te toca, aunque estés en más de un torneo.</>,
     pasos: [
@@ -97,6 +97,6 @@ export const AYUDA_PUBLICA: SeccionAyuda[] = [
 /** pestaña que se está mirando en la página pública, según el link */
 export const pestanaPublica = () => {
   const h = window.location.hash
-  return h.startsWith('#/torneo/') ? 'torneo' : h.startsWith('#/calendario') ? 'calendario'
+  return h.startsWith('#/torneo/') ? 'torneo' : h.startsWith('#/partidos') || h.startsWith('#/calendario') ? 'calendario'
     : h.startsWith('#/estadisticas') ? 'estadisticas' : h.startsWith('#/categorias') ? 'categorias' : h.startsWith('#/ascensos') ? 'ascensos' : 'torneos'
 }

@@ -40,7 +40,7 @@ export function PieFijo() {
   )
 }
 
-/** Ruta actual: '#/' (torneos publicados) · '#/calendario' · '#/estadisticas' · '#/categorias' · '#/ascensos' · '#/torneo/<id>' · '#/admin' */
+/** Ruta actual: '#/' (torneos publicados) · '#/partidos' (antes '#/calendario', sigue andando) · '#/estadisticas' · '#/categorias' · '#/ascensos' · '#/torneo/<id>' · '#/admin' */
 export function useRuta() {
   const [ruta, setRuta] = useState(window.location.hash)
   useEffect(() => {

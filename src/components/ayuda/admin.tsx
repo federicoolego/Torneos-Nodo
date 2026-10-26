@@ -39,7 +39,7 @@ export const AYUDA_ADMIN: SeccionAyuda[] = [
       <><strong>2. Horarios de las parejas:</strong> repasás los días y horarios de todas juntas y corregís tocando cada una. Las que tienen el horario escrito en texto se pasan solas con “Interpretar”.</>,
       <><strong>3. Zonas:</strong> “Armar zonas por horarios” junta a las parejas que pueden jugar en los mismos horarios. Podés intercambiar parejas entre zonas.</>,
       <><strong>4. Grilla de partidos:</strong> “Armar horarios” reparte todos los partidos (zonas y playoff) por día y cancha. Lo que no se pudo respetar queda marcado y lo decidís vos: tocás el partido, lo cambiás y lo fijás.</>,
-      <><strong>Aplicar a los torneos:</strong> carga día, hora y cancha en cada torneo. Después seguís como siempre: publicar, imágenes, Calendario y resultados.</>,
+      <><strong>Aplicar a los torneos:</strong> carga día, hora y cancha en cada torneo. Después seguís como siempre: publicar, imágenes, Partidos y resultados.</>,
     ],
     tips: [
       <>Colores de la grilla: <strong>rojo</strong> = choque (un jugador en dos partidos a la vez) · <strong>ámbar</strong> = no se respetó un pedido de horario.</>,
@@ -49,7 +49,7 @@ export const AYUDA_ADMIN: SeccionAyuda[] = [
   },
   {
     id: 'calendario',
-    titulo: 'Calendario',
+    titulo: 'Partidos',
     que: <>El cronograma unificado de todos los torneos <strong>pendientes y en curso</strong> que tienen partidos sin resultado, ordenado por día y horario.</>,
     para: <>Ver la fecha completa de un vistazo, compartirla o imprimirla, y cargar los resultados en el orden en que se van jugando sin entrar torneo por torneo.</>,
     pasos: [

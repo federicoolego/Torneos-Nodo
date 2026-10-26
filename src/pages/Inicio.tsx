@@ -68,7 +68,7 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
 
   return (
     <>
-      <Titulo bajada="Cada torneo (una categoría) se arma por separado. Todo queda guardado en la base de datos. El cronograma de todos los torneos en juego (PDF y carga de resultados) está en la pestaña Calendario, y los rankings, en Estadísticas." accion={
+      <Titulo bajada="Cada torneo (una categoría) se arma por separado. Todo queda guardado en la base de datos. El cronograma de todos los torneos en juego (PDF y carga de resultados) está en la pestaña Partidos, y los rankings, en Estadísticas." accion={
         <div className="flex flex-wrap gap-2">
           <ImportarTorneos
             onImportado={async (txt) => { await refrescar(); setMsg({ tipo: 'ok', txt }) }}

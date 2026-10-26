@@ -237,7 +237,7 @@ function EditorFecha({ inicial, todos, onVolver }: { inicial: Jornada; todos: Re
     await vaciar()
     // la grilla queda como lo aplicado
     setJ((x) => ({ ...x, plan }))
-    setMsg(`Listo: se cargaron ${n} partidos con día, hora y cancha. Ya los ves en cada torneo y en Calendario. Cuando quieras, publicá cada torneo.`)
+    setMsg(`Listo: se cargaron ${n} partidos con día, hora y cancha. Ya los ves en cada torneo y en la pestaña Partidos. Cuando quieras, publicá cada torneo.`)
   }
 
   if (error && !cats) return <Alerta tipo="error">{error}</Alerta>

@@ -35,7 +35,7 @@ export default function Instructivo() {
             </ol>
             <p className="mt-2 text-xs text-noche/60">Cada categoría es un torneo aparte. Para otra categoría, usá “Duplicar” y cambiá el nombre y las parejas.</p>
             <p className="mt-2 text-xs text-noche/60"><strong>Importar torneos:</strong> carga un archivo .sql (por ejemplo, el que se arma desde el Excel de la fecha) con torneos, parejas, zonas y horarios. Antes de importar muestra qué va a cargar; si un torneo ya existe, se deja como está salvo que tildes “Actualizar”. Nunca toca resultados.</p>
-            <p className="mt-2 text-xs text-noche/60"><strong>Cronograma:</strong> la pestaña Calendario muestra todos los partidos de los torneos pendientes y en curso, juntos y por día y horario: se comparte en PDF, se imprime o se baja en Word, y desde la misma lista se cargan los resultados. Se pueden destildar torneos, sumar otros y ordenarlos. Avisa si hay más partidos a la vez que canchas o un jugador en dos partidos que se pisan.</p>
+            <p className="mt-2 text-xs text-noche/60"><strong>Cronograma:</strong> la pestaña Partidos muestra todos los partidos de los torneos pendientes y en curso, juntos y por día y horario: se comparte en PDF, se imprime o se baja en Word, y desde la misma lista se cargan los resultados. Se pueden destildar torneos, sumar otros y ordenarlos. Avisa si hay más partidos a la vez que canchas o un jugador en dos partidos que se pisan.</p>
           </div>
           <div className="space-y-3">
             <div className="rounded-lg bg-cancha-suave/60 p-3 ring-1 ring-cancha/15">
@@ -54,7 +54,7 @@ export default function Instructivo() {
                 <li><strong>Horarios de las parejas:</strong> repasás los días y horarios de todas las parejas juntas y corregís tocando cada una. Las parejas cargadas antes con el horario escrito en texto se pasan solas con “Interpretar”.</li>
                 <li><strong>Zonas:</strong> “Armar zonas por horarios” junta a las parejas que pueden jugar en los mismos horarios. Podés intercambiar parejas entre zonas.</li>
                 <li><strong>Grilla de partidos:</strong> “Armar horarios” reparte todos los partidos (zonas y playoff) por día y cancha: nadie juega dos partidos a la vez (aunque esté en dos categorías), el playoff va después de las zonas y se respetan los horarios pedidos. Lo que no se puede respetar queda marcado (rojo: choque · ámbar: pedido de horario) y lo decidís vos: tocá el partido, cambialo y fijalo. “Volver a armar” mantiene los fijados.</li>
-                <li><strong>Aplicar a los torneos:</strong> carga día, hora y cancha en cada torneo. Después seguís como siempre: publicar, imágenes, Calendario y resultados.</li>
+                <li><strong>Aplicar a los torneos:</strong> carga día, hora y cancha en cada torneo. Después seguís como siempre: publicar, imágenes, Partidos y resultados.</li>
               </ol>
             </div>
             <div className="rounded-lg bg-vidrio p-3">

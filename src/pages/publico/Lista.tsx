@@ -15,11 +15,11 @@ import TorneosCalendario, { SelectorVista, type VistaTorneos } from './TorneosCa
 export const tonoEstado = (e: EstadoTorneo) => (e === 'en_curso' ? 'celeste' : e === 'finalizado' ? 'azul' : e === 'cancelado' ? 'rojo' : 'ambar') as 'celeste' | 'azul' | 'rojo' | 'ambar'
 
 type PestanaInicio = 'torneos' | 'calendario' | 'estadisticas' | 'categorias' | 'ascensos'
-const LINKS: Record<PestanaInicio, string> = { torneos: '#/', calendario: '#/calendario', estadisticas: '#/estadisticas', categorias: '#/categorias', ascensos: '#/ascensos' }
-/** pestaña de la página inicial según el link (#/ · #/calendario · #/estadisticas · #/categorias · #/ascensos) */
+const LINKS: Record<PestanaInicio, string> = { torneos: '#/', calendario: '#/partidos', estadisticas: '#/estadisticas', categorias: '#/categorias', ascensos: '#/ascensos' }
+/** pestaña de la página inicial según el link (#/ · #/partidos (o el viejo #/calendario, por los links ya compartidos) · #/estadisticas · #/categorias · #/ascensos) */
 const pestanaDelLink = (): PestanaInicio => {
   const h = window.location.hash
-  return h.startsWith('#/calendario') ? 'calendario' : h.startsWith('#/estadisticas') ? 'estadisticas' : h.startsWith('#/categorias') && MOSTRAR_CATEGORIAS_PUBLICAS ? 'categorias' : h.startsWith('#/ascensos') ? 'ascensos' : 'torneos'
+  return h.startsWith('#/partidos') || h.startsWith('#/calendario') ? 'calendario' : h.startsWith('#/estadisticas') ? 'estadisticas' : h.startsWith('#/categorias') && MOSTRAR_CATEGORIAS_PUBLICAS ? 'categorias' : h.startsWith('#/ascensos') ? 'ascensos' : 'torneos'
 }
 
 /** Torneos publicados con los datos que usan las estadísticas (sin los publicados "solo info": todavía no tienen parejas a la vista) */
@@ -29,7 +29,7 @@ const cargarEstadisticas = async (): Promise<DatoEstadistica[]> =>
 const sinCategorias = () => Promise.reject(new Error('Categorías ocultas'))
 const enlaceTorneo = (id: string) => `#/torneo/${id}`
 
-/** Página inicial para jugadores: pestañas Torneos (por defecto), Calendario, Estadísticas, Categorías y Ascensos */
+/** Página inicial para jugadores: pestañas Torneos (por defecto), Partidos, Estadísticas, Categorías y Ascensos */
 export default function ListaPublica() {
   const [pestana, setPestana] = useState<PestanaInicio>(pestanaDelLink)
   useEffect(() => {
@@ -45,11 +45,11 @@ export default function ListaPublica() {
   return (
     <>
       <div className="mb-5">
-        <Tabs<PestanaInicio> opciones={[{ id: 'torneos', label: 'Torneos' }, { id: 'calendario', label: 'Calendario' }, { id: 'estadisticas', label: 'Estadísticas' }, ...(MOSTRAR_CATEGORIAS_PUBLICAS ? [{ id: 'categorias' as const, label: 'Categorías' }] : []), { id: 'ascensos', label: 'Ascensos' }]} valor={pestana} onChange={cambiar} />
+        <Tabs<PestanaInicio> opciones={[{ id: 'torneos', label: 'Torneos' }, { id: 'calendario', label: 'Partidos' }, { id: 'estadisticas', label: 'Estadísticas' }, ...(MOSTRAR_CATEGORIAS_PUBLICAS ? [{ id: 'categorias' as const, label: 'Categorías' }] : []), { id: 'ascensos', label: 'Ascensos' }]} valor={pestana} onChange={cambiar} />
       </div>
       {pestana === 'calendario' ? (
         <>
-          <header className="mb-3"><h1 className="font-display text-4xl font-bold leading-none text-noche">Calendario</h1></header>
+          <header className="mb-3"><h1 className="font-display text-4xl font-bold leading-none text-noche">Partidos</h1></header>
           <Calendario />
         </>
       ) : pestana === 'categorias' ? <CategoriasPublicas /> : pestana === 'ascensos' ? <AscensosPublicos /> : pestana === 'estadisticas' ? <PanelEstadisticas cargar={cargarEstadisticas} cargarCategorias={MOSTRAR_CATEGORIAS_PUBLICAS ? categoriasPublicas : sinCategorias} enlace={enlaceTorneo} /> : <Torneos />}

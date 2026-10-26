@@ -30,16 +30,16 @@ const cargarCategorias = async () => {
 
 type Pestana = 'torneos' | 'fechas' | 'calendario' | 'estadisticas' | 'jugadores' | 'categorias' | 'ascensos'
 const RUTAS: Record<Pestana, string> = {
-  torneos: '#/admin', fechas: '#/admin/fechas', calendario: '#/admin/calendario', estadisticas: '#/admin/estadisticas', jugadores: '#/admin/jugadores', categorias: '#/admin/categorias', ascensos: '#/admin/ascensos',
+  torneos: '#/admin', fechas: '#/admin/fechas', calendario: '#/admin/partidos', estadisticas: '#/admin/estadisticas', jugadores: '#/admin/jugadores', categorias: '#/admin/categorias', ascensos: '#/admin/ascensos',
 }
 
 /** Panel de organizadores (#/admin): login + armado de torneos */
 export default function Admin() {
   const [logueado, setLogueado] = useState<boolean | null>(null)
   const ruta = useRuta()
-  // pestañas del admin: Torneos (#/admin) · Armar fecha · Calendario · Estadísticas · Jugadores · Categorías · Ascensos (#/admin/<pestaña>)
+  // pestañas del admin: Torneos (#/admin) · Armar fecha · Partidos · Estadísticas · Jugadores · Categorías · Ascensos (#/admin/<pestaña>)
   const pestana: Pestana = ruta.startsWith('#/admin/jugadores') ? 'jugadores' : ruta.startsWith('#/admin/fechas') ? 'fechas'
-    : ruta.startsWith('#/admin/calendario') || ruta.startsWith('#/admin/cronograma') ? 'calendario'
+    : ruta.startsWith('#/admin/partidos') || ruta.startsWith('#/admin/calendario') || ruta.startsWith('#/admin/cronograma') ? 'calendario'
     : ruta.startsWith('#/admin/estadisticas') ? 'estadisticas' : ruta.startsWith('#/admin/categorias') ? 'categorias' : ruta.startsWith('#/admin/ascensos') ? 'ascensos' : 'torneos'
   const [abierta, setAbierta] = useState<string | null>(null)
   // torneo nuevo todavía sin guardar: se crea en la base recién con los datos obligatorios completos
@@ -91,7 +91,7 @@ export default function Admin() {
         <div className="mb-5">
           <Tabs<Pestana>
             opciones={[
-              { id: 'torneos', label: 'Torneos' }, { id: 'fechas', label: 'Armar fecha' }, { id: 'calendario', label: 'Calendario' },
+              { id: 'torneos', label: 'Torneos' }, { id: 'fechas', label: 'Armar fecha' }, { id: 'calendario', label: 'Partidos' },
               { id: 'estadisticas', label: 'Estadísticas' }, { id: 'jugadores', label: 'Jugadores' }, { id: 'categorias', label: 'Categorías' }, { id: 'ascensos', label: 'Ascensos' },
             ]}
             valor={pestana}

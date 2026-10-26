@@ -197,12 +197,12 @@ function parametro(clave: string): string {
   return i < 0 ? '' : new URLSearchParams(window.location.hash.slice(i + 1)).get(clave) ?? ''
 }
 
-/** vuelve a la pestaña de donde se llegó (Calendario si se entró desde un partido del calendario) */
+/** vuelve a la pestaña de donde se llegó (Partidos si se entró desde un partido de esa pestaña) */
 function Volver() {
   const desdeCalendario = window.location.hash.includes('?p=')
   return (
-    <a href={desdeCalendario ? '#/calendario' : '#/'} className="inline-flex items-center gap-1 text-sm font-semibold text-cancha">
-      <ArrowLeft className="h-4 w-4" aria-hidden /> {desdeCalendario ? 'Calendario' : 'Torneos'}
+    <a href={desdeCalendario ? '#/partidos' : '#/'} className="inline-flex items-center gap-1 text-sm font-semibold text-cancha">
+      <ArrowLeft className="h-4 w-4" aria-hidden /> {desdeCalendario ? 'Partidos' : 'Torneos'}
     </a>
   )
 }
