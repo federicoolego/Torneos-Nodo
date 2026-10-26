@@ -5,7 +5,7 @@ import { ArrowLeft, Pencil, Plus, Shuffle, Sparkles, Trash2, Users, X } from 'lu
 import { cargarVarios, guardar, listar, vaciar, type ResumenTorneo } from '../lib/almacen'
 import { eliminarJornada, guardarJornada, listarJornadas, type Jornada } from '../lib/jornadas'
 import {
-  INSTANCIAS, LETRAS, MIN_PAREJAS, cuadroAutomatico, diaCorto, diasEntre, nombreEstado, nuevoId, rangoFechas, zonasArmadas,
+  INSTANCIAS, LETRAS, MIN_PAREJAS, compararCercania, cuadroAutomatico, diaCorto, diasEntre, nombreEstado, nuevoId, rangoFechas, zonasArmadas,
   type Categoria, type Disponibilidad, type Instancia,
 } from '../lib/torneo'
 import { interpretarTexto } from '../lib/disponibilidad'
@@ -18,6 +18,9 @@ import { ProblemaHorario } from '../components/pasos/Datos'
 import Grilla, { PALETA, planDesdeTorneos } from '../components/fecha/Grilla'
 
 const activo = (t: ResumenTorneo) => t.estado === 'pendiente' || t.estado === 'en_curso'
+/** del más cercano a jugarse al más lejano (mismo orden que la pestaña Torneos) */
+const porCercania = (a: ResumenTorneo, b: ResumenTorneo) =>
+  compararCercania({ inicio: a.fechaInicio, estado: a.estado, nombre: a.torneo }, { inicio: b.fechaInicio, estado: b.estado, nombre: b.torneo })
 
 export default function Fechas() {
   const [lista, setLista] = useState<Jornada[] | null>(null)
@@ -44,6 +47,12 @@ export default function Fechas() {
   if (abierta) return <EditorFecha key={abierta.id} inicial={abierta} todos={torneos} onVolver={() => { setAbierta(null); void refrescar() }} />
 
   const nombre = (id: string) => torneos.find((t) => t.id === id)
+  // fechas, de la más cercana a jugarse a la más lejana (las ya jugadas al final, de la más reciente a la más vieja)
+  const clave = (j: Jornada) => {
+    const ts = j.torneos.map(nombre).filter((t): t is ResumenTorneo => !!t)
+    return { inicio: ts.map((t) => t.fechaInicio).filter(Boolean).sort()[0] ?? '', estado: ts.some(activo) ? 'pendiente' as const : 'finalizado' as const, nombre: j.nombre }
+  }
+  const ordenadas = [...(lista ?? [])].sort((a, b) => compararCercania(clave(a), clave(b)))
   return (
     <>
       <Titulo bajada="Juntá los torneos que se juegan el mismo fin de semana: la app arma las zonas según los horarios de cada pareja y reparte todos los partidos en las canchas, sin choques. Vos revisás, movés lo que quieras y lo aplicás."
@@ -57,7 +66,7 @@ export default function Fechas() {
         </Vacio>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
-          {lista.map((j) => {
+          {ordenadas.map((j) => {
             const ts = j.torneos.map(nombre).filter((t): t is ResumenTorneo => !!t)
             const inicio = ts.map((t) => t.fechaInicio).filter(Boolean).sort()[0] ?? ''
             const fin = ts.map((t) => t.fechaFin).filter(Boolean).sort().reverse()[0] ?? ''
@@ -107,7 +116,7 @@ function NuevaFecha({ torneos, onCerrar, onCrear }: { torneos: ResumenTorneo[]; 
   const [nombre, setNombre] = useState('')
   const [tocado, setTocado] = useState(false)
   const [ocupado, setOcupado] = useState(false)
-  const orden = [...torneos].sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || '') || a.torneo.localeCompare(b.torneo, 'es'))
+  const orden = [...torneos].sort(porCercania)
   const sel = orden.filter((t) => elegidos.has(t.id))
   const sugerido = nombreSugerido(sel)
   const alternar = (id: string) => setElegidos((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
@@ -234,7 +243,7 @@ function EditorFecha({ inicial, todos, onVolver }: { inicial: Jornada; todos: Re
   if (error && !cats) return <Alerta tipo="error">{error}</Alerta>
   if (!cats) return <Spinner texto="Leyendo los torneos de la fecha…" />
 
-  const paraSumar = todos.filter((t) => activo(t) && !j.torneos.includes(t.id))
+  const paraSumar = todos.filter((t) => activo(t) && !j.torneos.includes(t.id)).sort(porCercania)
   const pasos: { id: Paso; label: string }[] = [
     { id: 'config', label: '1. Torneos y canchas' }, { id: 'parejas', label: '2. Horarios de las parejas' },
     { id: 'zonas', label: '3. Zonas' }, { id: 'horarios', label: '4. Grilla de partidos' },

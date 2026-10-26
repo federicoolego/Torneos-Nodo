@@ -16,7 +16,8 @@ export const AYUDA_ADMIN: SeccionAyuda[] = [
       <><strong>Playoff:</strong> el cuadro se arma solo con los clasificados (1° Zona A vs 2° Zona B…); le ponés día y hora a la primera ronda.</>,
       <><strong>Partidos:</strong> cargás los resultados; las posiciones y los cruces se completan solos. Los partidos que faltan se pueden reprogramar (a una fecha y hora futuras). Desde acá también sale el cronograma en PDF.</>,
       <><strong>Imágenes:</strong> zonas y playoff listas para WhatsApp, con nombres y resultados a medida que se cargan (también con el botón verde de abajo a la derecha).</>,
-      <><strong>Publicar:</strong> con las zonas armadas, el botón “Publicar” (arriba, en cada torneo) lo muestra en la página pública, que se actualiza sola con horarios y resultados.</>,
+      <><strong>Publicar info e inscripción:</strong> apenas cargás los datos del torneo, lo muestra en la página pública solo con fechas, formato, inscripción y premio, y un botón para inscribirse por WhatsApp. Las parejas, zonas y partidos no se ven mientras lo armás.</>,
+      <><strong>Mostrar zonas y partidos / Publicar completo:</strong> con las zonas armadas, los jugadores pasan a ver zonas, partidos y playoff, que se actualizan solos con horarios y resultados. Con “Solo info” se vuelve a ocultar.</>,
     ],
     tips: [
       <>El estado (Pendiente, En curso, Finalizado) se calcula solo; “Cancelar torneo” es manual. Eliminar un torneo es definitivo.</>,

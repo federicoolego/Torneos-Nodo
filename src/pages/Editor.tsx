@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, CloudUpload, Copy, ExternalLink, Globe, Loader2, RotateCcw, Share2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Check, CloudUpload, Copy, ExternalLink, EyeOff, Globe, Info, LayoutGrid, Loader2, RotateCcw, Share2 } from 'lucide-react'
 import { cargar, escucharGuardado, estadoGuardado, guardar, vaciar, type EstadoGuardado } from '../lib/almacen'
 import {
   MAX_PAREJAS, MIN_PAREJAS, datosCompletos, erroresCuadro, precargarHorarios, nombreEstado, zonasArmadas, firmaZonas, horarioCompleto, partidosDeZona, rangoFechas, rondasPlayoff, type Categoria,
@@ -75,7 +75,8 @@ export default function Editor({ id, inicial, onVolver }: { id: string; inicial?
   const claveSugerencia = `nodo-generador:sugerencia-publicar:${id}`
   const zonasListas = !!cat && zonasArmadas(cat)
   useEffect(() => {
-    if (!cat || !zonasListas || cat.publicado || !persistido.current) return
+    // se sugiere si no está publicado o si está publicado "solo info" (para pasar a mostrar zonas y partidos)
+    if (!cat || !zonasListas || (cat.publicado && !cat.soloInfo) || !persistido.current) return
     try { if (localStorage.getItem(claveSugerencia)) return } catch { /* nada */ }
     setSugerirPublicar(true)
   }, [zonasListas]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -180,11 +181,17 @@ export default function Editor({ id, inicial, onVolver }: { id: string; inicial?
       >
         <Share2 className="h-7 w-7" />
       </button>
-      <Modal abierto={sugerirPublicar} titulo="¿Publicamos el torneo?" onCerrar={cerrarSugerencia}>
-        <p className="text-sm text-noche/75">Las zonas ya están armadas. Si lo publicás, los jugadores pueden ver las zonas, los partidos y el playoff desde la página de torneos, y se van actualizando a medida que cargás horarios y resultados.</p>
+      <Modal abierto={sugerirPublicar} titulo={cat.publicado ? '¿Mostramos las zonas y los partidos?' : '¿Publicamos el torneo?'} onCerrar={cerrarSugerencia}>
+        <p className="text-sm text-noche/75">
+          {cat.publicado
+            ? 'Las zonas ya están armadas. Hoy los jugadores ven solo la info del torneo y el link de inscripción. Si lo mostrás completo, ven las zonas, los partidos y el playoff, que se van actualizando a medida que cargás horarios y resultados. Si todavía lo estás armando, dejalo para más tarde: el botón “Mostrar zonas y partidos” está arriba.'
+            : 'Las zonas ya están armadas. Si lo publicás, los jugadores pueden ver las zonas, los partidos y el playoff desde la página de torneos, y se van actualizando a medida que cargás horarios y resultados.'}
+        </p>
         <div className="mt-5 flex justify-end gap-2">
           <Button variante="secundario" onClick={cerrarSugerencia}>Más tarde</Button>
-          <Button onClick={() => { cambiar((c) => ({ ...c, publicado: true })); cerrarSugerencia() }}><Globe className="h-4 w-4" aria-hidden /> Publicar</Button>
+          <Button onClick={() => { cambiar((c) => ({ ...c, publicado: true, soloInfo: false })); cerrarSugerencia() }}>
+            {cat.publicado ? <><LayoutGrid className="h-4 w-4" aria-hidden /> Mostrar zonas y partidos</> : <><Globe className="h-4 w-4" aria-hidden /> Publicar</>}
+          </Button>
         </div>
       </Modal>
       <Modal abierto={compartir} titulo="Compartir por WhatsApp" onCerrar={() => setCompartir(false)} ancho="max-w-3xl">
@@ -215,7 +222,11 @@ function IndicadorGuardado({ estado, error }: { estado: EstadoGuardado; error: s
 /** Link público del torneo (página de jugadores) */
 export const linkPublico = (id: string) => `${window.location.origin}${import.meta.env.BASE_URL}#/torneo/${id}`
 
-/** Estado del torneo, publicar / despublicar y cancelar */
+/**
+ * Estado del torneo, publicar / despublicar y cancelar.
+ * Dos formas de publicar: "solo info" (datos del paso Torneo + link de inscripción por WhatsApp, mientras se arma)
+ * o completo (zonas, partidos y playoff; requiere zonas armadas). Se puede pasar de una a otra en cualquier momento.
+ */
 function Publicacion({ cat, cambiar }: { cat: Categoria; cambiar: (f: (c: Categoria) => Categoria) => void }) {
   const estado = estadoTorneo(cat)
   const puede = zonasArmadas(cat)
@@ -225,27 +236,47 @@ function Publicacion({ cat, cambiar }: { cat: Categoria; cambiar: (f: (c: Catego
     try { await navigator.clipboard.writeText(link); setCopiado(true); setTimeout(() => setCopiado(false), 2000) } catch { prompt('Copiá el link:', link) }
   }
   const tono = estado === 'en_curso' ? 'verde' : estado === 'finalizado' ? 'azul' : estado === 'cancelado' ? 'rojo' : 'ambar'
+  const chico = 'px-3 py-1.5 text-xs'
+  const completo = () => cambiar((c) => ({ ...c, publicado: true, soloInfo: false }))
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-white p-2.5 ring-1 ring-noche/10">
       <Badge tono={tono}>{nombreEstado(estado)}</Badge>
-      {cat.publicado ? <Badge tono="pelota"><Globe className="mr-1 h-3 w-3" aria-hidden /> Publicado</Badge> : <Badge>No publicado</Badge>}
+      {!cat.publicado ? <Badge>No publicado</Badge> : cat.soloInfo
+        ? <span title="Los jugadores ven la info del torneo y el link de inscripción, sin parejas, zonas ni partidos"><Badge tono="pelota"><Info className="mr-1 h-3 w-3" aria-hidden /> Publicado · solo info</Badge></span>
+        : <Badge tono="pelota"><Globe className="mr-1 h-3 w-3" aria-hidden /> Publicado</Badge>}
       <div className="ml-auto flex flex-wrap gap-2">
         {cat.publicado ? (
           <>
-            <Button variante="secundario" className="px-3 py-1.5 text-xs" onClick={copiar}><Copy className="h-3.5 w-3.5" aria-hidden /> {copiado ? 'Copiado' : 'Copiar link'}</Button>
+            {cat.soloInfo && (
+              <Button className={chico} disabled={!puede} title={puede ? 'Los jugadores pasan a ver las zonas, los partidos y el playoff' : 'Primero armá las zonas'} onClick={completo}>
+                <LayoutGrid className="h-3.5 w-3.5" aria-hidden /> Mostrar zonas y partidos
+              </Button>
+            )}
+            <Button variante="secundario" className={chico} onClick={copiar}><Copy className="h-3.5 w-3.5" aria-hidden /> {copiado ? 'Copiado' : 'Copiar link'}</Button>
             <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-cancha ring-1 ring-cancha/30 hover:bg-cancha-suave">
               <ExternalLink className="h-3.5 w-3.5" aria-hidden /> Ver página
             </a>
-            <Button variante="fantasma" className="px-3 py-1.5 text-xs"
+            {!cat.soloInfo && (
+              <Button variante="fantasma" className={chico} title="Los jugadores dejan de ver parejas, zonas y partidos: solo la info y el link de inscripción"
+                onClick={() => confirm('¿Volver a mostrar solo la info del torneo? Los jugadores dejan de ver las parejas, zonas, partidos y playoff hasta que lo muestres completo de nuevo.') && cambiar((c) => ({ ...c, soloInfo: true }))}>
+                <EyeOff className="h-3.5 w-3.5" aria-hidden /> Solo info
+              </Button>
+            )}
+            <Button variante="fantasma" className={chico}
               onClick={() => confirm('¿Despublicar? Los jugadores dejan de verlo hasta que lo publiques de nuevo.') && cambiar((c) => ({ ...c, publicado: false }))}>
               Despublicar
             </Button>
           </>
         ) : (
-          <Button className="px-3 py-1.5 text-xs" disabled={!puede} title={puede ? undefined : 'Para publicar, primero armá las zonas'}
-            onClick={() => cambiar((c) => ({ ...c, publicado: true }))}>
-            <Globe className="h-3.5 w-3.5" aria-hidden /> Publicar
-          </Button>
+          <>
+            <Button variante="secundario" className={chico} title="Fechas, formato, inscripción y premio, con el link para inscribirse por WhatsApp. Sin parejas, zonas ni partidos."
+              onClick={() => cambiar((c) => ({ ...c, publicado: true, soloInfo: true }))}>
+              <Info className="h-3.5 w-3.5" aria-hidden /> Publicar info e inscripción
+            </Button>
+            <Button className={chico} disabled={!puede} title={puede ? 'Zonas, partidos y playoff, actualizados con horarios y resultados' : 'Para publicarlo completo, primero armá las zonas'} onClick={completo}>
+              <Globe className="h-3.5 w-3.5" aria-hidden /> Publicar completo
+            </Button>
+          </>
         )}
         {cat.cancelado ? (
           <Button variante="fantasma" className="px-3 py-1.5 text-xs" onClick={() => cambiar((c) => ({ ...c, cancelado: false }))}>

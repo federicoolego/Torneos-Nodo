@@ -34,6 +34,10 @@ compu que no permite compartir archivos, las descarga para adjuntarlas a mano.
   Una tanda aplicada se puede **Publicar**: se ve en la pestaña pública **Ascensos** (`#/ascensos`), con el historial de cortes
   y el de cada jugador al buscarlo. Si se revierte, se despublica sola. Para ocultar las recategorizaciones en la página pública:
   `MOSTRAR_RECATEGORIZACIONES_PUBLICAS = false` en `src/lib/publico.ts`.
+- **Publicar solo info**: un torneo se puede publicar “solo info” (fechas, categoría, formato, inscripción, premio, observación y botón
+  de inscripción por WhatsApp), sin parejas, zonas ni partidos, mientras se arma; después se pasa a completo con “Mostrar zonas y partidos”.
+  Lo controla la base (las funciones públicas no devuelven parejas ni partidos de esos torneos). Requiere `supabase/torneos_nodo_solo_info.sql`.
+  El número de WhatsApp está en `WHATSAPP_INSCRIPCIONES` (`src/lib/publico.ts`).
 - Cada categoría tiene su color (borde de la tarjeta y etiqueta): Damas rosa, Caballeros azul, Mixto violeta. Se cambian en `tailwind.config.js` (`damas`, `caballeros`, `mixto`).
 
 ## Base de datos y acceso

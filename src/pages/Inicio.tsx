@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CloudUpload, Copy, Plus, Search, Trash2 } from 'lucide-react'
 import { completarAlcances, duplicar, eliminar, listar, migrarLocales, torneosLocales, type ResumenTorneo } from '../lib/almacen'
-import { CATEGORIAS, ESTADOS, MESES, nombreEstado, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../lib/torneo'
+import { CATEGORIAS, ESTADOS, MESES, compararCercania, nombreEstado, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../lib/torneo'
 import { normalizarTexto } from '../lib/publico'
 import { Alerta, Badge, Button, Input, MultiSelect, Spinner, Titulo, Vacio } from '../components/ui'
 import ImportarTorneos from '../components/ImportarTorneos'
@@ -25,7 +25,7 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
   const [mes, setMes] = useState<string[]>([])
   const [publicacion, setPublicacion] = useState<('si' | 'no')[]>([])
   const anios = useMemo(() => [...new Set([ANIO_ACTUAL, ...(lista ?? []).map((t) => t.fechaInicio.slice(0, 4)).filter(Boolean)])].sort().reverse(), [lista])
-  // siempre del más nuevo al más viejo (por fecha de inicio; sin fecha, al final)
+  // del más cercano al más lejano: pendientes / en curso del próximo a jugarse al último; finalizados del más reciente al más viejo
   const visibles = useMemo(() => {
     const q = normalizarTexto(texto)
     return (lista ?? [])
@@ -35,7 +35,7 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
       .filter((t) => !anio.length || anio.includes(t.fechaInicio.slice(0, 4)))
       .filter((t) => !mes.length || mes.includes(t.fechaInicio.slice(5, 7)))
       .filter((t) => !publicacion.length || publicacion.includes(t.publicado ? 'si' : 'no'))
-      .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || '') || b.actualizado - a.actualizado)
+      .sort((a, b) => compararCercania({ inicio: a.fechaInicio, estado: a.estado, nombre: a.torneo }, { inicio: b.fechaInicio, estado: b.estado, nombre: b.torneo }) || b.actualizado - a.actualizado)
   }, [lista, texto, categoria, estado, anio, mes, publicacion])
   const hayFiltros = !!(texto || categoria.length || estado.length || anio.length || mes.length || publicacion.length)
 
@@ -120,7 +120,7 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
                 <div className="mt-0.5 flex flex-wrap gap-1">
                   <BadgeCategoria categoria={c.categoria} />
                   <Badge tono={c.estado === 'en_curso' ? 'verde' : c.estado === 'finalizado' ? 'azul' : c.estado === 'cancelado' ? 'rojo' : 'ambar'}>{nombreEstado(c.estado)}</Badge>
-                  {c.publicado && <Badge tono="pelota">Publicado</Badge>}
+                  {c.publicado && <Badge tono="pelota">{c.soloInfo ? 'Publicado · solo info' : 'Publicado'}</Badge>}
                 </div>
                 <p className="truncate text-sm text-noche/65">{c.fechaInicio ? rangoFechas(c.fechaInicio, c.fechaFin) : 'Sin fechas'}</p>
                 <p className="mt-1 text-xs text-noche/50">

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronRight, Search, Ticket, Trophy, Users } from 'lucide-react'
+import { CalendarDays, ChevronRight, MessageCircle, Search, Ticket, Trophy, Users } from 'lucide-react'
 import { MOSTRAR_CATEGORIAS_PUBLICAS, categoriasPublicas, listarPublicos, normalizarTexto, type ResumenPublico } from '../../lib/publico'
-import { CATEGORIAS, ESTADOS, MESES, formatoPesos, nombreEstado, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../../lib/torneo'
+import { CATEGORIAS, ESTADOS, MESES, compararCercania, formatoPesos, nombreEstado, rangoFechas, type CategoriaTorneo, type EstadoTorneo } from '../../lib/torneo'
 import { Alerta, Badge, Input, MultiSelect, Spinner, Tabs, Vacio } from '../../components/ui'
 import Calendario from './Calendario'
 import CategoriasPublicas from './Categorias'
@@ -10,9 +10,6 @@ import PanelEstadisticas from '../../components/PanelEstadisticas'
 import type { DatoEstadistica } from '../../components/Estadisticas'
 import { BadgeCategoria, bordeCategoria } from '../../components/Categoria'
 import { GruposEstado } from '../../components/GruposEstado'
-
-/** Dentro de cada grupo: en curso primero, después los que vienen (los grupos los arma GruposEstado) */
-const ORDEN: Record<EstadoTorneo, number> = { en_curso: 0, pendiente: 1, finalizado: 2, cancelado: 3 }
 
 export const tonoEstado = (e: EstadoTorneo) => (e === 'en_curso' ? 'verde' : e === 'finalizado' ? 'azul' : e === 'cancelado' ? 'rojo' : 'ambar') as 'verde' | 'azul' | 'rojo' | 'ambar'
 
@@ -24,9 +21,9 @@ const pestanaDelLink = (): PestanaInicio => {
   return h.startsWith('#/calendario') ? 'calendario' : h.startsWith('#/estadisticas') ? 'estadisticas' : h.startsWith('#/categorias') && MOSTRAR_CATEGORIAS_PUBLICAS ? 'categorias' : h.startsWith('#/ascensos') ? 'ascensos' : 'torneos'
 }
 
-/** Torneos publicados con los datos que usan las estadísticas */
+/** Torneos publicados con los datos que usan las estadísticas (sin los publicados "solo info": todavía no tienen parejas a la vista) */
 const cargarEstadisticas = async (): Promise<DatoEstadistica[]> =>
-  (await listarPublicos()).map((t) => ({ ...t, fechaInicio: t.fecha_inicio, fechaFin: t.fecha_fin, jugadores: t.jugadores ?? [] }))
+  (await listarPublicos()).filter((t) => !t.solo_info).map((t) => ({ ...t, fechaInicio: t.fecha_inicio, fechaFin: t.fecha_fin, jugadores: t.jugadores ?? [] }))
 /** categorías ocultas: el filtro de Estadísticas no se muestra */
 const sinCategorias = () => Promise.reject(new Error('Categorías ocultas'))
 const enlaceTorneo = (id: string) => `#/torneo/${id}`
@@ -87,12 +84,8 @@ function Torneos() {
       .filter((t) => !anio.length || anio.includes(t.fecha_inicio?.slice(0, 4) ?? ''))
       .filter((t) => !mes.length || mes.includes(t.fecha_inicio?.slice(5, 7) ?? ''))
       .filter((t) => !q || normalizarTexto(t.nombre).includes(q))
-      .sort((a, b) => {
-        if (ORDEN[a.estado] !== ORDEN[b.estado]) return ORDEN[a.estado] - ORDEN[b.estado]
-        const fa = a.fecha_inicio ?? '', fb = b.fecha_inicio ?? ''
-        // los que vienen, del más cercano al más lejano; el resto, del más reciente al más viejo
-        return a.estado === 'pendiente' ? fa.localeCompare(fb) : fb.localeCompare(fa)
-      })
+      // los que vienen o se están jugando, del más cercano al más lejano; los terminados, del más reciente al más viejo
+      .sort((a, b) => compararCercania({ inicio: a.fecha_inicio ?? '', estado: a.estado, nombre: a.nombre }, { inicio: b.fecha_inicio ?? '', estado: b.estado, nombre: b.nombre }))
   }, [lista, categoria, estado, anio, mes, texto])
   const hayFiltros = !!(texto || categoria.length || estado.length || anio.length || mes.length)
 
@@ -100,7 +93,7 @@ function Torneos() {
     <>
       <header className="mb-5">
         <h1 className="font-display text-4xl font-bold leading-none text-noche">Torneos</h1>
-        <p className="mt-2 text-sm text-noche/70">Zonas, partidos, resultados y playoff de los torneos de NODO, actualizados a medida que se juegan.</p>
+        <p className="mt-2 text-sm text-noche/70">Los próximos torneos de NODO con su inscripción, y las zonas, partidos, resultados y playoff, actualizados a medida que se juegan.</p>
       </header>
 
       <div className="mb-5 grid gap-2 rounded-xl bg-white p-3 ring-1 ring-noche/10 sm:grid-cols-[1.4fr_1fr_1fr_0.8fr_1fr]">
@@ -132,14 +125,18 @@ function Torneos() {
                   <div className="flex flex-wrap gap-1">
                     <BadgeCategoria categoria={t.categoria} />
                     <Badge tono={tonoEstado(t.estado)}>{nombreEstado(t.estado)}</Badge>
+                    {t.solo_info && t.estado === 'pendiente' && <Badge tono="pelota">Inscripción abierta</Badge>}
                   </div>
                   <p className="font-display text-2xl font-bold leading-tight text-noche">{t.nombre}</p>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-noche/65">
                     {t.fecha_inicio && <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" aria-hidden />{rangoFechas(t.fecha_inicio, t.fecha_fin ?? '')}</span>}
-                    <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" aria-hidden />{t.parejas} parejas</span>
+                    {!t.solo_info && <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" aria-hidden />{t.parejas} parejas</span>}
                     {t.inscripcion ? <span className="inline-flex items-center gap-1"><Ticket className="h-3.5 w-3.5" aria-hidden />{formatoPesos(String(t.inscripcion))}</span> : null}
                   </div>
                   {t.premio && <p className="text-sm text-noche/65">Premio: {t.premio}</p>}
+                  {t.solo_info && t.estado === 'pendiente' && (
+                    <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#18914A]"><MessageCircle className="h-4 w-4" aria-hidden /> Inscripciones por WhatsApp · tocá para ver la info</p>
+                  )}
                   {t.estado === 'finalizado' && t.campeon && (
                     <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-noche"><Trophy className="h-4 w-4 text-cancha" aria-hidden /> {t.campeon}</p>
                   )}

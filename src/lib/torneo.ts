@@ -72,8 +72,13 @@ export interface Categoria {
   resultadosPlayoff: Record<string, Resultado>
   /** orden definido a mano ante un empate total en una zona: zona → ids de pareja */
   desempates: Record<string, string[]>
-  /** visible en la página pública (lo decide el admin; requiere zonas armadas) */
+  /** visible en la página pública (lo decide el admin) */
   publicado: boolean
+  /**
+   * publicado "solo info": la página pública muestra solo los datos del torneo (fechas, formato, inscripción, premio)
+   * y el link de inscripción por WhatsApp, sin parejas, zonas, partidos ni playoff (mientras el admin lo arma)
+   */
+  soloInfo: boolean
   /** cancelado a mano por el admin (el resto de los estados se calcula solo) */
   cancelado: boolean
   actualizado: number
@@ -89,6 +94,29 @@ export const ESTADOS: { id: EstadoTorneo; nombre: string }[] = [
 ]
 export const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 export const nombreEstado = (e: EstadoTorneo) => ESTADOS.find((x) => x.id === e)?.nombre ?? e
+
+/** Lo mínimo para ordenar una lista de torneos por cercanía */
+export interface ClaveOrden { inicio: string; estado: EstadoTorneo; nombre: string }
+const activo = (e: EstadoTorneo) => e === 'pendiente' || e === 'en_curso'
+/**
+ * Orden de las listas de torneos, del más cercano al más lejano:
+ * · pendientes y en curso: por fecha de inicio, del más próximo a jugarse al más lejano (sin fecha, al final)
+ * · finalizados y cancelados: del más reciente al más viejo
+ * A igual fecha, en curso antes que pendiente y después por nombre.
+ */
+export function compararCercania(a: ClaveOrden, b: ClaveOrden): number {
+  const aa = activo(a.estado), ab = activo(b.estado)
+  if (aa !== ab) return aa ? -1 : 1
+  const fa = a.inicio || '', fb = b.inicio || ''
+  if (fa !== fb) {
+    if (!aa) return fb.localeCompare(fa)
+    if (!fa) return 1
+    if (!fb) return -1
+    return fa.localeCompare(fb)
+  }
+  if (a.estado !== b.estado) return a.estado === 'en_curso' ? -1 : b.estado === 'en_curso' ? 1 : 0
+  return a.nombre.localeCompare(b.nombre, 'es', { numeric: true })
+}
 
 /** Zonas armadas: todas de 3 o 4 parejas y todas las parejas ubicadas una sola vez (mínimo para publicar) */
 export function zonasArmadas(c: Pick<Categoria, 'zonas' | 'parejas'>): boolean {
@@ -147,7 +175,7 @@ export function normalizar(c: Categoria): Categoria {
     horariosZona: c.horariosZona ?? {}, horariosPlayoff: c.horariosPlayoff ?? {},
     formatos: { ...FORMATOS_DEFECTO, ...(c.formatos ?? {}) },
     resultadosZona: c.resultadosZona ?? {}, resultadosPlayoff: c.resultadosPlayoff ?? {}, desempates: c.desempates ?? {},
-    publicado: c.publicado ?? false, cancelado: c.cancelado ?? false,
+    publicado: c.publicado ?? false, soloInfo: c.soloInfo ?? false, cancelado: c.cancelado ?? false,
   }
 }
 
@@ -209,7 +237,7 @@ export const datosCompletos = (c: Pick<Categoria, 'torneo' | 'categoria' | 'fech
 export function nuevaCategoria(): Categoria {
   return {
     id: nuevoId(), torneo: '', categoria: CATEGORIA_DEFECTO, fechaInicio: '', fechaFin: '', observacion: '', inscripcion: '', premio: '', parejas: [], zonas: [],
-    horariosZona: {}, cuadro: null, horariosPlayoff: {}, formatos: { ...FORMATOS_DEFECTO }, resultadosZona: {}, resultadosPlayoff: {}, desempates: {}, publicado: false, cancelado: false,
+    horariosZona: {}, cuadro: null, horariosPlayoff: {}, formatos: { ...FORMATOS_DEFECTO }, resultadosZona: {}, resultadosPlayoff: {}, desempates: {}, publicado: false, soloInfo: false, cancelado: false,
     actualizado: Date.now(),
   }
 }

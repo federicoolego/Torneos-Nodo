@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, CalendarDays, Check, Info, Link2, Search, Share2, Ticket, Trophy, Users, X } from 'lucide-react'
-import { cargarPublico, normalizarTexto } from '../../lib/publico'
-import { LETRAS, formatoPesos, nombreEstado, nombreInstancia, rangoFechas, textoHorario, type Categoria, type Horario } from '../../lib/torneo'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { ArrowLeft, CalendarDays, Check, Info, Link2, ListChecks, MessageCircle, Search, Share2, Ticket, Trophy, Users, X } from 'lucide-react'
+import { cargarPublico, linkInscripcion, normalizarTexto } from '../../lib/publico'
+import { LETRAS, formatoPesos, nombreEstado, nombreInstancia, rangoFechas, textoHorario, type Categoria, type EstadoTorneo, type Horario, type Instancia } from '../../lib/torneo'
 import { estadoTorneo, instanciasDelTorneo, resolverTorneo, textoFormatos, type Partido, type ZonaResuelta } from '../../lib/resultados'
 import { Alerta, Badge, Input, Spinner, Tabs, Vacio } from '../../components/ui'
 import { BadgeCategoria } from '../../components/Categoria'
@@ -56,6 +56,8 @@ export default function TorneoPublico({ id }: { id: string }) {
   }
 
   const estado = estadoTorneo(cat, res.campeon)
+  // publicado "solo info": datos del torneo + inscripción (las zonas y los partidos se muestran cuando el club lo decida)
+  if (cat.soloInfo) return <InfoTorneo cat={cat} estado={estado} />
   const q = normalizarTexto(busqueda)
   const nombre = (pid: string | null) => (pid ? cat.parejas.find((p) => p.id === pid)?.nombre ?? '—' : '—')
 
@@ -118,6 +120,73 @@ export default function TorneoPublico({ id }: { id: string }) {
           Actualizado {actualizado.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })} · se actualiza solo cada 1 minuto
         </p>
       )}
+    </div>
+  )
+}
+
+/** Instancias que se muestran en el formato de un torneo "solo info" (todavía no se sabe cuántas parejas habrá: 16avos casi nunca se juega) */
+const INSTANCIAS_INFO: Instancia[] = ['zonas', 'octavos', 'cuartos', 'semifinal', 'final']
+
+/** Torneo publicado "solo info": cuándo es, formato, inscripción, premio y el link para inscribirse por WhatsApp */
+function InfoTorneo({ cat, estado }: { cat: Categoria; estado: EstadoTorneo }) {
+  const fechas = rangoFechas(cat.fechaInicio, cat.fechaFin)
+  const abierta = estado === 'pendiente'
+  return (
+    <div className="space-y-5">
+      <Volver />
+      <header className="space-y-2">
+        <div className="flex flex-wrap gap-1">
+          <BadgeCategoria categoria={cat.categoria} />
+          <Badge tono={tonoEstado(estado)}>{nombreEstado(estado)}</Badge>
+          {abierta && <Badge tono="pelota">Inscripción abierta</Badge>}
+        </div>
+        <h1 className="font-display text-4xl font-bold leading-none text-noche">{cat.torneo}</h1>
+        <Compartir titulo={cat.torneo} />
+      </header>
+
+      <section className="space-y-3 rounded-xl bg-white p-4 ring-1 ring-noche/10">
+        {fechas && (
+          <Dato icono={<CalendarDays className="h-5 w-5" aria-hidden />} titulo="Cuándo">{fechas}</Dato>
+        )}
+        <Dato icono={<ListChecks className="h-5 w-5" aria-hidden />} titulo="Formato">
+          <span className="block">{textoFormatos(cat, INSTANCIAS_INFO)}</span>
+          {cat.observacion.trim() && <span className="mt-1 block whitespace-pre-line text-noche/70">{cat.observacion.trim()}</span>}
+        </Dato>
+        {cat.inscripcion && (
+          <Dato icono={<Ticket className="h-5 w-5" aria-hidden />} titulo="Inscripción">{formatoPesos(cat.inscripcion)} por jugador</Dato>
+        )}
+        {cat.premio && (
+          <Dato icono={<Trophy className="h-5 w-5" aria-hidden />} titulo="Premio">{cat.premio}</Dato>
+        )}
+      </section>
+
+      {abierta && (
+        <section className="rounded-xl bg-[#1FA855]/10 p-4 ring-1 ring-[#1FA855]/30">
+          <p className="font-display text-2xl font-bold leading-tight text-noche">Inscripciones</p>
+          <p className="mt-1 text-sm text-noche/75">Para anotarte con tu pareja, escribinos por WhatsApp.</p>
+          <a href={linkInscripcion(cat.torneo, fechas)} target="_blank" rel="noreferrer"
+            className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#1FA855] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#18914A]">
+            <MessageCircle className="h-4 w-4" aria-hidden /> Inscribirme por WhatsApp
+          </a>
+        </section>
+      )}
+
+      <p className="flex gap-1.5 text-xs text-noche/60">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+        Las zonas, los horarios y el playoff se publican en esta misma página cuando cierre la inscripción.
+      </p>
+    </div>
+  )
+}
+
+function Dato({ icono, titulo, children }: { icono: ReactNode; titulo: string; children: ReactNode }) {
+  return (
+    <div className="flex gap-3">
+      <span className="mt-0.5 text-cancha">{icono}</span>
+      <div className="min-w-0 text-sm text-noche">
+        <p className="text-xs font-semibold uppercase tracking-wide text-noche/50">{titulo}</p>
+        {children}
+      </div>
     </div>
   )
 }
