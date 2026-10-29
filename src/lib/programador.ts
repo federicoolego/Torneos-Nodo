@@ -9,7 +9,13 @@ import { aHora, aMinutos, puedeEnFranjas } from './disponibilidad'
 
 // ------------------------------------------------------------------ configuración
 
-export interface DiaFecha { fecha: string; desde: string; hasta: string }
+/** Horario propio de una cancha en un día. `cerrada`: esa cancha no se usa ese día */
+export interface VentanaCancha { desde: string; hasta: string; cerrada?: boolean }
+export interface DiaFecha {
+  fecha: string; desde: string; hasta: string
+  /** horario cancha por cancha (posición 0 = Cancha 1). Si falta, todas las canchas usan `desde`–`hasta` */
+  canchas?: VentanaCancha[]
+}
 export interface ConfigFecha {
   canchas: number
   /** días de la fecha con el horario de las canchas (desde la primera hora hasta que tiene que terminar el último partido) */
@@ -42,9 +48,14 @@ export function configDefecto(dias: string[]): ConfigFecha {
 export function ajustarConfig(c: Partial<ConfigFecha> | null | undefined, dias: string[]): ConfigFecha {
   const base = configDefecto(dias)
   const previos = new Map((c?.dias ?? []).map((d) => [d.fecha, d]))
+  const n = Math.min(Math.max(Number(c?.canchas) || base.canchas, 1), 8)
   return {
-    canchas: Math.min(Math.max(Number(c?.canchas) || base.canchas, 1), 8),
-    dias: dias.map((f) => previos.get(f) ?? { fecha: f, ...horarioDefecto(f) }),
+    canchas: n,
+    dias: dias.map((f) => {
+      const d = previos.get(f) ?? { fecha: f, ...horarioDefecto(f) }
+      // horario por cancha: se ajusta a la cantidad de canchas (las que faltan toman el horario del día)
+      return d.canchas?.length ? { ...d, canchas: Array.from({ length: n }, (_, i) => d.canchas![i] ?? { desde: d.desde, hasta: d.hasta }) } : d
+    }),
     duraciones: { ...base.duraciones, ...(c?.duraciones ?? {}) },
     descanso: Math.max(0, Number(c?.descanso) || 0),
     margenPlayoff: Math.max(0, Number(c?.margenPlayoff) || 0),
@@ -56,12 +67,26 @@ export function diasDeTorneos(cats: Categoria[]): string[] {
   return [...new Set(cats.flatMap((c) => diasEntre(c.fechaInicio, c.fechaFin)))].sort()
 }
 
-/** Apertura y cierre del día en minutos (el cierre puede pasar la medianoche: 00:00 → 1440) */
-export function ventana(d: DiaFecha): [number, number] {
-  const a = aMinutos(d.desde) ?? 0
-  let b = aMinutos(d.hasta) ?? 1440
+const rango = (desde: string, hasta: string): [number, number] => {
+  const a = aMinutos(desde) ?? 0
+  let b = aMinutos(hasta) ?? 1440
   if (b <= a) b += 1440
   return [a, b]
+}
+
+/** Apertura y cierre de una cancha (1, 2, 3…) ese día, en minutos. `null` si esa cancha no se usa ese día */
+export function ventanaCancha(d: DiaFecha, cancha: number): [number, number] | null {
+  const w = d.canchas?.[cancha - 1]
+  if (!w) return rango(d.desde, d.hasta)
+  return w.cerrada ? null : rango(w.desde, w.hasta)
+}
+
+/** Apertura y cierre del día en minutos: de la primera cancha que abre a la última que cierra (el cierre puede pasar la medianoche: 00:00 → 1440) */
+export function ventana(d: DiaFecha): [number, number] {
+  if (!d.canchas?.length) return rango(d.desde, d.hasta)
+  const vs = d.canchas.map((_, i) => ventanaCancha(d, i + 1)).filter((v): v is [number, number] => !!v)
+  if (!vs.length) return rango(d.desde, d.hasta)
+  return [Math.min(...vs.map((v) => v[0])), Math.max(...vs.map((v) => v[1]))]
 }
 
 // ------------------------------------------------------------------ partidos a programar
@@ -240,7 +265,10 @@ export function validar(ctx: Contexto, plan: Plan): Problema[] {
     if (!dia || !t.dias.includes(a.fecha)) out.push({ tarea: t.id, tipo: 'error', texto: `${diaCorto(a.fecha)} no es un día de este torneo.` })
     else {
       const [abre, cierra] = ventana(dia)
-      if (p.ini < abre || p.fin > cierra) out.push({ tarea: t.id, tipo: 'error', texto: `Fuera del horario de las canchas (${dia.desde} a ${dia.hasta}).` })
+      const conCancha = !!a.cancha && a.cancha <= cfg.canchas
+      const vc = conCancha ? ventanaCancha(dia, a.cancha) : [abre, cierra]
+      if (!vc) out.push({ tarea: t.id, tipo: 'error', texto: `La cancha ${a.cancha} no se usa el ${diaCorto(a.fecha)}.` })
+      else if (p.ini < vc[0] || p.fin > vc[1]) out.push({ tarea: t.id, tipo: 'error', texto: `Fuera del horario ${conCancha ? `de la cancha ${a.cancha}` : 'de las canchas'} (${aHora(vc[0])} a ${aHora(vc[1])}).` })
       if (t.tipo === 'zona') {
         for (const pid of t.parejas) {
           const d = ctx.disp.get(pid)
@@ -369,6 +397,8 @@ function unaPasada(ctx: Contexto, pendientes: Tarea[], prioridad: Map<string, nu
   const e: Estado = { canchas: new Map(), parejas: new Map(), jugadores: new Map(), fin: new Map(), plan: {} }
   for (const d of cfg.dias) e.canchas.set(d.fecha, Array.from({ length: cfg.canchas }, () => []))
   const off = (f: string) => diasDesde(base, f) * 1440
+  // horario de cada cancha en cada día (null = cerrada ese día)
+  const vcan = new Map(cfg.dias.map((d) => [d.fecha, Array.from({ length: cfg.canchas }, (_, i) => ventanaCancha(d, i + 1))]))
 
   const ocupar = (t: Tarea, fecha: string, ini: number, cancha: number, fijo?: boolean) => {
     const a0 = off(fecha) + ini, a1 = a0 + t.dur
@@ -396,7 +426,8 @@ function unaPasada(ctx: Contexto, pendientes: Tarea[], prioridad: Map<string, nu
     let cancha = f.cancha
     const libres = e.canchas.get(f.fecha)
     if (libres && (!cancha || cancha > cfg.canchas || libres[cancha - 1].some(([a, b]) => pisan(p.ini, p.fin, a, b)))) {
-      const k = libres.findIndex((l) => !l.some(([a, b]) => pisan(p.ini, p.fin, a, b)))
+      const entra = (ci: number) => { const w = vcan.get(f.fecha)?.[ci]; return !!w && p.ini >= w[0] && p.fin <= w[1] }
+      const k = libres.findIndex((l, ci) => entra(ci) && !l.some(([a, b]) => pisan(p.ini, p.fin, a, b)))
       if (k >= 0) cancha = k + 1
     }
     ocupar(t, f.fecha, p.ini, cancha, f.fijo)
@@ -429,8 +460,11 @@ function unaPasada(ctx: Contexto, pendientes: Tarea[], prioridad: Map<string, nu
           // de las canchas libres, la que queda con menos hueco antes (así se aprovechan mejor)
           let k = -1, hueco = Infinity
           canchas.forEach((l, ci) => {
+            // la cancha tiene que estar abierta durante todo el partido
+            const w = vcan.get(fecha)![ci]
+            if (!w || ini < w[0] || fin > w[1]) return
             if (l.some(([x, y]) => pisan(ini, fin, x, y))) return
-            const antes = l.reduce((m, [, y]) => (y <= ini && y > m ? y : m), abre)
+            const antes = l.reduce((m, [, y]) => (y <= ini && y > m ? y : m), w[0])
             if (ini - antes < hueco) { hueco = ini - antes; k = ci }
           })
           if (k < 0) continue

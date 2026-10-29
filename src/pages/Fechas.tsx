@@ -10,7 +10,7 @@ import {
 } from '../lib/torneo'
 import { interpretarTexto } from '../lib/disponibilidad'
 import { zonasBloqueadas } from '../lib/resultados'
-import { ajustarConfig, armarContexto, diasDeTorneos, incompatiblesZona, jugadoresRepetidos, zonasPorDisponibilidad, type ConfigFecha, type Plan } from '../lib/programador'
+import { ajustarConfig, armarContexto, diasDeTorneos, incompatiblesZona, jugadoresRepetidos, zonasPorDisponibilidad, type ConfigFecha, type DiaFecha, type Plan, type VentanaCancha } from '../lib/programador'
 import { nombresVarios } from '../lib/cronograma'
 import { Alerta, Badge, Button, Card, Field, Input, Modal, Select, Spinner, Tabs, Titulo, Vacio } from '../components/ui'
 import { ChipDisponibilidad, EditorDisponibilidad } from '../components/Disponibilidad'
@@ -292,6 +292,20 @@ function PasoConfig({ j, setJ, cats, cfg, setCfg, paraSumar, onQuitar, onSumar, 
 }) {
   const repetidos = jugadoresRepetidos(cats)
   const setDia = (fecha: string, campo: 'desde' | 'hasta', v: string) => setCfg((c) => ({ ...c, dias: c.dias.map((d) => (d.fecha === fecha ? { ...d, [campo]: v } : d)) }))
+  // horario cancha por cancha: se activa por día; arranca con el horario que ya tenía el día
+  const porCancha = (d: DiaFecha, n: number): VentanaCancha[] => Array.from({ length: n }, (_, i) => d.canchas?.[i] ?? { desde: d.desde, hasta: d.hasta })
+  const activarPorCancha = (fecha: string, on: boolean) => setCfg((c) => ({
+    ...c,
+    dias: c.dias.map((d) => {
+      if (d.fecha !== fecha) return d
+      if (!on) { const { canchas: _quitadas, ...resto } = d; return resto }
+      return { ...d, canchas: porCancha(d, c.canchas) }
+    }),
+  }))
+  const setCancha = (fecha: string, ci: number, cambio: Partial<VentanaCancha>) => setCfg((c) => ({
+    ...c,
+    dias: c.dias.map((d) => (d.fecha === fecha ? { ...d, canchas: porCancha(d, c.canchas).map((w, i) => (i === ci ? { ...w, ...cambio } : w)) } : d)),
+  }))
   const setDur = (i: Instancia, v: number) => setCfg((c) => ({ ...c, duraciones: { ...c.duraciones, [i]: v } }))
   return (
     <div className="grid gap-5 lg:grid-cols-2">
@@ -334,17 +348,44 @@ function PasoConfig({ j, setJ, cats, cfg, setCfg, paraSumar, onQuitar, onSumar, 
         </Field>
         <div>
           <p className="mb-1 text-sm font-medium">Horario de las canchas</p>
-          <p className="mb-2 text-xs text-noche/60">Desde la hora del primer partido hasta la hora en que tiene que terminar el último (00:00 = medianoche).</p>
+          <p className="mb-2 text-xs text-noche/60">Desde la hora del primer partido hasta la hora en que tiene que terminar el último (00:00 = medianoche). Si las canchas no abren y cierran a la misma hora, activá “Cancha por cancha” en ese día.</p>
           {!cfg.dias.length ? <Alerta tipo="aviso">Los torneos no tienen fechas cargadas.</Alerta> : (
-            <ul className="space-y-1.5">
-              {cfg.dias.map((d) => (
-                <li key={d.fecha} className="flex items-center gap-2 text-sm">
-                  <span className="w-24 shrink-0 whitespace-nowrap font-display text-base font-semibold">{diaCorto(d.fecha)}</span>
-                  <Input type="time" step={900} value={d.desde} onChange={(e) => setDia(d.fecha, 'desde', e.target.value)} className="!w-28 py-1.5" aria-label="Desde" />
-                  <span className="text-noche/55">a</span>
-                  <Input type="time" step={900} value={d.hasta} onChange={(e) => setDia(d.fecha, 'hasta', e.target.value)} className="!w-28 py-1.5" aria-label="Hasta" />
-                </li>
-              ))}
+            <ul className="space-y-2.5">
+              {cfg.dias.map((d) => {
+                const porC = !!d.canchas?.length
+                return (
+                  <li key={d.fecha} className="text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="w-24 shrink-0 whitespace-nowrap font-display text-base font-semibold">{diaCorto(d.fecha)}</span>
+                      {!porC && (
+                        <>
+                          <Input type="time" step={900} value={d.desde} onChange={(e) => setDia(d.fecha, 'desde', e.target.value)} className="!w-28 py-1.5" aria-label="Desde" />
+                          <span className="text-noche/55">a</span>
+                          <Input type="time" step={900} value={d.hasta} onChange={(e) => setDia(d.fecha, 'hasta', e.target.value)} className="!w-28 py-1.5" aria-label="Hasta" />
+                        </>
+                      )}
+                      <label className="ml-auto flex cursor-pointer items-center gap-1.5 text-xs text-noche/70">
+                        <input type="checkbox" checked={porC} onChange={(e) => activarPorCancha(d.fecha, e.target.checked)} /> Cancha por cancha
+                      </label>
+                    </div>
+                    {porC && (
+                      <ul className="mt-1.5 space-y-1.5 border-l-2 border-cancha/25 pl-3">
+                        {d.canchas!.map((w, ci) => (
+                          <li key={ci} className="flex flex-wrap items-center gap-2">
+                            <span className="w-20 shrink-0 text-xs font-semibold text-noche/70">Cancha {ci + 1}</span>
+                            <Input type="time" step={900} value={w.desde} disabled={w.cerrada} onChange={(e) => setCancha(d.fecha, ci, { desde: e.target.value })} className="!w-28 py-1.5 disabled:opacity-40" aria-label={`Cancha ${ci + 1} desde`} />
+                            <span className="text-noche/55">a</span>
+                            <Input type="time" step={900} value={w.hasta} disabled={w.cerrada} onChange={(e) => setCancha(d.fecha, ci, { hasta: e.target.value })} className="!w-28 py-1.5 disabled:opacity-40" aria-label={`Cancha ${ci + 1} hasta`} />
+                            <label className="flex cursor-pointer items-center gap-1 text-xs text-noche/60">
+                              <input type="checkbox" checked={!!w.cerrada} onChange={(e) => setCancha(d.fecha, ci, { cerrada: e.target.checked })} /> No se usa
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Download, Lock, Pin, RotateCcw, Wand2 } from 'lucide-react'
 import { diaCorto, diasEntre, type Categoria } from '../../lib/torneo'
 import { aHora, aMinutos } from '../../lib/disponibilidad'
-import { programar, validar, ventana, type Asignacion, type Contexto, type Plan, type Problema, type Tarea } from '../../lib/programador'
+import { programar, validar, ventana, ventanaCancha, type Asignacion, type Contexto, type DiaFecha, type Plan, type Problema, type Tarea } from '../../lib/programador'
 import { Alerta, Button, Modal, Select, Input, Tabs } from '../ui'
 import { ChipDisponibilidad } from '../Disponibilidad'
 
@@ -143,6 +143,15 @@ export default function Grilla({ ctx, cats, plan, onPlan, onAplicar, colorDe, co
           </div>
           {Array.from({ length: cfg.canchas }, (_, ci) => (
             <div key={ci} className="relative border-l border-noche/10" style={{ height: filas * FILA, backgroundImage: `repeating-linear-gradient(to bottom, rgba(4,45,41,.07) 0 1px, transparent 1px ${FILA * 4}px)`, backgroundPosition: `0 ${(((60 - (abre % 60)) % 60) / 15) * FILA}px` }}>
+              {/* fuera del horario de esta cancha (o cancha sin uso ese día): en gris */}
+              {(() => {
+                const w = ventanaCancha(diaCfg, ci + 1)
+                const sombras = !w ? [[abre, cierra]] : [[abre, w[0]], [w[1], cierra]].filter(([x, y]) => y > x)
+                return sombras.map(([x, y], k) => (
+                  <div key={k} className="pointer-events-none absolute inset-x-0 bg-noche/[0.08]" aria-hidden
+                    style={{ top: ((x - abre) / 15) * FILA, height: ((y - x) / 15) * FILA, backgroundImage: 'repeating-linear-gradient(135deg, rgba(4,45,41,.10) 0 4px, transparent 4px 9px)' }} />
+                ))
+              })()}
               {delDia.filter((t) => plan[t.id].cancha === ci + 1).map((t) => {
                 const a = plan[t.id]
                 const ini = inicio(a)
@@ -167,7 +176,7 @@ export default function Grilla({ ctx, cats, plan, onPlan, onAplicar, colorDe, co
           ))}
         </div>
       </div>
-      <p className="text-xs text-noche/55">Horario de las canchas el {diaCorto(diaCfg.fecha)}: {diaCfg.desde} a {diaCfg.hasta}. Rojo: choque (cancha, jugador, orden de partidos u horario). Ámbar: no se respetó lo que pidió una pareja. <Pin className="inline h-3 w-3" aria-hidden /> fijado: no se mueve al volver a armar.</p>
+      <p className="text-xs text-noche/55">Horario de las canchas el {diaCorto(diaCfg.fecha)}: {textoHorarioCanchas(diaCfg, cfg.canchas)}. Rayado gris: cancha cerrada. Rojo: choque (cancha, jugador, orden de partidos u horario). Ámbar: no se respetó lo que pidió una pareja. <Pin className="inline h-3 w-3" aria-hidden /> fijado: no se mueve al volver a armar.</p>
 
       {sinLugar.length > 0 && (
         <div className="rounded-xl bg-amber-50 p-4 ring-1 ring-amber-200">
@@ -261,4 +270,11 @@ function EditarPartido({ t, ctx, cats, plan, cortoDe, colorDe, onCerrar, onGuard
       </div>
     </Modal>
   )
+}
+
+/** "10:00 a 23:00" si todas las canchas igual; si no, "Cancha 1 10:00 a 23:00 · Cancha 2 12:00 a 22:00 · Cancha 3 no se usa" */
+function textoHorarioCanchas(d: DiaFecha, n: number): string {
+  const tx = (c: number) => { const w = ventanaCancha(d, c); return w ? `${aHora(w[0])} a ${aHora(w[1])}` : 'no se usa' }
+  const todas = Array.from({ length: n }, (_, i) => tx(i + 1))
+  return todas.every((x) => x === todas[0]) ? todas[0] : todas.map((x, i) => `Cancha ${i + 1} ${x}`).join(' · ')
 }

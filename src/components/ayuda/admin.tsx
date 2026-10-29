@@ -35,7 +35,7 @@ export const AYUDA_ADMIN: SeccionAyuda[] = [
     para: <>Armar zonas y horarios de todos los torneos de la fecha juntos, sin choques: nadie juega dos partidos a la vez (aunque esté en dos categorías) y se respetan los horarios pedidos por las parejas.</>,
     pasos: [
       <><strong>Nueva fecha</strong> y le ponés un nombre.</>,
-      <><strong>1. Torneos y canchas:</strong> elegís los torneos (ya creados, con sus parejas), las canchas disponibles, el horario de cada día (por defecto viernes desde las 18, sábado desde las 10, domingo desde las 12) y la duración de los partidos (45′ zonas, octavos y cuartos; 1 h semi y final), el descanso entre partidos y el margen antes del playoff.</>,
+      <><strong>1. Torneos y canchas:</strong> elegís los torneos (ya creados, con sus parejas), las canchas disponibles, el horario de cada día (por defecto viernes desde las 18, sábado desde las 10, domingo desde las 12; si cada cancha tiene su propio horario o alguna no se usa, activás “Cancha por cancha” en ese día) y la duración de los partidos (45′ zonas, octavos y cuartos; 1 h semi y final), el descanso entre partidos y el margen antes del playoff.</>,
       <><strong>2. Horarios de las parejas:</strong> repasás los días y horarios de todas juntas y corregís tocando cada una. Las que tienen el horario escrito en texto se pasan solas con “Interpretar”.</>,
       <><strong>3. Zonas:</strong> “Armar zonas por horarios” junta a las parejas que pueden jugar en los mismos horarios. Podés intercambiar parejas entre zonas.</>,
       <><strong>4. Grilla de partidos:</strong> “Armar horarios” reparte todos los partidos (zonas y playoff) por día y cancha. Lo que no se pudo respetar queda marcado y lo decidís vos: tocás el partido, lo cambiás y lo fijás.</>,
