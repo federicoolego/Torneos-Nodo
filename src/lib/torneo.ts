@@ -351,32 +351,100 @@ export const instanciaDeTam = (tamRonda: number): Instancia => INSTANCIA_DE_TAM[
 /** Instancia de la ronda `ronda` (1 = primera) de un cuadro de `partidosPrimera` partidos */
 export const instanciaDeRonda = (partidosPrimera: number, ronda: number) => instanciaDeTam((partidosPrimera * 2) / 2 ** (ronda - 1))
 
-/** Cuadro automático: siembra estándar y sin cruces de la misma zona en primera ronda */
+/** Ronda (1 = primera) en la que se cruzarían, como muy temprano, las posiciones `i` y `j` (0-based) de un cuadro de potencia de 2 */
+const rondaDeCruce = (i: number, j: number) => 32 - Math.clz32(i ^ j)
+
+/** Generador pseudoaleatorio determinístico (el mismo torneo siempre da el mismo cuadro) */
+function prng(semilla: number) {
+  let a = semilla >>> 0
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/**
+ * Cuadro automático. Parte de la siembra estándar (1°s, después 2°s, después 3°s; los mejores sembrados
+ * reciben los libres) y reubica parejas del MISMO puesto (un 1° por otro 1°, etc., así no se altera la
+ * justicia de la siembra) para que las parejas de una misma zona se enfrenten lo más tarde posible:
+ * nunca en la primera ronda si hay forma, y si no hay forma de evitarlo del todo, recién en semi o final.
+ * Cada cruce posible entre parejas de la misma zona se penaliza más cuanto más temprano ocurre.
+ */
 export function cuadroAutomatico(zonas: string[][]): (Slot | null)[][] {
   const cl = clasificados(zonas)
   const q = cl.length
   const b = tamCuadro(q)
+  const K = Math.log2(b)
   let seeds = [1]
   while (seeds.length < b) {
     const n = seeds.length
     seeds = seeds.flatMap((s) => [s, 2 * n + 1 - s])
   }
-  const slots: (Slot | null)[] = seeds.map((s) => (s <= q ? { zona: cl[s - 1].zona, pos: cl[s - 1].pos } : null))
-  for (let j = 0; j < b / 2; j++) {
-    const a = slots[2 * j], c = slots[2 * j + 1]
-    if (a && c && a.zona === c.zona) {
-      for (let k = 0; k < b / 2; k++) {
-        const x = slots[2 * k + 1], y = slots[2 * k]
-        if (k !== j && x && x.zona !== a.zona && (!y || y.zona !== c.zona)) {
-          slots[2 * j + 1] = x
-          slots[2 * k + 1] = c
-          break
+  // siembra estándar: zona de la pareja en cada posición del cuadro (null = libre)
+  const base: (Slot | null)[] = seeds.map((s) => (s <= q ? { zona: cl[s - 1].zona, pos: cl[s - 1].pos } : null))
+
+  // posiciones del cuadro que ocupa cada puesto (1°, 2°, 3°); solo se intercambian entre sí
+  const grupos = new Map<number, number[]>()
+  base.forEach((s, i) => { if (s) grupos.set(s.pos, [...(grupos.get(s.pos) ?? []), i]) })
+  const listaGrupos = [...grupos.values()].filter((g) => g.length > 1)
+
+  // costo = suma de los cruces posibles entre parejas de la misma zona (más pesado cuanto más temprano)
+  // y, de desempate, cuánto se aparta de la siembra estándar
+  const costo = (c: (Slot | null)[]): [number, number] => {
+    let cruces = 0
+    for (let i = 0; i < b; i++) {
+      const x = c[i]
+      if (!x) continue
+      for (let j = i + 1; j < b; j++) {
+        const y = c[j]
+        if (y && y.zona === x.zona) cruces += 10 ** (K - rondaDeCruce(i, j))
+      }
+    }
+    let movidos = 0
+    for (let i = 0; i < b; i++) if (c[i]?.zona !== base[i]?.zona) movidos++
+    return [cruces, movidos]
+  }
+  const mejor = (a: [number, number], c: [number, number]) => a[0] < c[0] || (a[0] === c[0] && a[1] < c[1])
+
+  // búsqueda local con reinicios (parte de la siembra estándar, así que si ya está bien no se toca nada)
+  const azar = prng(q * 7919 + b)
+  let mejorCuadro = base
+  let mejorCosto = costo(base)
+  for (let intento = 0; intento < 60 && mejorCosto[0] > 0; intento++) {
+    let actual = base.slice()
+    if (intento > 0) {
+      for (const g of listaGrupos) {
+        const items = g.map((i) => actual[i])
+        for (let k = items.length - 1; k > 0; k--) {
+          const r = Math.floor(azar() * (k + 1))
+          ;[items[k], items[r]] = [items[r], items[k]]
+        }
+        g.forEach((i, k) => { actual[i] = items[k] })
+      }
+    }
+    let costoActual = costo(actual)
+    let mejora = true
+    while (mejora) {
+      mejora = false
+      for (const g of listaGrupos) {
+        for (let x = 0; x < g.length; x++) {
+          for (let y = x + 1; y < g.length; y++) {
+            if (actual[g[x]]!.zona === actual[g[y]]!.zona) continue
+            const prueba = actual.slice()
+            ;[prueba[g[x]], prueba[g[y]]] = [prueba[g[y]], prueba[g[x]]]
+            const c = costo(prueba)
+            if (mejor(c, costoActual)) { actual = prueba; costoActual = c; mejora = true }
+          }
         }
       }
     }
+    if (mejor(costoActual, mejorCosto)) { mejorCuadro = actual; mejorCosto = costoActual }
   }
+
   const out: (Slot | null)[][] = []
-  for (let j = 0; j < b / 2; j++) out.push([slots[2 * j], slots[2 * j + 1]])
+  for (let j = 0; j < b / 2; j++) out.push([mejorCuadro[2 * j], mejorCuadro[2 * j + 1]])
   return out
 }
 
