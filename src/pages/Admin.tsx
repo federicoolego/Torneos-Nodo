@@ -68,10 +68,10 @@ export default function Admin() {
   if (!rol) {
     return (
       <>
-        {/* volver a la página pública de torneos */}
+        {/* volver a la página pública de Nodo */}
         <a href="#/" className="fixed right-4 top-4 z-40 inline-flex items-center gap-1.5 rounded-lg bg-white/90 px-3 py-1.5 text-sm font-semibold text-noche shadow ring-1 ring-noche/10 hover:bg-white"
           style={{ top: 'max(1rem, env(safe-area-inset-top))' }}>
-          <Globe className="h-4 w-4" aria-hidden /> Torneos
+          <Globe className="h-4 w-4" aria-hidden /> NODO
         </a>
         <Login onOk={setRol} />
       </>
