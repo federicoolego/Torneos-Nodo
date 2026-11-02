@@ -24,7 +24,7 @@ compu que no permite compartir archivos, las descarga para adjuntarlas a mano.
 ## Página pública y panel de organizadores
 
 - `…/` → torneos publicados (para jugadores, sin login). `…/#/torneo/<id>` → un torneo (link para compartir).
-- `…/#/admin` → panel de organizadores (login con usuario NODO).
+- `…/#/admin` → panel de organizadores (botón **Ingresar** de la página pública; usuario NODO). Según la contraseña, se entra como **Administrador** o como **Editor** (ver más abajo).
 - La página pública lee solo con las funciones `torneos_nodo_publicos()` y `torneos_nodo_publico(id)` (ver `supabase/torneos_nodo_publico.sql`): solo torneos publicados y sin datos internos.
 - La página pública también muestra **Estadísticas** (las mismas del panel, sin el dato de publicación), calculadas solo sobre los torneos publicados.
   Requiere correr `supabase/torneos_nodo_publico_estadisticas.sql` (agrega los jugadores al listado público).
@@ -48,6 +48,28 @@ compu que no permite compartir archivos, las descarga para adjuntarlas a mano.
 3. Solo los emails de `torneos_nodo_usuarios` pueden leer y escribir (RLS), aunque haya otros usuarios en el proyecto.
 4. Para la pestaña **Ascensos** del admin corré `supabase/torneos_nodo_recategorizaciones.sql` (requiere el SQL de categorías de jugadores).
    Para publicar tandas en la página pública, después corré `supabase/torneos_nodo_publico_ascensos.sql`.
+
+## Roles: Administrador y Editor
+
+Los dos se escriben como usuario `NODO` en el login; el rol lo define la contraseña (la app prueba primero con el admin y después con el editor).
+
+| Rol | Cuenta en Supabase (Authentication → Users) | Habilitada en | Puede |
+|---|---|---|---|
+| Administrador | `nodo@generador.nodo.com.ar` | `torneos_nodo_usuarios` | todo el panel |
+| Editor | `nodo.editor@generador.nodo.com.ar` | `torneos_nodo_editores` | solo **inscribir / corregir parejas** y **cargar resultados** (pestañas Torneos → Parejas y Partidos, y la pestaña Partidos) |
+
+El Editor no puede crear, duplicar, eliminar ni publicar torneos, quitar parejas, tocar zonas / playoff / horarios, ni usar Armar fecha, Estadísticas, Jugadores, Categorías o Ascensos.
+Los límites los pone la base (RLS + triggers), no solo la pantalla: corré `supabase/torneos_nodo_editor.sql` (requiere los .sql base).
+El header muestra `NODO Club de Pádel & Co - Administrador` o `… - Editor`.
+
+**Cambiar una contraseña** (las cuentas se crean una sola vez; después solo se cambia la contraseña, desde el SQL Editor de Supabase):
+
+```sql
+update auth.users
+set encrypted_password = crypt('LA_NUEVA_CONTRASEÑA', gen_salt('bf')), updated_at = now()
+where email = 'nodo@generador.nodo.com.ar';            -- admin
+-- where email = 'nodo.editor@generador.nodo.com.ar';  -- editor
+```
 
 ## Publicar
 

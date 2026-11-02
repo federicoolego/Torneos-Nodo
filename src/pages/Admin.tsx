@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Globe, LogOut } from 'lucide-react'
-import { alCerrarSesion, salir, sesionActiva } from '../lib/auth'
+import { alCerrarSesion, salir, sesionActiva, type Rol } from '../lib/auth'
+import { ProveedorRol } from '../lib/rol'
 import { vaciar } from '../lib/almacen'
 import { Spinner, Tabs } from '../components/ui'
 import { nuevaCategoria, type Categoria } from '../lib/torneo'
@@ -33,14 +34,25 @@ const RUTAS: Record<Pestana, string> = {
   torneos: '#/admin', fechas: '#/admin/fechas', calendario: '#/admin/partidos', estadisticas: '#/admin/estadisticas', jugadores: '#/admin/jugadores', categorias: '#/admin/categorias', ascensos: '#/admin/ascensos',
 }
 
-/** Panel de organizadores (#/admin): login + armado de torneos */
+/** Pestañas que ve cada rol: el Editor solo inscribe parejas (dentro de Torneos) y carga resultados (Partidos) */
+const PESTANAS: { id: Pestana; label: string; soloAdmin?: boolean }[] = [
+  { id: 'torneos', label: 'Torneos' }, { id: 'fechas', label: 'Armar fecha', soloAdmin: true }, { id: 'calendario', label: 'Partidos' },
+  { id: 'estadisticas', label: 'Estadísticas', soloAdmin: true }, { id: 'jugadores', label: 'Jugadores', soloAdmin: true },
+  { id: 'categorias', label: 'Categorías', soloAdmin: true }, { id: 'ascensos', label: 'Ascensos', soloAdmin: true },
+]
+
+/** Panel de organizadores (#/admin): login + armado de torneos (Administrador) o carga de parejas y resultados (Editor) */
 export default function Admin() {
-  const [logueado, setLogueado] = useState<boolean | null>(null)
+  // undefined: verificando la sesión · null: sin sesión
+  const [rol, setRol] = useState<Rol | null | undefined>(undefined)
   const ruta = useRuta()
   // pestañas del admin: Torneos (#/admin) · Armar fecha · Partidos · Estadísticas · Jugadores · Categorías · Ascensos (#/admin/<pestaña>)
-  const pestana: Pestana = ruta.startsWith('#/admin/jugadores') ? 'jugadores' : ruta.startsWith('#/admin/fechas') ? 'fechas'
+  const pedida: Pestana = ruta.startsWith('#/admin/jugadores') ? 'jugadores' : ruta.startsWith('#/admin/fechas') ? 'fechas'
     : ruta.startsWith('#/admin/partidos') || ruta.startsWith('#/admin/calendario') || ruta.startsWith('#/admin/cronograma') ? 'calendario'
     : ruta.startsWith('#/admin/estadisticas') ? 'estadisticas' : ruta.startsWith('#/admin/categorias') ? 'categorias' : ruta.startsWith('#/admin/ascensos') ? 'ascensos' : 'torneos'
+  const editor = rol === 'editor'
+  // el Editor no puede abrir las pestañas de administración, ni escribiendo la dirección a mano
+  const pestana: Pestana = editor && PESTANAS.find((x) => x.id === pedida)?.soloAdmin ? 'torneos' : pedida
   const [abierta, setAbierta] = useState<string | null>(null)
   // torneo nuevo todavía sin guardar: se crea en la base recién con los datos obligatorios completos
   const [nuevo, setNuevo] = useState<Categoria | null>(null)
@@ -48,12 +60,12 @@ export default function Admin() {
   const crear = () => { const c = nuevaCategoria(); setNuevo(c); setAbierta(c.id) }
 
   useEffect(() => {
-    sesionActiva().then(setLogueado)
-    return alCerrarSesion(() => setLogueado(false))
+    sesionActiva().then(setRol)
+    return alCerrarSesion(() => setRol(null))
   }, [])
 
-  if (logueado === null) return <div className="grid min-h-screen place-items-center"><Spinner /></div>
-  if (!logueado) {
+  if (rol === undefined) return <div className="grid min-h-screen place-items-center"><Spinner /></div>
+  if (!rol) {
     return (
       <>
         {/* volver a la página pública de torneos */}
@@ -61,27 +73,29 @@ export default function Admin() {
           style={{ top: 'max(1rem, env(safe-area-inset-top))' }}>
           <Globe className="h-4 w-4" aria-hidden /> Torneos
         </a>
-        <Login onOk={() => setLogueado(true)} />
+        <Login onOk={setRol} />
       </>
     )
   }
+  const titulo = editor ? 'Editor' : 'Administrador'
   return (
+    <ProveedorRol rol={rol}>
     <div className="min-h-screen pb-28">
       <header className="sticky top-0 z-30 bg-noche text-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <button onClick={async () => { await vaciar(); abrir(null); window.location.hash = '#/admin' }} className="flex items-center gap-3 text-left">
-            <img src={logoUrl()} alt="NODO Club de Pádel & Co. - Administrador" className="h-10 w-10 rounded-lg" />
-            <span className="font-display text-lg font-bold leading-tight sm:text-xl">NODO Club de Pádel &amp; Co - Administrador</span>
+            <img src={logoUrl()} alt={`NODO Club de Pádel & Co. - ${titulo}`} className="h-10 w-10 rounded-lg" />
+            <span className="font-display text-lg font-bold leading-tight sm:text-xl">NODO Club de Pádel &amp; Co - {titulo}</span>
           </button>
           <div className="flex items-center gap-3">
-            {/* instructivo: abre en la pestaña que se está mirando */}
-            <BotonAyuda secciones={AYUDA_ADMIN} actual={() => pestana} titulo="Ayuda · Panel de administración" />
+            {/* instructivo: abre en la pestaña que se está mirando (el del Editor es más corto: por ahora no tiene) */}
+            {!editor && <BotonAyuda secciones={AYUDA_ADMIN} actual={() => pestana} titulo="Ayuda · Panel de administración" />}
             {/* volver a la página pública de torneos */}
             <button onClick={async () => { await vaciar(); window.location.hash = '#/' }}
               className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/80 ring-1 ring-white/25 hover:bg-white/10 hover:text-white">
               <Globe className="h-4 w-4" aria-hidden /> NODO
             </button>
-            <button onClick={async () => { await vaciar(); await salir(); setLogueado(false) }} aria-label="Cerrar sesión" title="Cerrar sesión" className="text-white/70 hover:text-white">
+            <button onClick={async () => { await vaciar(); await salir(); setRol(null) }} aria-label="Cerrar sesión" title="Cerrar sesión" className="text-white/70 hover:text-white">
               <LogOut className="h-5 w-5" />
             </button>
           </div>
@@ -90,10 +104,7 @@ export default function Admin() {
       <main className="mx-auto max-w-5xl px-4 py-6">
         <div className="mb-5">
           <Tabs<Pestana>
-            opciones={[
-              { id: 'torneos', label: 'Torneos' }, { id: 'fechas', label: 'Armar fecha' }, { id: 'calendario', label: 'Partidos' },
-              { id: 'estadisticas', label: 'Estadísticas' }, { id: 'jugadores', label: 'Jugadores' }, { id: 'categorias', label: 'Categorías' }, { id: 'ascensos', label: 'Ascensos' },
-            ]}
+            opciones={PESTANAS.filter((x) => !editor || !x.soloAdmin).map(({ id, label }) => ({ id, label }))}
             valor={pestana}
             // sube lo pendiente antes de cambiar; "Torneos" también cierra el torneo abierto y vuelve a la lista
             onChange={async (p) => { await vaciar(); abrir(null); window.location.hash = RUTAS[p] }}
@@ -104,5 +115,6 @@ export default function Admin() {
       </main>
       <PieFijo />
     </div>
+    </ProveedorRol>
   )
 }

@@ -54,7 +54,7 @@ export function useRuta() {
 export default function App() {
   const ruta = useRuta()
   const admin = ruta.startsWith('#/admin')
-  useEffect(() => { document.title = admin ? 'Torneos · NODO · Admin' : 'Torneos · NODO' }, [admin])
+  useEffect(() => { document.title = admin ? 'Torneos · NODO · Panel' : 'Torneos · NODO' }, [admin])
 
   if (!configurado) {
     return (
@@ -78,7 +78,7 @@ export default function App() {
           <div className="flex shrink-0 items-center gap-2">
           <BotonAyuda secciones={AYUDA_PUBLICA} actual={pestanaPublica} titulo="Ayuda · Cómo usar la página" />
           <a href="#/admin" className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/80 ring-1 ring-white/25 hover:bg-white/10 hover:text-white">
-            <Lock className="h-4 w-4" aria-hidden /> Admin
+            <Lock className="h-4 w-4" aria-hidden /> Ingresar
           </a>
           </div>
         </div>

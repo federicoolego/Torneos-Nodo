@@ -7,10 +7,13 @@ import { Alerta, Badge, Button, Input, MultiSelect, Spinner, Titulo, Vacio } fro
 import ImportarTorneos from '../components/ImportarTorneos'
 import { BadgeCategoria, bordeCategoria } from '../components/Categoria'
 import { GruposEstado } from '../components/GruposEstado'
+import { useEsEditor } from '../lib/rol'
 
 const ANIO_ACTUAL = String(new Date().getFullYear())
 
 export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => void; onNuevo: () => void }) {
+  // el Editor abre torneos para inscribir parejas y cargar resultados: no crea, importa, duplica ni elimina
+  const editor = useEsEditor()
   const [lista, setLista] = useState<ResumenTorneo[] | null>(null)
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'error'; txt: string } | null>(null)
   const [ocupado, setOcupado] = useState(false)
@@ -43,10 +46,10 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
     try {
       const l = await listar()
       setLista(l)
-      // torneos anteriores a "hasta dónde llegó cada pareja": se calcula una vez, en segundo plano
-      completarAlcances(l).then(async (n) => { if (n) setLista(await listar()) }).catch(() => {})
+      // torneos anteriores a "hasta dónde llegó cada pareja": se calcula una vez, en segundo plano (lo hace el admin)
+      if (!editor) completarAlcances(l).then(async (n) => { if (n) setLista(await listar()) }).catch(() => {})
     } catch (e) { setLista([]); setMsg({ tipo: 'error', txt: `No se pudo leer la base: ${e instanceof Error ? e.message : e}` }) }
-  }, [])
+  }, [editor])
   useEffect(() => { void refrescar() }, [refrescar])
 
   /** Corre una acción mostrando el error si falla */
@@ -68,17 +71,21 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
 
   return (
     <>
-      <Titulo bajada="Cada torneo (una categoría) se arma por separado. Todo queda guardado en la base de datos. El cronograma de todos los torneos en juego (PDF y carga de resultados) está en la pestaña Partidos, y los rankings, en Estadísticas." accion={
-        <div className="flex flex-wrap gap-2">
-          <ImportarTorneos
-            onImportado={async (txt) => { await refrescar(); setMsg({ tipo: 'ok', txt }) }}
-            onError={(txt) => setMsg({ tipo: 'error', txt })} />
-          <Button onClick={nueva} cargando={ocupado}><Plus className="h-4 w-4" aria-hidden /> Nuevo torneo</Button>
-        </div>
+      <Titulo bajada={editor
+        ? 'Abrí un torneo para inscribir parejas (paso Parejas) y cargar resultados (paso Partidos). También podés cargar resultados desde la pestaña Partidos.'
+        : 'Cada torneo (una categoría) se arma por separado. Todo queda guardado en la base de datos. El cronograma de todos los torneos en juego (PDF y carga de resultados) está en la pestaña Partidos, y los rankings, en Estadísticas.'} accion={
+        editor ? undefined : (
+          <div className="flex flex-wrap gap-2">
+            <ImportarTorneos
+              onImportado={async (txt) => { await refrescar(); setMsg({ tipo: 'ok', txt }) }}
+              onError={(txt) => setMsg({ tipo: 'error', txt })} />
+            <Button onClick={nueva} cargando={ocupado}><Plus className="h-4 w-4" aria-hidden /> Nuevo torneo</Button>
+          </div>
+        )
       }>
         Torneos
       </Titulo>
-      {locales > 0 && (
+      {!editor && locales > 0 && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-cancha-suave p-4 ring-1 ring-cancha/20">
           <p className="text-sm text-noche/80">En este navegador quedaron <strong>{locales} torneo(s)</strong> de la versión anterior (sin base de datos).</p>
           <Button onClick={subirLocales} cargando={ocupado}><CloudUpload className="h-4 w-4" aria-hidden /> Subirlos a la base</Button>
@@ -105,9 +112,10 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
       )}
       {hayFiltros && !!lista?.length && <p className="-mt-2 mb-3 text-xs text-noche/55">{visibles.length} de {lista.length} torneos</p>}
       {lista === null ? <Spinner texto="Cargando torneos…" /> : lista.length === 0 ? (
+        editor ? <Vacio titulo="Todavía no hay torneos">Cuando el administrador cree un torneo, lo vas a ver acá para inscribir parejas y cargar resultados.</Vacio> : (
         <Vacio titulo="Todavía no armaste ningún torneo" accion={<Button onClick={nueva}><Plus className="h-4 w-4" aria-hidden /> Nuevo torneo</Button>}>
           Cargás el torneo, las parejas, armás las zonas y el playoff, generás las imágenes para WhatsApp y cargás los resultados.
-        </Vacio>
+        </Vacio>)
       ) : visibles.length === 0 ? (
         <Vacio titulo="No hay torneos con esos filtros">
           <button className="font-semibold text-cancha" onClick={() => { setTexto(''); setCategoria([]); setEstado([]); setAnio([]); setMes([]); setPublicacion([]) }}>Limpiar filtros</button>
@@ -128,15 +136,19 @@ export default function Inicio({ onAbrir, onNuevo }: { onAbrir: (id: string) => 
                   {new Date(c.actualizado).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}
                 </p>
               </button>
-              <button title="Duplicar (por ejemplo, para otra categoría)" aria-label="Duplicar" className="p-2 text-noche/50 hover:text-cancha" disabled={ocupado}
-                onClick={() => accion(async () => { await duplicar(c.id); await refrescar() })}>
-                <Copy className="h-4 w-4" />
-              </button>
-              <button aria-label="Eliminar" className="p-2 text-noche/50 hover:text-red" disabled={ocupado}
-                onClick={() => confirm(`¿Eliminar ${c.torneo || 'este torneo'}? Se borra de la base con sus parejas y resultados.`) &&
-                  accion(async () => { await eliminar(c.id); await refrescar() })}>
-                <Trash2 className="h-4 w-4" />
-              </button>
+              {!editor && (
+                <>
+                  <button title="Duplicar (por ejemplo, para otra categoría)" aria-label="Duplicar" className="p-2 text-noche/50 hover:text-cancha" disabled={ocupado}
+                    onClick={() => accion(async () => { await duplicar(c.id); await refrescar() })}>
+                    <Copy className="h-4 w-4" />
+                  </button>
+                  <button aria-label="Eliminar" className="p-2 text-noche/50 hover:text-red" disabled={ocupado}
+                    onClick={() => confirm(`¿Eliminar ${c.torneo || 'este torneo'}? Se borra de la base con sus parejas y resultados.`) &&
+                      accion(async () => { await eliminar(c.id); await refrescar() })}>
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </>
+              )}
             </li>
           )} />
       )}

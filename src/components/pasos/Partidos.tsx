@@ -7,6 +7,7 @@ import { logoUrl } from '../../App'
 import { Alerta, Button, Card } from '../ui'
 import { SelectorFormato } from '../Formato'
 import { EditorHorario } from '../Horarios'
+import { useEsEditor } from '../../lib/rol'
 
 // Colores del documento (los de la marca del complejo)
 const COLORES = { oscuro: '#042D29', acento: '#C8DC3C', suave: '#F2F6F4' }
@@ -190,6 +191,7 @@ export function CargaPartido({ p, horario, onGuardar, onHorario, desde, hasta }:
   /** fechas del torneo */
   desde?: string; hasta?: string
 }) {
+  const editor = useEsEditor()
   const [editando, setEditando] = useState(false)
   const [reprogramando, setReprogramando] = useState(false)
   const jugado = p.estado === 'jugado' || (p.estado === 'invalido' && !!p.resultado)
@@ -224,7 +226,7 @@ export function CargaPartido({ p, horario, onGuardar, onHorario, desde, hasta }:
         <span className="font-semibold text-cancha">{p.titulo}</span>
         <span className="flex items-center gap-2">
           {textoHorario(horario, true)}
-          {!jugado && !editando && (
+          {!editor && !jugado && !editando && (
             <button onClick={() => setReprogramando(!reprogramando)} title="Reprogramar" aria-label="Reprogramar"
               className={`rounded p-0.5 hover:bg-cancha-suave ${reprogramando ? 'text-cancha' : 'text-noche/45'}`}>
               <CalendarClock className="h-3.5 w-3.5" />
@@ -232,7 +234,7 @@ export function CargaPartido({ p, horario, onGuardar, onHorario, desde, hasta }:
           )}
         </span>
       </div>
-      {reprogramando && !jugado && (
+      {!editor && reprogramando && !jugado && (
         <div className="mb-2 space-y-1 rounded-md bg-vidrio p-2">
           <p className="text-[11px] font-semibold text-noche/60">Reprogramar (mismos rivales, fecha y hora futuras)</p>
           <EditorHorario valor={horario} onChange={onHorario} desde={desde} hasta={hasta} />

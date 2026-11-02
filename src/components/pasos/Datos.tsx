@@ -8,6 +8,7 @@ import { EditorDisponibilidad } from '../Disponibilidad'
 import { Alerta, Button, Card, Field, Input, Select, Textarea } from '../ui'
 import { FormatosPorInstancia } from '../Formato'
 import SelectorJugador from '../SelectorJugador'
+import { useEsEditor } from '../../lib/rol'
 import { asignarCategoria, listarBase } from '../../lib/jugadores'
 import { CATEGORIAS_JUGADOR, aptitudPareja, esCategoriaJugador, rama, reglaDelTorneo, textoRegla, type Aptitud, type CategoriaJugador } from '../../lib/categorias'
 import { BadgeCategoriaJugador } from '../Categoria'
@@ -62,6 +63,8 @@ export function PasoDatos({ cat, cambiar }: Props) {
 }
 
 export function PasoParejas({ cat, cambiar }: Props) {
+  // el Editor inscribe y corrige parejas, pero no las quita ni cambia la categoría de los jugadores
+  const editor = useEsEditor()
   const vacio: { j1: string; j2: string; horario: string; disp?: Disponibilidad } = { j1: '', j2: '', horario: '' }
   const dias = diasEntre(cat.fechaInicio, cat.fechaFin)
   // padrón de jugadores de la base + los de este torneo (los nuevos se dan de alta al guardar)
@@ -165,11 +168,11 @@ export function PasoParejas({ cat, cambiar }: Props) {
           <Field label="Jugador 1 *">
             <SelectorJugador id="jugador1" valor={form.j1} onChange={(v) => setForm((f) => ({ ...f, j1: v }))} padron={padron} excluir={form.j2} disabled={lleno} />
           </Field>
-          {conCategoria && <CategoriaDelJugador nombre={form.j1} enPadron={fichas.has(claveJugador(form.j1))} categoria={categoriaDe(form.j1)} onAsignar={(v) => void asignar(form.j1, v)} />}
+          {conCategoria && <CategoriaDelJugador nombre={form.j1} enPadron={fichas.has(claveJugador(form.j1))} categoria={categoriaDe(form.j1)} onAsignar={(v) => void asignar(form.j1, v)} soloLectura={editor} />}
           <Field label="Jugador 2 *">
             <SelectorJugador valor={form.j2} onChange={(v) => setForm((f) => ({ ...f, j2: v }))} padron={padron} excluir={form.j1} disabled={lleno} />
           </Field>
-          {conCategoria && <CategoriaDelJugador nombre={form.j2} enPadron={fichas.has(claveJugador(form.j2))} categoria={categoriaDe(form.j2)} onAsignar={(v) => void asignar(form.j2, v)} />}
+          {conCategoria && <CategoriaDelJugador nombre={form.j2} enPadron={fichas.has(claveJugador(form.j2))} categoria={categoriaDe(form.j2)} onAsignar={(v) => void asignar(form.j2, v)} soloLectura={editor} />}
           {(() => { const a = aptitud(form.j1, form.j2); return a ? <AvisoAptitud aptitud={a} /> : null })()}
           {errorCategoria && <Alerta tipo="error">{errorCategoria}</Alerta>}
           {!lleno && (
@@ -226,7 +229,7 @@ export function PasoParejas({ cat, cambiar }: Props) {
                   {textoPareja(p, dias) && <ProblemaHorario texto={textoPareja(p, dias)} />}
                 </div>
                 <button onClick={() => editar(p)} aria-label={`Editar ${p.nombre}`} className="p-1 text-noche/45 hover:text-cancha"><Pencil className="h-3.5 w-3.5" /></button>
-                <button onClick={() => quitar(p.id)} disabled={fija(p.id)} title={fija(p.id) ? 'Su zona ya tiene resultados' : undefined} aria-label={`Quitar ${p.nombre}`} className="p-1 text-noche/45 hover:text-red disabled:opacity-25"><Trash2 className="h-3.5 w-3.5" /></button>
+                {!editor && <button onClick={() => quitar(p.id)} disabled={fija(p.id)} title={fija(p.id) ? 'Su zona ya tiene resultados' : undefined} aria-label={`Quitar ${p.nombre}`} className="p-1 text-noche/45 hover:text-red disabled:opacity-25"><Trash2 className="h-3.5 w-3.5" /></button>}
               </li>
             ))}
           </ol>
@@ -237,9 +240,10 @@ export function PasoParejas({ cat, cambiar }: Props) {
 }
 
 /** Categoría del jugador elegido; si está en el padrón sin categoría, se puede asignar desde acá */
-function CategoriaDelJugador({ nombre, enPadron, categoria, onAsignar }: { nombre: string; enPadron: boolean; categoria: CategoriaJugador | null; onAsignar: (v: string) => void }) {
+function CategoriaDelJugador({ nombre, enPadron, categoria, onAsignar, soloLectura = false }: { nombre: string; enPadron: boolean; categoria: CategoriaJugador | null; onAsignar: (v: string) => void; soloLectura?: boolean }) {
   if (nombre.trim().length < 3) return null
-  if (!enPadron) return <p className="-mt-2 text-xs text-noche/55">Jugador nuevo: después asignale la categoría en la pestaña Categorías.</p>
+  if (!enPadron) return <p className="-mt-2 text-xs text-noche/55">Jugador nuevo: {soloLectura ? 'el administrador le asigna la categoría.' : 'después asignale la categoría en la pestaña Categorías.'}</p>
+  if (soloLectura && !categoria) return <p className="-mt-2 text-xs text-noche/55">Categoría: sin asignar (la asigna el administrador).</p>
   return (
     <div className="-mt-2 flex flex-wrap items-center gap-2 text-xs text-noche/65">
       <span>Categoría:</span>

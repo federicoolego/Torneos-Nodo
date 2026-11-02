@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { ingresar } from '../lib/auth'
+import { ingresar, type Rol } from '../lib/auth'
 import { Alerta, Button, Field, Input } from '../components/ui'
 import { Firma, logoUrl } from '../App'
 
-export default function Login({ onOk }: { onOk: () => void }) {
+export default function Login({ onOk }: { onOk: (rol: Rol) => void }) {
   const [usuario, setUsuario] = useState('')
   const [pass, setPass] = useState('')
   const [error, setError] = useState('')
@@ -16,9 +16,9 @@ export default function Login({ onOk }: { onOk: () => void }) {
     setCargando(true)
     // espera creciente ante intentos fallidos
     if (intentos > 2) await new Promise((r) => setTimeout(r, Math.min(8000, 1000 * (intentos - 2))))
-    const ok = await ingresar(usuario, pass)
+    const rol = await ingresar(usuario, pass)
     setCargando(false)
-    if (ok) return onOk()
+    if (rol) return onOk(rol)
     setIntentos(intentos + 1)
     setError('Usuario o contraseña incorrectos')
   }

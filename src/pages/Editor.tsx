@@ -11,17 +11,22 @@ import { PasoDatos, PasoParejas } from '../components/pasos/Datos'
 import PasoZonas from '../components/pasos/Zonas'
 import PasoPlayoff from '../components/pasos/Playoff'
 import PasoPartidos from '../components/pasos/Partidos'
+import { useEsEditor } from '../lib/rol'
 
 // Imágenes va última y separada a la derecha
 const PASOS = ['Torneo', 'Parejas', 'Zonas', 'Playoff', 'Partidos', 'Imágenes'] as const
+/** El Editor solo ve estos pasos: inscribir parejas y cargar resultados */
+const PASOS_EDITOR = [1, 4]
 
 /** `inicial`: torneo nuevo, todavía no guardado. Se crea en la base recién cuando se completan los datos obligatorios */
 export default function Editor({ id, inicial, onVolver }: { id: string; inicial?: Categoria; onVolver: () => void }) {
+  const editor = useEsEditor()
   const [cat, setCat] = useState<Categoria | null>(inicial ?? null)
   // false mientras el torneo nuevo no tenga nombre y fechas: no se manda nada a la base
   const persistido = useRef(!inicial)
   const [errorCarga, setErrorCarga] = useState('')
-  const [paso, setPaso] = useState(0)
+  const visibles = editor ? PASOS_EDITOR : PASOS.map((_, i) => i)
+  const [paso, setPaso] = useState(visibles[0])
   const [compartir, setCompartir] = useState(false)
   const guardado = useEstadoGuardado()
 
@@ -30,8 +35,9 @@ export default function Editor({ id, inicial, onVolver }: { id: string; inicial?
     cargar(id)
       .then((c) => {
         if (!c) return setErrorCarga('No se encontró el torneo (puede que lo hayan eliminado).')
-        // completa lo que falte en los partidos sin jugar (día del torneo de un solo día, complejo por defecto)
-        const c2 = precargarHorarios(c)
+        // completa lo que falte en los partidos sin jugar (día del torneo de un solo día, complejo por defecto).
+        // El Editor no toca horarios: lo hace el admin
+        const c2 = editor ? c : precargarHorarios(c)
         setCat(c2)
         if (c2 !== c) guardar({ ...c2, actualizado: Date.now() })
       })
@@ -51,14 +57,14 @@ export default function Editor({ id, inicial, onVolver }: { id: string; inicial?
       const n = f(c)
       // si cambia la forma de las zonas (cantidad o tamaños), el cuadro de playoff ya no sirve
       const n2 = firmaZonas(n.zonas) !== firmaZonas(c.zonas) ? { ...n, cuadro: null } : n
-      const final = { ...precargarHorarios(n2), actualizado: Date.now() }
+      const final = { ...(editor ? n2 : precargarHorarios(n2)), actualizado: Date.now() }
       if (persistido.current || datosCompletos(final)) {
         persistido.current = true
         guardar(final)
       }
       return final
     })
-  }, [])
+  }, [editor])
 
   /** Sube lo pendiente y vuelve a leer el torneo (para ver lo que cargaron otros) */
   const recargar = useCallback(async () => {
@@ -76,7 +82,7 @@ export default function Editor({ id, inicial, onVolver }: { id: string; inicial?
   const zonasListas = !!cat && zonasArmadas(cat)
   useEffect(() => {
     // se sugiere si no está publicado o si está publicado "solo info" (para pasar a mostrar zonas y partidos)
-    if (!cat || !zonasListas || (cat.publicado && !cat.soloInfo) || !persistido.current) return
+    if (editor || !cat || !zonasListas || (cat.publicado && !cat.soloInfo) || !persistido.current) return
     try { if (localStorage.getItem(claveSugerencia)) return } catch { /* nada */ }
     setSugerirPublicar(true)
   }, [zonasListas]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -141,17 +147,17 @@ export default function Editor({ id, inicial, onVolver }: { id: string; inicial?
       <p className="mt-1 text-sm text-noche/60">
         {[cat.categoria, rangoFechas(cat.fechaInicio, cat.fechaFin), `${cat.parejas.length} parejas`].filter(Boolean).join(' · ')}
       </p>
-      {persistido.current && <Publicacion cat={cat} cambiar={cambiar} />}
+      {persistido.current && !editor && <Publicacion cat={cat} cambiar={cambiar} />}
       <div className="mb-5" />
 
       <nav className="mb-6 flex gap-1 overflow-x-auto rounded-xl bg-white p-1 ring-1 ring-noche/10" aria-label="Pasos">
-        {PASOS.map((t, i) => (
-          <button key={t} onClick={() => habilitado(i) && setPaso(i)} disabled={!habilitado(i)} aria-current={paso === i ? 'step' : undefined}
+        {visibles.map((i) => (
+          <button key={PASOS[i]} onClick={() => habilitado(i) && setPaso(i)} disabled={!habilitado(i)} aria-current={paso === i ? 'step' : undefined}
             className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-35 ${i === PASOS.length - 1 ? 'ml-auto' : ''} ${paso === i ? 'bg-noche text-white' : 'text-noche/70 hover:bg-vidrio'}`}>
             <span className={`grid h-5 w-5 place-items-center rounded-full text-[11px] ${estado.ok[i] ? 'bg-pelota text-noche' : paso === i ? 'bg-white/20' : 'bg-noche/10'}`}>
-              {estado.ok[i] ? <Check className="h-3 w-3" /> : i + 1}
+              {estado.ok[i] ? <Check className="h-3 w-3" /> : editor ? visibles.indexOf(i) + 1 : i + 1}
             </span>
-            {t}
+            {PASOS[i]}
           </button>
         ))}
       </nav>
@@ -164,14 +170,14 @@ export default function Editor({ id, inicial, onVolver }: { id: string; inicial?
       {paso === 5 && <Compartir cat={cat} avisos={estado.avisos} />}
 
       <div className="mt-8 flex justify-between gap-3">
-        <Button variante="secundario" onClick={() => setPaso(paso - 1)} disabled={paso === 0}><ArrowLeft className="h-4 w-4" aria-hidden /> Anterior</Button>
-        {paso < PASOS.length - 1 && (
-          <Button onClick={() => setPaso(paso + 1)} disabled={!habilitado(paso + 1)}>Siguiente <ArrowRight className="h-4 w-4" aria-hidden /></Button>
+        <Button variante="secundario" onClick={() => setPaso(visibles[visibles.indexOf(paso) - 1])} disabled={visibles.indexOf(paso) <= 0}><ArrowLeft className="h-4 w-4" aria-hidden /> Anterior</Button>
+        {visibles.indexOf(paso) < visibles.length - 1 && (
+          <Button onClick={() => setPaso(visibles[visibles.indexOf(paso) + 1])} disabled={!habilitado(visibles[visibles.indexOf(paso) + 1])}>Siguiente <ArrowRight className="h-4 w-4" aria-hidden /></Button>
         )}
       </div>
 
-      {/* Botón flotante: generar y compartir las imágenes */}
-      <button
+      {/* Botón flotante: generar y compartir las imágenes (solo admin) */}
+      {!editor && <button
         onClick={() => setCompartir(true)}
         disabled={!estado.listo[2]}
         title={estado.listo[2] ? 'Generar y compartir imágenes' : 'Armá las zonas para generar las imágenes'}
@@ -180,7 +186,7 @@ export default function Editor({ id, inicial, onVolver }: { id: string; inicial?
         style={{ bottom: `calc(max(1.5rem, env(safe-area-inset-bottom)) + ${ALTO_PIE})` }}
       >
         <Share2 className="h-7 w-7" />
-      </button>
+      </button>}
       <Modal abierto={sugerirPublicar} titulo={cat.publicado ? '¿Mostramos las zonas y los partidos?' : '¿Publicamos el torneo?'} onCerrar={cerrarSugerencia}>
         <p className="text-sm text-noche/75">
           {cat.publicado
